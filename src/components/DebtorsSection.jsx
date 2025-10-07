@@ -54,3 +54,5 @@ const DebtorsSection = ({ repartos, formatCurrency }) => {
 };
 
 export default DebtorsSection;
+
+

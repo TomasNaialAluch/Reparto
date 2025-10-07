@@ -103,3 +103,5 @@ const Notification = ({ message, type = 'info', duration = 3000, onClose }) => {
 };
 
 export default Notification;
+
+
