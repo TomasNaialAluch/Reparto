@@ -1,9 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { useFirebase } from '../contexts/FirebaseContext';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, auth } = useFirebase();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      console.log('✅ Usuario deslogueado');
+    } catch (error) {
+      console.error('❌ Error al cerrar sesión:', error);
+    }
+  };
 
   const menuItems = [
     { path: '/', label: 'Inicio' },
@@ -78,32 +90,51 @@ const Navbar = () => {
 
       {/* Navbar - Estilo original */}
       <nav className="navbar navbar-expand-lg no-print" style={{ backgroundColor: '#A9D6E5' }}>
-        <div className="container">
-          <button 
-            className="hamburger-btn me-2" 
-            type="button" 
-            onClick={() => setIsMenuOpen(true)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              padding: '0.5rem'
-            }}
-            aria-controls="offcanvasMenu"
-          >
-            <span 
-              className="navbar-toggler-icon"
+        <div className="container d-flex justify-content-between align-items-center">
+          <div className="d-flex align-items-center">
+            <button 
+              className="hamburger-btn me-2" 
+              type="button" 
+              onClick={() => setIsMenuOpen(true)}
               style={{
-                width: '30px',
-                height: '30px',
-                backgroundSize: 'contain',
-                backgroundRepeat: 'no-repeat',
-                backgroundImage: `url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(255,255,255,1)' stroke-width='2' stroke-linecap='round' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E")`
+                border: 'none',
+                background: 'transparent',
+                padding: '0.5rem'
               }}
-            ></span>
-          </button>
-          <Link className="navbar-brand" to="#" style={{ color: '#fff', fontWeight: '700' }}>
-            Mi Reparto
-          </Link>
+              aria-controls="offcanvasMenu"
+            >
+              <span 
+                className="navbar-toggler-icon"
+                style={{
+                  width: '30px',
+                  height: '30px',
+                  backgroundSize: 'contain',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundImage: `url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(255,255,255,1)' stroke-width='2' stroke-linecap='round' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E")`
+                }}
+              ></span>
+            </button>
+            <Link className="navbar-brand" to="#" style={{ color: '#fff', fontWeight: '700' }}>
+              Mi Reparto
+            </Link>
+          </div>
+          
+          {/* Información del usuario y logout */}
+          {user && (
+            <div className="d-flex align-items-center gap-3">
+              <span className="text-white">
+                <i className="fas fa-user me-1"></i>
+                {user.displayName || user.email}
+              </span>
+              <button 
+                className="btn btn-outline-light btn-sm"
+                onClick={handleLogout}
+                title="Cerrar sesión"
+              >
+                <i className="fas fa-sign-out-alt"></i>
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 

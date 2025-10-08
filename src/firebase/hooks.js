@@ -5,6 +5,7 @@ import {
   addDoc, 
   getDocs, 
   doc, 
+  setDoc,
   updateDoc, 
   deleteDoc, 
   query, 
@@ -21,16 +22,57 @@ export const useFirestore = (collectionName) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Función para agregar documento
-  const addDocument = async (data) => {
+  console.log(`🔄 useFirestore inicializado para colección: ${collectionName}`);
+
+  // Función para generar ID basado en fecha
+  const generateDateBasedId = async (date) => {
+    // Formatear fecha como DDMMYYYY
+    const dateStr = date.replace(/-/g, '');
+    const day = dateStr.slice(6, 8);
+    const month = dateStr.slice(4, 6);
+    const year = dateStr.slice(0, 4);
+    const baseId = `${day}${month}${year}`;
+    
+    // Buscar documentos que empiecen con esta fecha
+    const q = query(
+      collection(db, collectionName),
+      where('__name__', '>=', baseId),
+      where('__name__', '<', baseId + 'z'), // 'z' es el último carácter ASCII
+      orderBy('__name__', 'desc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const existingIds = querySnapshot.docs.map(doc => doc.id);
+    
+    // Encontrar el siguiente número secuencial
+    let counter = 1;
+    let newId = baseId;
+    
+    while (existingIds.includes(newId)) {
+      newId = baseId + counter;
+      counter++;
+    }
+    
+    return newId;
+  };
+
+  // Función para agregar documento (usa ID automático por defecto)
+  const addDocument = async (data, customId = null) => {
     try {
-      const docRef = await addDoc(collection(db, collectionName), {
-        ...data,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      return docRef.id;
+      console.log(`📝 Intentando agregar documento a colección: ${collectionName}`, data);
+      
+      if (customId) {
+        const customRef = doc(db, collectionName, customId);
+        await setDoc(customRef, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+        console.log(`✅ Documento agregado con ID personalizado: ${customId}`);
+        return customId;
+      }
+
+      const ref = await addDoc(collection(db, collectionName), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      console.log(`✅ Documento agregado exitosamente con ID: ${ref.id}`);
+      return ref.id;
     } catch (error) {
+      console.error(`❌ Error al agregar documento a ${collectionName}:`, error);
       setError(error.message);
       throw error;
     }
@@ -59,22 +101,52 @@ export const useFirestore = (collectionName) => {
     }
   };
 
-  // Función para obtener documentos con filtro
+  // Función para obtener documentos con filtro (simplificada)
   const getDocumentsByField = async (field, value) => {
     try {
-      const q = query(
-        collection(db, collectionName),
-        where(field, '==', value),
-        orderBy('createdAt', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
+      // Consulta simple sin orderBy para evitar índices
+      const collectionRef = collection(db, collectionName);
+      const querySnapshot = await getDocs(collectionRef);
+      
       const docs = [];
       querySnapshot.forEach((doc) => {
-        docs.push({
-          id: doc.id,
-          ...doc.data()
-        });
+        const data = doc.data();
+        if (data[field] === value) {
+          docs.push({
+            id: doc.id,
+            ...data
+          });
+        }
       });
+      
+      // Ordenar localmente por createdAt si existe
+      docs.sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
+      
+      return docs;
+    } catch (error) {
+      setError(error.message);
+      throw error;
+    }
+  };
+
+  // Compatibilidad: buscar por fecha (orden local)
+  const getDocumentsByDateId = async (date) => {
+    try {
+      const collectionRef = collection(db, collectionName);
+      const querySnapshot = await getDocs(collectionRef);
+      const docs = [];
+      querySnapshot.forEach((d) => {
+        const data = d.data();
+        if (data.date === date) {
+          docs.push({ id: d.id, ...data });
+        }
+      });
+      docs.sort((a, b) => (a.createdAt && b.createdAt) ? (b.createdAt.toDate() - a.createdAt.toDate()) : 0);
       return docs;
     } catch (error) {
       setError(error.message);
@@ -89,50 +161,86 @@ export const useFirestore = (collectionName) => {
     addDocument,
     updateDocument,
     deleteDocument,
-    getDocumentsByField
+    getDocumentsByField,
+    getDocumentsByDateId,
+    generateDateBasedId
   };
 };
 
-// Hook para escuchar cambios en tiempo real
-export const useFirestoreRealtime = (collectionName, orderField = 'createdAt') => {
+// Hook para escuchar cambios en tiempo real (sin orderBy para evitar índices)
+export const useFirestoreRealtime = (collectionName) => {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, collectionName), orderBy(orderField, 'desc'));
+    console.log(`🔄 Iniciando listener para colección: ${collectionName}`);
     
-    const unsubscribe = onSnapshot(q, 
-      (querySnapshot) => {
-        const docs = [];
-        querySnapshot.forEach((doc) => {
-          docs.push({
-            id: doc.id,
-            ...doc.data()
+    try {
+      // Consulta simple sin orderBy para evitar necesidad de índices
+      const collectionRef = collection(db, collectionName);
+      
+      const unsubscribe = onSnapshot(collectionRef, 
+        (querySnapshot) => {
+          console.log(`📦 Snapshot recibido para ${collectionName}:`, querySnapshot.docs.length, 'documentos');
+          const docs = [];
+          querySnapshot.forEach((doc) => {
+            docs.push({
+              id: doc.id,
+              ...doc.data()
+            });
           });
-        });
-        setDocuments(docs);
-        setLoading(false);
-      },
-      (error) => {
-        setError(error.message);
-        setLoading(false);
-      }
-    );
+          
+          // Ordenar localmente por createdAt si existe
+          docs.sort((a, b) => {
+            if (a.createdAt && b.createdAt) {
+              return b.createdAt.toDate() - a.createdAt.toDate();
+            }
+            return 0;
+          });
+          
+          setDocuments(docs);
+          setLoading(false);
+          setError(null);
+        },
+        (error) => {
+          console.error(`❌ Error en listener de ${collectionName}:`, error);
+          setError(error.message);
+          setLoading(false);
+        }
+      );
 
-    return () => unsubscribe();
-  }, [collectionName, orderField]);
+      return () => {
+        console.log(`🛑 Desconectando listener de ${collectionName}`);
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error(`❌ Error al configurar listener de ${collectionName}:`, error);
+      setError(error.message);
+      setLoading(false);
+    }
+  }, [collectionName]);
 
   return { documents, loading, error };
 };
 
 // Hook específico para repartos
 export const useRepartos = () => {
-  const { documents, loading, error, addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('repartos');
+  const { documents, loading, error, addDocument, updateDocument, deleteDocument, getDocumentsByField, getDocumentsByDateId } = useFirestore('repartos');
 
   const addReparto = async (clientData) => {
     try {
-      // Validar datos antes de agregar
+      // Si es un reparto con múltiples clientes (card)
+      if (clientData.clients && Array.isArray(clientData.clients)) {
+        return await addDocument({
+          date: clientData.date || new Date().toISOString().split('T')[0],
+          clients: clientData.clients,
+          isCardReparto: clientData.isCardReparto || false,
+          createdAt: clientData.createdAt || new Date().toISOString()
+        });
+      }
+      
+      // Si es un cliente individual (formato original)
       if (!clientData.clientName?.trim()) {
         throw new Error('El nombre del cliente es requerido');
       }
@@ -146,7 +254,8 @@ export const useRepartos = () => {
         address: clientData.address || '',
         paymentStatus: clientData.paymentStatus || 'pending',
         paymentAmount: clientData.paymentAmount || 0,
-        date: clientData.date || new Date().toISOString().split('T')[0]
+        date: clientData.date || new Date().toISOString().split('T')[0],
+        isCardReparto: clientData.isCardReparto || false
       });
     } catch (error) {
       console.error('Error en addReparto:', error);
@@ -173,7 +282,8 @@ export const useRepartos = () => {
 
   const getRepartosByDate = async (date) => {
     try {
-      return await getDocumentsByField('date', date);
+      // Usar búsqueda por ID basado en fecha (más eficiente)
+      return await getDocumentsByDateId(date);
     } catch (error) {
       console.error('Error en getRepartosByDate:', error);
       throw error;

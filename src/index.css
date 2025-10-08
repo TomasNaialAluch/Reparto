@@ -328,3 +328,105 @@ table tbody tr:hover {
     font-weight: bold;
   }
 }
+
+/* Estilos de impresión específicos para SaldoClientes */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+  
+  body, html {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .container {
+    margin: 0 auto !important;
+    padding: 0 !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  .printable, .printable * {
+    visibility: visible;
+  }
+  
+  .printable {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 600px;
+    padding: 0.5rem;
+    background-color: white;
+    border-radius: 12px;
+  }
+  
+  .printable .card {
+    background-color: white !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 12px !important;
+    padding: 0.5rem !important;
+  }
+  
+  .print-header {
+    font-size: 24pt;
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  
+  .print-small {
+    font-size: 10pt;
+    margin: 0;
+    line-height: 1.2;
+  }
+  
+  .print-message {
+    font-size: 18pt !important;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .print-subtotal {
+    font-size: 14pt;
+    margin-top: 1rem;
+  }
+  
+  .printable h1 {
+    font-size: 24pt;
+    text-align: center;
+    margin-bottom: 1rem;
+    font-weight: bold;
+  }
+  
+  .printable h3 {
+    font-size: 18pt;
+    text-align: center;
+    font-weight: bold;
+  }
+  
+  .printable p {
+    font-size: 10pt;
+    margin: 0;
+    line-height: 1.2;
+  }
+  
+  .printable strong {
+    font-weight: bold;
+  }
+  
+  /* Formato de moneda argentina */
+  .printable {
+    font-family: 'Montserrat', sans-serif;
+  }
+}

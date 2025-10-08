@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useClientBalances } from '../firebase/hooks';
+import ClienteDeudorCard from '../components/ClienteDeudorCard';
+import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 
 const SaldoClientes = () => {
   const [clientName, setClientName] = useState('');
@@ -13,29 +16,115 @@ const SaldoClientes = () => {
   const [cheques, setCheques] = useState([]);
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [transferencias, setTransferencias] = useState([]);
-  const [summary, setSummary] = useState('');
+  const [summaryData, setSummaryData] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
 
-  // Función para formatear números a moneda argentina
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency: 'ARS',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value);
+  // Firebase hooks
+  const { balances, loading, error, addClientBalance } = useClientBalances();
+
+  // Estados para las cards de clientes guardados
+  const [savedClientes, setSavedClientes] = useState([]);
+  
+  // Estados para filtros de fecha
+  const [dateFilter, setDateFilter] = useState('hoy');
+  const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+
+  // Función para filtrar clientes por fecha
+  const getFilteredClientes = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    let filtered = [];
+    
+    switch (dateFilter) {
+      case 'hoy':
+        filtered = savedClientes.filter(cliente => cliente.fecha === todayStr);
+        break;
+      case 'semana':
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        const weekStartStr = weekStart.toISOString().split('T')[0];
+        const weekEndStr = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        filtered = savedClientes.filter(cliente => 
+          cliente.fecha >= weekStartStr && cliente.fecha <= weekEndStr
+        );
+        break;
+      case 'mes':
+        const currentMonth = today.toISOString().slice(0, 7);
+        filtered = savedClientes.filter(cliente => cliente.fecha.startsWith(currentMonth));
+        break;
+      case 'año':
+        const currentYear = today.getFullYear().toString();
+        filtered = savedClientes.filter(cliente => cliente.fecha.startsWith(currentYear));
+        break;
+      case 'elegir_mes':
+        filtered = savedClientes.filter(cliente => cliente.fecha.startsWith(customMonth));
+        break;
+      case 'todos':
+        filtered = savedClientes;
+        break;
+      default:
+        filtered = savedClientes;
+    }
+    
+    return filtered;
   };
 
-  // Función para parsear el valor formateado a número
-  const parseCurrencyValue = (value) => {
-    return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+  // Guardar el cliente actual como card
+  const saveCurrentCliente = async () => {
+    if (clientName.trim() && summaryData) {
+      try {
+        const clienteData = {
+          id: `cliente_${Date.now()}`,
+          nombreCliente: clientName.trim(),
+          fecha: new Date().toISOString().split('T')[0],
+          boletas: boletas.filter(b => b.date && b.amount),
+          ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
+          efectivo: showEfectivo ? efectivo.filter(e => e.date && e.amount) : [],
+          cheques: showCheque ? cheques.filter(c => c.date && c.amount) : [],
+          transferencias: showTransferencia ? transferencias.filter(t => t.date && t.amount) : [],
+          saldoFinal: summaryData.finalBalance || 0
+        };
+
+        const firebaseData = {
+          clientName: clienteData.nombreCliente,
+          boletas: clienteData.boletas,
+          ventas: clienteData.ventas,
+          plataFavor: [],
+          efectivo: clienteData.efectivo,
+          cheques: clienteData.cheques,
+          transferencias: clienteData.transferencias,
+          finalBalance: clienteData.saldoFinal,
+          date: clienteData.fecha
+        };
+        
+        await addClientBalance(firebaseData);
+
+        setSavedClientes(prev => [clienteData, ...prev]);
+        
+        setClientName('');
+        setBoletas([{ date: '', amount: '' }]);
+        setShowVentas(false);
+        setVentas([]);
+        setShowEfectivo(false);
+        setEfectivo([]);
+        setShowCheque(false);
+        setCheques([]);
+        setShowTransferencia(false);
+        setTransferencias([]);
+        setSummaryData(null);
+        setShowSummary(false);
+      } catch (error) {
+        console.error('❌ Error al guardar cliente:', error);
+      }
+    }
   };
 
   // Formatear input de moneda
   const handleCurrencyBlur = (e) => {
-    let num = parseFloat(e.target.value.replace(/\./g, '').replace(',', '.'));
+    let num = parseCurrencyValue(e.target.value);
     if (!isNaN(num)) {
-      e.target.value = formatCurrency(num).replace('$', '').trim();
+      e.target.value = formatCurrencyNoSymbol(num);
     }
   };
 
@@ -44,87 +133,60 @@ const SaldoClientes = () => {
     e.target.value = val;
   };
 
-  // Funciones para agregar filas
+  // Add rows
   const addBoleta = () => {
     setBoletas([...boletas, { date: new Date().toISOString().split('T')[0], amount: '' }]);
   };
-
   const addVenta = () => {
     setVentas([...ventas, { date: new Date().toISOString().split('T')[0], amount: '' }]);
   };
-
   const addPlata = () => {
     setPlata([...plata, { amount: '' }]);
   };
-
   const addEfectivo = () => {
     setEfectivo([...efectivo, { amount: '' }]);
   };
-
   const addCheque = () => {
     setCheques([...cheques, { id: '', amount: '' }]);
   };
-
   const addTransferencia = () => {
     setTransferencias([...transferencias, { amount: '' }]);
   };
 
-  // Funciones para eliminar filas
-  const removeBoleta = (index) => {
-    setBoletas(boletas.filter((_, i) => i !== index));
-  };
+  // Remove rows
+  const removeBoleta = (index) => { setBoletas(boletas.filter((_, i) => i !== index)); };
+  const removeVenta = (index) => { setVentas(ventas.filter((_, i) => i !== index)); };
+  const removePlata = (index) => { setPlata(plata.filter((_, i) => i !== index)); };
+  const removeEfectivo = (index) => { setEfectivo(efectivo.filter((_, i) => i !== index)); };
+  const removeCheque = (index) => { setCheques(cheques.filter((_, i) => i !== index)); };
+  const removeTransferencia = (index) => { setTransferencias(transferencias.filter((_, i) => i !== index)); };
 
-  const removeVenta = (index) => {
-    setVentas(ventas.filter((_, i) => i !== index));
-  };
-
-  const removePlata = (index) => {
-    setPlata(plata.filter((_, i) => i !== index));
-  };
-
-  const removeEfectivo = (index) => {
-    setEfectivo(efectivo.filter((_, i) => i !== index));
-  };
-
-  const removeCheque = (index) => {
-    setCheques(cheques.filter((_, i) => i !== index));
-  };
-
-  const removeTransferencia = (index) => {
-    setTransferencias(transferencias.filter((_, i) => i !== index));
-  };
-
-  // Actualizar valores
+  // Update field values
   const updateBoleta = (index, field, value) => {
     const newBoletas = [...boletas];
     newBoletas[index][field] = value;
     setBoletas(newBoletas);
   };
-
   const updateVenta = (index, field, value) => {
     const newVentas = [...ventas];
     newVentas[index][field] = value;
     setVentas(newVentas);
   };
-
   const updatePlata = (index, value) => {
     const newPlata = [...plata];
     newPlata[index].amount = value;
     setPlata(newPlata);
   };
-
   const updateEfectivo = (index, value) => {
     const newEfectivo = [...efectivo];
     newEfectivo[index].amount = value;
     setEfectivo(newEfectivo);
   };
-
   const updateCheque = (index, field, value) => {
     const newCheques = [...cheques];
     newCheques[index][field] = value;
     setCheques(newCheques);
   };
-
   const updateTransferencia = (index, value) => {
     const newTransferencias = [...transferencias];
     newTransferencias[index].amount = value;
@@ -138,127 +200,73 @@ const SaldoClientes = () => {
       return;
     }
 
-    let summaryHtml = `<h1 class="print-header">Resumen de Cuenta con ${clientName}</h1>`;
-
-    // Boletas
-    let totalBoletas = 0;
-    let boletasHtml = '';
-    boletas.forEach((boleta, index) => {
-      const amount = parseCurrencyValue(boleta.amount);
-      totalBoletas += amount;
-      boletasHtml += `<p class="print-small">Boleta ${index + 1}: ${boleta.date}, ${formatCurrency(amount)}</p>`;
-    });
-    summaryHtml += `<p class="print-small"><strong>Boletas vendidas por ${clientName}:</strong></p>` + boletasHtml;
-    summaryHtml += `
-      <div class="print-subtotal">
-        <p><strong>Total de Boletas vendidas por ${clientName}:</strong> ${formatCurrency(totalBoletas)}</p>
-      </div>
-    `;
-
-    // Ventas
-    let totalVentas = 0;
-    let ventasHtml = '';
-    ventas.forEach((venta, index) => {
-      const amount = parseCurrencyValue(venta.amount);
-      totalVentas += amount;
-      ventasHtml += `<p class="print-small">Venta ${index + 1}: ${venta.date}, ${formatCurrency(amount)}</p>`;
-    });
-    if (totalVentas > 0) {
-      summaryHtml += `<p class="print-small" style="margin-top: 1rem;"><strong>Ventas a ${clientName}:</strong></p>` + ventasHtml;
-    }
-
-    // Plata a Favor
-    let totalPlata = 0;
-    let plataHtml = '';
-    plata.forEach((item, index) => {
-      const amount = parseCurrencyValue(item.amount);
-      totalPlata += amount;
-      plataHtml += `<p class="print-small">Plata ${index + 1}: ${formatCurrency(amount)}</p>`;
-    });
-    if (totalPlata > 0) {
-      summaryHtml += `<p class="print-small" style="margin-top: 1rem;"><strong>Plata a Favor:</strong></p>` + plataHtml;
-    }
-
-    // Efectivo
-    let totalEfectivo = 0;
-    let efectivoHtml = '';
-    efectivo.forEach((item, index) => {
-      const amount = parseCurrencyValue(item.amount);
-      totalEfectivo += amount;
-      efectivoHtml += `<p class="print-small">Efectivo ${index + 1}: ${formatCurrency(amount)}</p>`;
-    });
-    if (totalEfectivo > 0) {
-      summaryHtml += `<p class="print-small" style="margin-top: 1rem;"><strong>Efectivo:</strong></p>` + efectivoHtml;
-    }
-
-    // Cheques
-    let totalCheque = 0;
-    let chequeHtml = '';
-    cheques.forEach((cheque, index) => {
-      const amount = parseCurrencyValue(cheque.amount);
-      totalCheque += amount;
-      chequeHtml += `<p class="print-small">Cheque ${index + 1} (ID: ${cheque.id}): ${formatCurrency(amount)}</p>`;
-    });
-    if (totalCheque > 0) {
-      summaryHtml += `<p class="print-small" style="margin-top: 1rem;"><strong>Cheque:</strong></p>` + chequeHtml;
-    }
-
-    // Transferencias
-    let totalTransferencia = 0;
-    let transferenciaHtml = '';
-    transferencias.forEach((transfer, index) => {
-      const amount = parseCurrencyValue(transfer.amount);
-      totalTransferencia += amount;
-      transferenciaHtml += `<p class="print-small">Transferencia ${index + 1}: ${formatCurrency(amount)}</p>`;
-    });
-    if (totalTransferencia > 0) {
-      summaryHtml += `<p class="print-small" style="margin-top: 1rem;"><strong>Transferencia:</strong></p>` + transferenciaHtml;
-    }
-
-    // Subtotal de ingresos
+    const totalBoletas = boletas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
+    const totalVentas = ventas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0);
+    const totalPlata = plata.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+    const totalEfectivo = efectivo.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+    const totalCheque = cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
+    const totalTransferencia = transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
     const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    summaryHtml += `
-      <div class="print-subtotal">
-        <p><strong>Total de Ingresos del Usuario:</strong> ${formatCurrency(totalIngresos)}</p>
-      </div>
-    `;
-
-    // Saldo Final
     const finalBalance = totalIngresos - totalBoletas;
-    let finalHtml = '';
-    if (finalBalance > 0) {
-      finalHtml = `<h3 class="print-message">Saldo Final: ${formatCurrency(finalBalance)}</h3>
-                   <p class="print-message">${clientName} te debe ${formatCurrency(finalBalance)}.</p>`;
-    } else if (finalBalance < 0) {
-      finalHtml = `<h3 class="print-message">Saldo Final: ${formatCurrency(Math.abs(finalBalance))}</h3>
-                   <p class="print-message">Tú le debes ${formatCurrency(Math.abs(finalBalance))} a ${clientName}.</p>`;
-    } else {
-      finalHtml = `<h3 class="print-message">Saldo Final: ${formatCurrency(0)}</h3>
-                   <p class="print-message">Las cuentas están saldadas. No hay deudas pendientes.</p>`;
-    }
 
-    setSummary(summaryHtml + finalHtml);
+    setSummaryData({
+      clientName,
+      boletas,
+      ventas,
+      plata,
+      efectivo,
+      cheques,
+      transferencias,
+      totalBoletas,
+      totalVentas,
+      totalPlata,
+      totalEfectivo,
+      totalCheque,
+      totalTransferencia,
+      totalIngresos,
+      finalBalance,
+    });
     setShowSummary(true);
+
+    setTimeout(() => {
+      const summaryElement = document.querySelector('.card.printable');
+      if (summaryElement) {
+        summaryElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 300);
   };
 
   useEffect(() => {
-    // Establecer fecha de hoy por defecto
     const today = new Date().toISOString().split('T')[0];
     if (boletas[0].date === '') {
       updateBoleta(0, 'date', today);
     }
   }, []);
 
+  useEffect(() => {
+    if (balances && balances.length > 0) {
+      const clientesFormateados = balances.map(balance => ({
+        id: balance.id,
+        nombreCliente: balance.clientName,
+        fecha: balance.date,
+        boletas: balance.boletas || [],
+        ventas: balance.ventas || [],
+        efectivo: balance.efectivo || [],
+        cheques: balance.cheques || [],
+        transferencias: balance.transferencias || [],
+        saldoFinal: balance.finalBalance || 0
+      }));
+      setSavedClientes(clientesFormateados);
+    }
+  }, [balances]);
+
   return (
     <div className="container mt-4 printable">
       <div className="row justify-content-start">
         <div className="col-lg-7 col-md-8">
           <h1 className="text-center mb-4 no-print">Saldo Clientes</h1>
-          
-          {/* Formulario */}
           <div className="card p-3 no-print mb-3">
             <form>
-              {/* Datos del Cliente */}
               <h4>Datos del Cliente</h4>
               <div className="mb-3">
                 <label htmlFor="clientName" className="form-label">Nombre del Cliente</label>
@@ -273,7 +281,6 @@ const SaldoClientes = () => {
                 />
               </div>
 
-              {/* Detalle de Boletas */}
               <h4>Detalle de Boletas</h4>
               <div className="mb-3">
                 {boletas.map((boleta, index) => (
@@ -295,314 +302,273 @@ const SaldoClientes = () => {
                       onFocus={handleCurrencyFocus}
                       required 
                     />
-                    <button 
-                      type="button" 
-                      className="btn btn-link text-danger p-0" 
-                      onClick={() => removeBoleta(index)}
-                      style={{ fontSize: '1.2rem' }}
-                    >
-                      ×
-                    </button>
+                    <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeBoleta(index)} style={{ fontSize: '1.2rem' }}>×</button>
                   </div>
                 ))}
               </div>
-              <button type="button" className="btn btn-secondary mb-3" onClick={addBoleta}>
-                Agregar Boleta
-              </button>
+              <button type="button" className="btn btn-secondary mb-3" onClick={addBoleta}>Agregar Boleta</button>
 
-              {/* Ajustes: Venta */}
               <h4>Ajustes</h4>
               <div className="mb-3">
                 <div className="form-check">
-                  <input 
-                    type="checkbox" 
-                    id="checkVenta" 
-                    className="form-check-input"
-                    checked={showVentas}
-                    onChange={(e) => {
-                      setShowVentas(e.target.checked);
-                      if (e.target.checked && ventas.length === 0) {
-                        addVenta();
-                      }
-                    }}
-                  />
+                  <input type="checkbox" id="checkVenta" className="form-check-input" checked={showVentas} onChange={(e) => { setShowVentas(e.target.checked); if (e.target.checked && ventas.length === 0) { addVenta(); } }} />
                   <label htmlFor="checkVenta" className="form-check-label">Le vendió algo</label>
                 </div>
               </div>
-              
               {showVentas && (
                 <div className="mb-3">
                   <h5>Detalle de Ventas</h5>
                   {ventas.map((venta, index) => (
                     <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input 
-                        type="date" 
-                        className="form-control" 
-                        value={venta.date}
-                        onChange={(e) => updateVenta(index, 'date', e.target.value)}
-                        required 
-                      />
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        placeholder="Monto (AR$)" 
-                        value={venta.amount}
-                        onChange={(e) => updateVenta(index, 'amount', e.target.value)}
-                        onBlur={handleCurrencyBlur}
-                        onFocus={handleCurrencyFocus}
-                        required 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-link text-danger p-0" 
-                        onClick={() => removeVenta(index)}
-                        style={{ fontSize: '1.2rem' }}
-                      >
-                        ×
-                      </button>
+                      <input type="date" className="form-control" value={venta.date} onChange={(e) => updateVenta(index, 'date', e.target.value)} required />
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={venta.amount} onChange={(e) => updateVenta(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeVenta(index)} style={{ fontSize: '1.2rem' }}>×</button>
                     </div>
                   ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addVenta}>
-                    Agregar Venta
-                  </button>
+                  <button type="button" className="btn btn-secondary mb-3" onClick={addVenta}>Agregar Venta</button>
                 </div>
               )}
 
-              {/* Plata a Favor */}
               <h4>Plata a Favor</h4>
               <div className="mb-3">
                 <div className="form-check">
-                  <input 
-                    type="checkbox" 
-                    id="checkPlata" 
-                    className="form-check-input"
-                    checked={showPlata}
-                    onChange={(e) => {
-                      setShowPlata(e.target.checked);
-                      if (e.target.checked && plata.length === 0) {
-                        addPlata();
-                      }
-                    }}
-                  />
+                  <input type="checkbox" id="checkPlata" className="form-check-input" checked={showPlata} onChange={(e) => { setShowPlata(e.target.checked); if (e.target.checked && plata.length === 0) { addPlata(); } }} />
                   <label htmlFor="checkPlata" className="form-check-label">Tiene Plata a Favor</label>
                 </div>
               </div>
-              
               {showPlata && (
                 <div className="mb-3">
                   {plata.map((item, index) => (
                     <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        placeholder="Monto (AR$)" 
-                        value={item.amount}
-                        onChange={(e) => updatePlata(index, e.target.value)}
-                        onBlur={handleCurrencyBlur}
-                        onFocus={handleCurrencyFocus}
-                        required 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-link text-danger p-0" 
-                        onClick={() => removePlata(index)}
-                        style={{ fontSize: '1.2rem' }}
-                      >
-                        ×
-                      </button>
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updatePlata(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removePlata(index)} style={{ fontSize: '1.2rem' }}>×</button>
                     </div>
                   ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addPlata}>
-                    Agregar Plata a Favor
-                  </button>
+                  <button type="button" className="btn btn-secondary mb-3" onClick={addPlata}>Agregar Plata a Favor</button>
                 </div>
               )}
 
-              {/* Pago en Efectivo */}
               <h4>Pago en Efectivo</h4>
               <div className="mb-3">
                 <div className="form-check">
-                  <input 
-                    type="checkbox" 
-                    id="checkEfectivo" 
-                    className="form-check-input"
-                    checked={showEfectivo}
-                    onChange={(e) => {
-                      setShowEfectivo(e.target.checked);
-                      if (e.target.checked && efectivo.length === 0) {
-                        addEfectivo();
-                      }
-                    }}
-                  />
+                  <input type="checkbox" id="checkEfectivo" className="form-check-input" checked={showEfectivo} onChange={(e) => { setShowEfectivo(e.target.checked); if (e.target.checked && efectivo.length === 0) { addEfectivo(); } }} />
                   <label htmlFor="checkEfectivo" className="form-check-label">Pago en Efectivo</label>
                 </div>
               </div>
-              
               {showEfectivo && (
                 <div className="mb-3">
                   {efectivo.map((item, index) => (
                     <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        placeholder="Monto (AR$)" 
-                        value={item.amount}
-                        onChange={(e) => updateEfectivo(index, e.target.value)}
-                        onBlur={handleCurrencyBlur}
-                        onFocus={handleCurrencyFocus}
-                        required 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-link text-danger p-0" 
-                        onClick={() => removeEfectivo(index)}
-                        style={{ fontSize: '1.2rem' }}
-                      >
-                        ×
-                      </button>
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateEfectivo(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeEfectivo(index)} style={{ fontSize: '1.2rem' }}>×</button>
                     </div>
                   ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addEfectivo}>
-                    Agregar Pago en Efectivo
-                  </button>
+                  <button type="button" className="btn btn-secondary mb-3" onClick={addEfectivo}>Agregar Pago en Efectivo</button>
                 </div>
               )}
 
-              {/* Pago con Cheque */}
               <h4>Pago con Cheque</h4>
               <div className="mb-3">
                 <div className="form-check">
-                  <input 
-                    type="checkbox" 
-                    id="checkCheque" 
-                    className="form-check-input"
-                    checked={showCheque}
-                    onChange={(e) => {
-                      setShowCheque(e.target.checked);
-                      if (e.target.checked && cheques.length === 0) {
-                        addCheque();
-                      }
-                    }}
-                  />
+                  <input type="checkbox" id="checkCheque" className="form-check-input" checked={showCheque} onChange={(e) => { setShowCheque(e.target.checked); if (e.target.checked && cheques.length === 0) { addCheque(); } }} />
                   <label htmlFor="checkCheque" className="form-check-label">Pago con Cheque</label>
                 </div>
               </div>
-              
               {showCheque && (
                 <div className="mb-3">
                   {cheques.map((cheque, index) => (
                     <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        maxLength="4" 
-                        placeholder="Últimos 4 dígitos" 
-                        value={cheque.id}
-                        onChange={(e) => updateCheque(index, 'id', e.target.value)}
-                        required 
-                      />
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        placeholder="Monto (AR$)" 
-                        value={cheque.amount}
-                        onChange={(e) => updateCheque(index, 'amount', e.target.value)}
-                        onBlur={handleCurrencyBlur}
-                        onFocus={handleCurrencyFocus}
-                        required 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-link text-danger p-0" 
-                        onClick={() => removeCheque(index)}
-                        style={{ fontSize: '1.2rem' }}
-                      >
-                        ×
-                      </button>
+                      <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateCheque(index, 'id', e.target.value)} required />
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateCheque(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeCheque(index)} style={{ fontSize: '1.2rem' }}>×</button>
                     </div>
                   ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addCheque}>
-                    Agregar Cheque
-                  </button>
+                  <button type="button" className="btn btn-secondary mb-3" onClick={addCheque}>Agregar Cheque</button>
                 </div>
               )}
 
-              {/* Pago por Transferencia */}
               <h4>Pago por Transferencia</h4>
               <div className="mb-3">
                 <div className="form-check">
-                  <input 
-                    type="checkbox" 
-                    id="checkTransferencia" 
-                    className="form-check-input"
-                    checked={showTransferencia}
-                    onChange={(e) => {
-                      setShowTransferencia(e.target.checked);
-                      if (e.target.checked && transferencias.length === 0) {
-                        addTransferencia();
-                      }
-                    }}
-                  />
+                  <input type="checkbox" id="checkTransferencia" className="form-check-input" checked={showTransferencia} onChange={(e) => { setShowTransferencia(e.target.checked); if (e.target.checked && transferencias.length === 0) { addTransferencia(); } }} />
                   <label htmlFor="checkTransferencia" className="form-check-label">Pago por Transferencia</label>
                 </div>
               </div>
-              
               {showTransferencia && (
                 <div className="mb-3">
                   {transferencias.map((transfer, index) => (
                     <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input 
-                        type="text" 
-                        className="form-control" 
-                        placeholder="Monto (AR$)" 
-                        value={transfer.amount}
-                        onChange={(e) => updateTransferencia(index, e.target.value)}
-                        onBlur={handleCurrencyBlur}
-                        onFocus={handleCurrencyFocus}
-                        required 
-                      />
-                      <button 
-                        type="button" 
-                        className="btn btn-link text-danger p-0" 
-                        onClick={() => removeTransferencia(index)}
-                        style={{ fontSize: '1.2rem' }}
-                      >
-                        ×
-                      </button>
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateTransferencia(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeTransferencia(index)} style={{ fontSize: '1.2rem' }}>×</button>
                     </div>
                   ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addTransferencia}>
-                    Agregar Transferencia
-                  </button>
+                  <button type="button" className="btn btn-secondary mb-3" onClick={addTransferencia}>Agregar Transferencia</button>
                 </div>
               )}
 
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                onClick={calculateSaldo}
-                style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}
-              >
-                Calcular Saldo
-              </button>
+              <div className="d-flex gap-3">
+                <button type="button" className="btn btn-primary" onClick={calculateSaldo} style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}>Calcular Saldo</button>
+                <button type="button" className="btn btn-success" onClick={saveCurrentCliente} disabled={!clientName.trim() || !summaryData} style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}>
+                  <i className="fas fa-save me-2"></i>
+                  Guardar
+                </button>
+              </div>
             </form>
           </div>
 
-          {/* Resumen e Impresión */}
           {showSummary && (
             <div className="card p-3 printable">
-              <div dangerouslySetInnerHTML={{ __html: summary }} />
-              <button 
-                className="btn btn-secondary mt-3 no-print" 
-                onClick={() => window.print()}
-              >
-                Imprimir
-              </button>
+              <h1 className="print-header">Resumen de Cuenta con {summaryData?.clientName}</h1>
+
+              <p className="print-small"><strong>Boletas vendidas por {summaryData?.clientName}:</strong></p>
+              {summaryData?.boletas?.map((b, i) => (
+                <p key={`b-${i}`} className="print-small">Boleta {i+1}: {b.date}, {formatCurrency(parseCurrencyValue(b.amount))}</p>
+              ))}
+              <div className="print-subtotal">
+                <p><strong>Total de Boletas vendidas por {summaryData?.clientName}:</strong> {formatCurrency(summaryData?.totalBoletas || 0)}</p>
+              </div>
+
+              {summaryData && summaryData.totalVentas > 0 && (
+                <>
+                  <p className="print-small" style={{ marginTop: '1rem' }}><strong>Ventas a {summaryData.clientName}:</strong></p>
+                  {summaryData.ventas.map((v, i) => (
+                    <p key={`v-${i}`} className="print-small">Venta {i+1}: {v.date}, {formatCurrency(parseCurrencyValue(v.amount))}</p>
+                  ))}
+                </>
+              )}
+
+              {summaryData && summaryData.totalPlata > 0 && (
+                <>
+                  <p className="print-small" style={{ marginTop: '1rem' }}><strong>Plata a Favor:</strong></p>
+                  {summaryData.plata.map((p, i) => (
+                    <p key={`pf-${i}`} className="print-small">Plata {i+1}: {formatCurrency(parseCurrencyValue(p.amount))}</p>
+                  ))}
+                </>
+              )}
+
+              {summaryData && summaryData.totalEfectivo > 0 && (
+                <>
+                  <p className="print-small" style={{ marginTop: '1rem' }}><strong>Efectivo:</strong></p>
+                  {summaryData.efectivo.map((e, i) => (
+                    <p key={`ef-${i}`} className="print-small">Efectivo {i+1}: {formatCurrency(parseCurrencyValue(e.amount))}</p>
+                  ))}
+                </>
+              )}
+
+              {summaryData && summaryData.totalCheque > 0 && (
+                <>
+                  <p className="print-small" style={{ marginTop: '1rem' }}><strong>Cheque:</strong></p>
+                  {summaryData.cheques.map((c, i) => (
+                    <p key={`ch-${i}`} className="print-small">Cheque {i+1} (ID: {c.id}): {formatCurrency(parseCurrencyValue(c.amount))}</p>
+                  ))}
+                </>
+              )}
+
+              {summaryData && summaryData.totalTransferencia > 0 && (
+                <>
+                  <p className="print-small" style={{ marginTop: '1rem' }}><strong>Transferencia:</strong></p>
+                  {summaryData.transferencias.map((t, i) => (
+                    <p key={`tr-${i}`} className="print-small">Transferencia {i+1}: {formatCurrency(parseCurrencyValue(t.amount))}</p>
+                  ))}
+                </>
+              )}
+
+              <div className="print-subtotal">
+                <p><strong>Total de Ingresos del Usuario:</strong> {formatCurrency(summaryData?.totalIngresos || 0)}</p>
+              </div>
+
+              {summaryData && (
+                summaryData.finalBalance > 0 ? (
+                  <>
+                    <h3 className="print-message">Saldo Final: {formatCurrency(summaryData.finalBalance)}</h3>
+                    <p className="print-message">{summaryData.clientName} te debe {formatCurrency(summaryData.finalBalance)}.</p>
+                  </>
+                ) : summaryData.finalBalance < 0 ? (
+                  <>
+                    <h3 className="print-message">Saldo Final: {formatCurrency(Math.abs(summaryData.finalBalance))}</h3>
+                    <p className="print-message">Tú le debes {formatCurrency(Math.abs(summaryData.finalBalance))} a {summaryData.clientName}.</p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="print-message">Saldo Final: {formatCurrency(0)}</h3>
+                    <p className="print-message">Las cuentas están saldadas. No hay deudas pendientes.</p>
+                  </>
+                )
+              )}
+
+              <button className="btn btn-secondary mt-3 no-print" onClick={() => window.print()}>Imprimir</button>
             </div>
           )}
         </div>
         <div className="col-lg-5 col-md-4">
-          {/* Espacio reservado para funcionalidades de base de datos */}
+          <div className="card p-3 mb-3">
+            <h6>Estado de Conexión</h6>
+            {loading ? (
+              <div className="d-flex align-items-center">
+                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                <span>Conectando a Firebase...</span>
+              </div>
+            ) : error ? (
+              <div className="text-danger">
+                <span className="badge bg-danger me-2">❌</span>
+                Error de conexión: {error}
+                <br />
+                <small>Verifica la consola para más detalles</small>
+              </div>
+            ) : (
+              <div className="text-success">
+                <span className="badge bg-success me-2">🟢</span>
+                Conectado a Firebase
+                <br />
+                <small className="text-muted">{balances.length} saldos guardados</small>
+                <br />
+                <small className="text-info">🔗 Colección: clientBalances</small>
+              </div>
+            )}
+          </div>
+          <div className="card p-3 mb-3">
+            <h6>Clientes Guardados</h6>
+            <div className="mb-3">
+              <div className="d-flex flex-wrap gap-2">
+                <button className={`btn btn-sm ${dateFilter === 'hoy' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('hoy')}>Hoy</button>
+                <button className={`btn btn-sm ${dateFilter === 'semana' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('semana')}>Semana</button>
+                <button className={`btn btn-sm ${dateFilter === 'mes' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('mes')}>Mes</button>
+                <button className={`btn btn-sm ${dateFilter === 'año' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('año')}>Año</button>
+                <button className={`btn btn-sm ${dateFilter === 'elegir_mes' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('elegir_mes')}>Elegir Mes</button>
+                <button className={`btn btn-sm ${dateFilter === 'todos' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('todos')}>Todos</button>
+              </div>
+              {dateFilter === 'elegir_mes' && (
+                <div className="mt-2">
+                  <input type="month" className="form-control form-control-sm" value={customMonth} onChange={(e) => setCustomMonth(e.target.value)} />
+                </div>
+              )}
+            </div>
+            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+              {getFilteredClientes().length > 0 ? (
+                getFilteredClientes().map((cliente, index) => (
+                  <ClienteDeudorCard key={cliente.id || index} cliente={cliente} onDelete={(id) => setSavedClientes(prev => prev.filter(c => c.id !== id))} onEdit={(c) => {
+                    setClientName(c.nombreCliente);
+                    setBoletas(c.boletas || [{ date: '', amount: '' }]);
+                    setVentas(c.ventas || []);
+                    setEfectivo(c.efectivo || []);
+                    setCheques(c.cheques || []);
+                    setTransferencias(c.transferencias || []);
+                    setShowVentas(c.ventas && c.ventas.length > 0);
+                    setShowEfectivo(c.efectivo && c.efectivo.length > 0);
+                    setShowCheque(c.cheques && c.cheques.length > 0);
+                    setShowTransferencia(c.transferencias && c.transferencias.length > 0);
+                    setSavedClientes(prev => prev.filter(x => x.id !== c.id));
+                  }} />
+                ))
+              ) : (
+                <div className="text-center text-muted py-3">
+                  <i className="fas fa-inbox fa-2x mb-2"></i>
+                  <p className="mb-0">No hay clientes guardados</p>
+                  <small>Calcula y guarda un saldo para verlo aquí</small>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
