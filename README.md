@@ -3,179 +3,144 @@
 ## 🚀 **Aplicación en Producción**
 **URL:** https://mireparto.web.app
 
-## 📋 **Resumen del Proyecto**
-Sistema de gestión de repartos desarrollado en React con Firebase, que permite:
-- Gestionar clientes y sus saldos
-- Crear y editar repartos diarios
-- Imprimir reportes optimizados
-- Autenticación con Google y acceso anónimo
+## 📋 **Descripción**
+Mi Reparto es una aplicación web desarrollada en React para la gestión eficiente de repartos diarios y seguimiento de saldos de clientes. Permite a los usuarios organizar sus entregas, calcular balances y generar reportes de manera sencilla.
 
-## 🐛 **PROBLEMA CRÍTICO: Sistema de Impresión**
+## ✨ **Características Principales**
 
-### **Descripción del Error**
-El sistema de impresión presenta comportamientos inconsistentes:
+### 🛒 **Gestión de Repartos**
+- **Crear repartos diarios** con múltiples clientes
+- **Agregar clientes** con montos y direcciones
+- **Editar montos** directamente en la tabla
+- **Marcar pagos** (completo, parcial, pendiente)
+- **Reordenar clientes** mediante drag & drop
+- **Guardar repartos** para consulta posterior
+- **Imprimir listas** de repartos optimizadas
 
-#### **En Saldo Clientes:**
-- ❌ **Imprime hoja en blanco** - No se muestra contenido
-- ❌ **Función `printSaldoCliente` no funciona** correctamente
+### 💰 **Gestión de Saldos de Clientes**
+- **Calcular saldos** detallados por cliente
+- **Registrar boletas vendidas** con fechas
+- **Registrar ventas** y plata a favor
+- **Seguimiento de pagos** (efectivo, cheques, transferencias)
+- **Cálculo automático** de saldos finales
+- **Imprimir resúmenes** de cuentas
 
-#### **En Mi Reparto:**
-- ❌ **Imprime todo el contenido** - Incluye botones, formularios, etc.
-- ❌ **No respeta los estilos de impresión** personalizados
-- ❌ **Ocupa más de la mitad de la página** vertical
+### 📊 **Reportes y Análisis**
+- **Filtros por fecha** (hoy, semana, mes, año)
+- **Visualización de deudores** pendientes
+- **Totales automáticos** en tiempo real
+- **Historial completo** de transacciones
 
-### **Análisis Técnico del Problema**
+### 🔐 **Autenticación**
+- **Login con Google** para administradores
+- **Acceso anónimo** para uso temporal
+- **Gestión de sesiones** automática
 
-#### **1. Arquitectura de Impresión Actual**
-```javascript
-// src/utils/printUtils.js
-export const printContent = (content) => {
-  const printWindow = window.open('', '_blank');
-  // Genera HTML dinámico y abre ventana de impresión
-}
+## 🛠️ **Tecnologías Utilizadas**
+
+- **Frontend:** React 18 + Vite
+- **Backend:** Firebase (Firestore + Authentication)
+- **UI:** Bootstrap 5 + React Bootstrap
+- **Funcionalidades:** Drag & Drop (SortableJS)
+- **Deploy:** Firebase Hosting
+
+## 🚀 **Instalación y Uso Local**
+
+### **Prerrequisitos**
+- Node.js 16+ 
+- npm o yarn
+- Cuenta de Firebase
+
+### **Instalación**
+```bash
+# Clonar repositorio
+git clone https://github.com/TomasNaialAluch/Reparto.git
+cd Reparto
+
+# Instalar dependencias
+npm install
+
+# Configurar Firebase
+# Editar src/firebase/config.js con tu configuración
+
+# Ejecutar en desarrollo
+npm run dev
 ```
 
-#### **2. Problemas Identificados**
-
-##### **A. Función `printSaldoCliente` (Línea 89)**
-```javascript
-export const printSaldoCliente = (cliente) => {  // ❌ FALTA LLAVE DE APERTURA
-  if (!cliente) return;
-  // ... resto del código
+### **Build para Producción**
+```bash
+npm run build
+npm run preview
 ```
 
-**Error:** Falta la llave de apertura `{` después de la declaración de función.
+## 📱 **Funcionalidades por Sección**
 
-##### **B. Función `printSaldoCliente` (Línea 179)**
-```javascript
-printContent(content);
-;  // ❌ PUNTO Y COMA EXTRA
-```
+### **🏠 Página Principal**
+- Navegación entre secciones
+- Estado de conexión con Firebase
+- Información del usuario autenticado
 
-**Error:** Punto y coma extra que rompe la sintaxis.
+### **📦 Mi Reparto**
+- Formulario para agregar clientes
+- Tabla interactiva de clientes del día
+- Botones de acción (Guardar, Imprimir)
+- Panel de repartos guardados
+- Gráficos de reportes
 
-##### **C. Estilos CSS Conflictivos**
-- **`src/App.css`** - Estilos de impresión básicos
-- **`src/index.css`** - Estilos de impresión específicos (líneas 333-432)
-- **Conflicto:** Múltiples definiciones de `@media print` se superponen
+### **💰 Saldo Clientes**
+- Formulario completo para calcular saldos
+- Secciones para boletas, ventas, pagos
+- Cálculo automático de saldo final
+- Historial de clientes guardados
+- Filtros por fecha
 
-##### **D. Lógica de Impresión Inconsistente**
-- **Saldo Clientes:** Usa `printSaldoCliente(summaryData)` - Datos pueden ser `null`
-- **Mi Reparto:** Usa `printReparto(clientes, date)` - Datos pueden estar vacíos
+## 🎨 **Interfaz de Usuario**
 
-### **3. Soluciones Intentadas (Sin Éxito)**
+- **Diseño responsivo** para móviles y escritorio
+- **Tema claro** con colores profesionales
+- **Navegación intuitiva** con iconos descriptivos
+- **Feedback visual** para acciones del usuario
+- **Modales** para edición de datos
 
-#### **A. Sistema de Impresión Personalizado**
-- ✅ Crear `src/utils/printUtils.js`
-- ✅ Implementar `printContent()`, `printSaldoCliente()`, `printReparto()`
-- ❌ **Resultado:** Errores de sintaxis impiden funcionamiento
-
-#### **B. Estilos CSS Optimizados**
-- ✅ Crear estilos `@media print` específicos
-- ✅ Usar clases `.printable` y `.no-print`
-- ❌ **Resultado:** Conflictos entre múltiples archivos CSS
-
-#### **C. Componentes de Impresión**
-- ✅ Crear `PrintSaldoCliente.jsx` y `PrintReparto.jsx`
-- ❌ **Resultado:** No se utilizan en la implementación actual
-
-### **4. Estado Actual del Código**
-
-#### **Archivos Modificados:**
-- `src/pages/SaldoClientes.jsx` - Línea 540: `onClick={() => printSaldoCliente(summaryData)}`
-- `src/pages/MiReparto.jsx` - Línea 560: `onClick={() => printReparto(clientes, currentReparto.date)}`
-- `src/utils/printUtils.js` - **CON ERRORES DE SINTAXIS**
-
-#### **Archivos CSS:**
-- `src/App.css` - Estilos de impresión básicos
-- `src/index.css` - Estilos de impresión específicos (conflicto)
-
-## 🔧 **SOLUCIÓN REQUERIDA**
-
-### **1. Corregir Errores de Sintaxis**
-```javascript
-// src/utils/printUtils.js - Línea 89
-export const printSaldoCliente = (cliente) => {  // ✅ Agregar llave
-  if (!cliente) return;
-  // ... código existente
-  printContent(content);
-};  // ✅ Remover punto y coma extra
-```
-
-### **2. Unificar Estilos de Impresión**
-- **Eliminar** estilos duplicados en `src/index.css`
-- **Mantener** solo los estilos en `src/App.css`
-- **Simplificar** la lógica de impresión
-
-### **3. Validar Datos Antes de Imprimir**
-```javascript
-// En SaldoClientes.jsx
-onClick={() => {
-  if (summaryData && summaryData.clientName) {
-    printSaldoCliente(summaryData);
-  } else {
-    alert('No hay datos para imprimir');
-  }
-}}
-
-// En MiReparto.jsx
-onClick={() => {
-  if (clientes && clientes.length > 0) {
-    printReparto(clientes, currentReparto.date);
-  } else {
-    alert('No hay clientes para imprimir');
-  }
-}}
-```
-
-### **4. Implementar Fallback**
-Si el sistema personalizado falla, usar `window.print()` como respaldo.
-
-## 📁 **Estructura del Proyecto**
+## 🔧 **Estructura del Proyecto**
 
 ```
 src/
-├── components/
-│   ├── ClienteRow.jsx              # ✅ Nuevo - Fila de cliente reutilizable
-│   ├── EditClienteModal.jsx        # ✅ Nuevo - Modal para editar clientes
-│   ├── EditRepartoModal.jsx        # ✅ Nuevo - Modal para editar repartos
-│   ├── PrintReparto.jsx            # ❌ No utilizado
-│   └── PrintSaldoCliente.jsx       # ❌ No utilizado
-├── pages/
-│   ├── MiReparto.jsx               # ✅ Refactorizado - React puro
-│   └── SaldoClientes.jsx           # ✅ Actualizado - Nuevo sistema impresión
-├── utils/
-│   ├── money.js                    # ✅ Utilidades de formato
-│   └── printUtils.js               # ❌ CON ERRORES DE SINTAXIS
-└── firebase/
-    ├── config.js                   # ✅ Configuración Firebase
-    └── hooks.js                    # ✅ Hooks personalizados
+├── components/          # Componentes reutilizables
+├── pages/              # Páginas principales
+├── firebase/           # Configuración y hooks de Firebase
+├── utils/              # Utilidades (formato de moneda, impresión)
+├── contexts/           # Contextos de React
+└── assets/             # Recursos estáticos
 ```
 
-## 🚀 **Deploy y Versión**
+## 📈 **Estado del Proyecto**
 
-- **Último Deploy:** Exitoso en Firebase
-- **URL Producción:** https://mireparto.web.app
-- **Commit:** `12ec1c6` - "feat: Implementar sistema de impresión personalizado y refactorizar MiReparto"
-- **Estado:** Funcional excepto por el sistema de impresión
+- ✅ **Funcionalidades principales** implementadas
+- ✅ **Autenticación** funcionando
+- ✅ **CRUD completo** para repartos y clientes
+- ✅ **Deploy en producción** exitoso
+- ⚠️ **Sistema de impresión** requiere corrección (ver README-TODO.md)
 
-## 🎯 **Próximos Pasos**
+## 🤝 **Contribución**
 
-1. **Corregir errores de sintaxis** en `printUtils.js`
-2. **Unificar estilos CSS** de impresión
-3. **Validar datos** antes de imprimir
-4. **Probar en producción** después de correcciones
-5. **Implementar fallback** si es necesario
+1. Fork del repositorio
+2. Crear rama para nueva funcionalidad
+3. Commit de cambios
+4. Push a la rama
+5. Crear Pull Request
 
-## 📝 **Notas de Desarrollo**
+## 📄 **Licencia**
 
-- **Principios aplicados:** DRY, KISS, YAGNI
-- **Refactorización:** MiReparto.jsx convertido a React puro
-- **Nuevas funcionalidades:** Modales de edición, componentes reutilizables
-- **Correcciones:** Eliminación de clientes, manejo de estado, filtros mejorados
+Este proyecto es de uso personal y educativo.
+
+## 👨‍💻 **Desarrollador**
+
+**Tomas Naial Aluch**
+- GitHub: [@TomasNaialAluch](https://github.com/TomasNaialAluch)
 
 ---
 
-**Desarrollado por:** Tomas Naial Aluch  
+**Versión:** 1.0.0  
 **Última actualización:** Diciembre 2024  
-**Estado:** En desarrollo - Sistema de impresión requiere corrección
+**Estado:** En desarrollo activo
