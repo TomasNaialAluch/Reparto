@@ -226,7 +226,8 @@ export const useFirestoreRealtime = (collectionName) => {
 
 // Hook específico para repartos
 export const useRepartos = () => {
-  const { documents, loading, error, addDocument, updateDocument, deleteDocument, getDocumentsByField, getDocumentsByDateId } = useFirestore('repartos');
+  const { documents, loading, error } = useFirestoreRealtime('repartos');
+  const { addDocument, updateDocument, deleteDocument, getDocumentsByField, getDocumentsByDateId } = useFirestore('repartos');
 
   const addReparto = async (clientData) => {
     try {
@@ -309,7 +310,8 @@ export const useRepartos = () => {
 
 // Hook específico para saldos de clientes
 export const useClientBalances = () => {
-  const { documents, loading, error, addDocument, updateDocument, deleteDocument } = useFirestore('clientBalances');
+  const { documents, loading, error } = useFirestoreRealtime('clientBalances');
+  const { addDocument, updateDocument, deleteDocument } = useFirestore('clientBalances');
 
   const addClientBalance = async (clientData) => {
     return await addDocument({

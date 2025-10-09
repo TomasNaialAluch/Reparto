@@ -190,7 +190,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit }) => {
               className="btn btn-sm btn-outline-danger flex-fill"
               onClick={(e) => {
                 e.stopPropagation();
-                // Eliminar directamente sin confirmación
+                // Eliminar directamente
                 onDelete(cliente.id);
               }}
             >

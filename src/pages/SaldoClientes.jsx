@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useClientBalances } from '../firebase/hooks';
 import ClienteDeudorCard from '../components/ClienteDeudorCard';
+import EditClienteModal from '../components/EditClienteModal';
+import { printSaldoCliente } from '../utils/printUtils';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 
 const SaldoClientes = () => {
@@ -20,7 +22,7 @@ const SaldoClientes = () => {
   const [showSummary, setShowSummary] = useState(false);
 
   // Firebase hooks
-  const { balances, loading, error, addClientBalance } = useClientBalances();
+  const { balances, loading, error, addClientBalance, deleteBalance, updateBalance } = useClientBalances();
 
   // Estados para las cards de clientes guardados
   const [savedClientes, setSavedClientes] = useState([]);
@@ -28,6 +30,10 @@ const SaldoClientes = () => {
   // Estados para filtros de fecha
   const [dateFilter, setDateFilter] = useState('hoy');
   const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [clienteToEdit, setClienteToEdit] = useState(null);
 
   // Función para filtrar clientes por fecha
   const getFilteredClientes = () => {
@@ -68,6 +74,41 @@ const SaldoClientes = () => {
     }
     
     return filtered;
+  };
+
+  // Eliminar cliente de Firebase y estado local
+  const deleteCliente = async (clienteId) => {
+    try {
+      if (clienteId) {
+        await deleteBalance(clienteId);
+        console.log('✅ Cliente eliminado de Firebase:', clienteId);
+      }
+      // El estado local se actualizará automáticamente por el listener de Firebase
+    } catch (error) {
+      console.error('❌ Error al eliminar cliente:', error);
+    }
+  };
+
+  // Abrir modal de edición
+  const openEditModal = (cliente) => {
+    setClienteToEdit(cliente);
+    setIsEditModalOpen(true);
+  };
+
+  // Cerrar modal de edición
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setClienteToEdit(null);
+  };
+
+  // Actualizar cliente
+  const updateCliente = async (clienteId, updatedData) => {
+    try {
+      await updateBalance(clienteId, updatedData);
+      console.log('✅ Cliente actualizado en Firebase:', clienteId);
+    } catch (error) {
+      console.error('❌ Error al actualizar cliente:', error);
+    }
   };
 
   // Guardar el cliente actual como card
@@ -496,11 +537,11 @@ const SaldoClientes = () => {
                 )
               )}
 
-              <button className="btn btn-secondary mt-3 no-print" onClick={() => window.print()}>Imprimir</button>
+              <button className="btn btn-secondary mt-3 no-print" onClick={() => printSaldoCliente(summaryData)}>Imprimir</button>
             </div>
           )}
         </div>
-        <div className="col-lg-5 col-md-4">
+        <div className="col-lg-5 col-md-4 no-print">
           <div className="card p-3 mb-3">
             <h6>Estado de Conexión</h6>
             {loading ? (
@@ -546,19 +587,7 @@ const SaldoClientes = () => {
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {getFilteredClientes().length > 0 ? (
                 getFilteredClientes().map((cliente, index) => (
-                  <ClienteDeudorCard key={cliente.id || index} cliente={cliente} onDelete={(id) => setSavedClientes(prev => prev.filter(c => c.id !== id))} onEdit={(c) => {
-                    setClientName(c.nombreCliente);
-                    setBoletas(c.boletas || [{ date: '', amount: '' }]);
-                    setVentas(c.ventas || []);
-                    setEfectivo(c.efectivo || []);
-                    setCheques(c.cheques || []);
-                    setTransferencias(c.transferencias || []);
-                    setShowVentas(c.ventas && c.ventas.length > 0);
-                    setShowEfectivo(c.efectivo && c.efectivo.length > 0);
-                    setShowCheque(c.cheques && c.cheques.length > 0);
-                    setShowTransferencia(c.transferencias && c.transferencias.length > 0);
-                    setSavedClientes(prev => prev.filter(x => x.id !== c.id));
-                  }} />
+                  <ClienteDeudorCard key={cliente.id || index} cliente={cliente} onDelete={deleteCliente} onEdit={openEditModal} />
                 ))
               ) : (
                 <div className="text-center text-muted py-3">
@@ -571,6 +600,14 @@ const SaldoClientes = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Edición */}
+      <EditClienteModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        cliente={clienteToEdit}
+        onSave={updateCliente}
+      />
     </div>
   );
 };

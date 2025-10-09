@@ -1,29 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import Sortable from 'sortablejs';
 import { formatCurrency } from '../utils/money';
-import { Modal, Button } from 'react-bootstrap';
 import { useRepartos } from '../firebase/hooks';
 import RepartoCard from '../components/RepartoCard';
+import ClienteRow from '../components/ClienteRow';
+import EditRepartoModal from '../components/EditRepartoModal';
 import ReportesGraficos from '../components/ReportesGraficos';
+import { printReparto } from '../utils/printUtils';
 
 const MiReparto = () => {
   const [clientName, setClientName] = useState('');
   const [billAmount, setBillAmount] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   
-  // Estados para el modal de edición
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingClient, setEditingClient] = useState(null);
-  const [newAmount, setNewAmount] = useState('');
 
-  // Estados para el reparto actual
+  // Estados para el reparto actual (React puro)
+  const [clientes, setClientes] = useState([]);
   const [currentReparto, setCurrentReparto] = useState({
     date: new Date().toISOString().split('T')[0],
     clients: []
   });
 
   // Firebase hooks
-  const { repartos, todayRepartos, loading, error, addReparto, updatePayment, deleteReparto } = useRepartos();
+  const { repartos, todayRepartos, loading, error, addReparto, updatePayment, deleteReparto, updateDocument } = useRepartos();
 
   // Estados para las cards de repartos guardados
   const [savedRepartos, setSavedRepartos] = useState([]);
@@ -31,6 +29,12 @@ const MiReparto = () => {
   // Estados para filtros de fecha
   const [dateFilter, setDateFilter] = useState('hoy');
   const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [lastProcessedDate, setLastProcessedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isManuallyCleared, setIsManuallyCleared] = useState(false);
+  
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [repartoToEdit, setRepartoToEdit] = useState(null);
 
   // Función para filtrar repartos por fecha
   const getFilteredRepartos = () => {
@@ -134,34 +138,28 @@ const MiReparto = () => {
         // Actualizar estado local
         setSavedRepartos(prev => [newReparto, ...prev]);
         
-        // LIMPIAR COMPLETAMENTE TODO DESPUÉS DE GUARDAR
-        // 1. Limpiar reparto actual
+        // LIMPIAR COMPLETAMENTE TODO DESPUÉS DE GUARDAR (React puro)
+        console.log('🧹 Iniciando limpieza después de guardar...');
+        
+        // Marcar como limpiado manualmente para evitar interferencia del listener
+        setIsManuallyCleared(true);
+        
+        // Limpiar todo de forma síncrona
+        setClientes([]);
         setCurrentReparto({
           date: new Date().toISOString().split('T')[0],
           clients: []
         });
-        
-        // 2. Limpiar tabla visual
-        const tbody = document.getElementById('clientTableBody');
-        if (tbody) {
-          tbody.innerHTML = '';
-        }
-        
-        // 3. Limpiar formulario
         setClientName('');
         setBillAmount('');
         setValidationErrors({});
+        setShowDebtors(false);
         
-        // 4. Actualizar totales (debería mostrar 0)
-        updateTotals();
-        
-        // 5. Limpiar lista de deudores si existe
-        const debtorsList = document.getElementById('debtorsList');
-        if (debtorsList) {
-          debtorsList.style.display = 'none';
-        }
-        
-        console.log('🧹 Tabla y formulario limpiados completamente');
+        // Resetear flag después de un tiempo
+        setTimeout(() => {
+          setIsManuallyCleared(false);
+          console.log('🧹 Limpieza completada - Tabla vacía');
+        }, 1000);
         
       } catch (error) {
         console.error('❌ Error al guardar reparto como card:', error);
@@ -173,24 +171,21 @@ const MiReparto = () => {
         };
         setSavedRepartos(prev => [newReparto, ...prev]);
         
-        // Limpiar igual aunque haya error
+        // Limpiar igual aunque haya error (React puro)
+        console.log('🧹 Limpiando después de error...');
+        setClientes([]);
         setCurrentReparto({
           date: new Date().toISOString().split('T')[0],
           clients: []
         });
-        
-        const tbody = document.getElementById('clientTableBody');
-        if (tbody) {
-          tbody.innerHTML = '';
-          updateTotals();
-        }
-        
         setClientName('');
         setBillAmount('');
         setValidationErrors({});
+        setShowDebtors(false);
       }
     }
   };
+
 
   // Función para eliminar un reparto guardado
   const deleteSavedReparto = async (repartoId) => {
@@ -209,72 +204,27 @@ const MiReparto = () => {
     }
   };
 
-  // Función para editar un reparto guardado
-  const editSavedReparto = (reparto) => {
-    // Cargar el reparto en el estado actual
-    setCurrentReparto(reparto);
-    
-    // Cargar en la tabla
-    const tbody = document.getElementById('clientTableBody');
-    if (tbody) {
-      tbody.innerHTML = '';
-      reparto.clients.forEach(client => {
-        addClientRow(client.clientName, client.billAmount.toFixed(2));
-      });
-      updateTotals();
-    }
-    
-    // Eliminar de saved repartos (se volverá a guardar cuando presione "Guardar")
-    deleteSavedReparto(reparto.id);
+  // Abrir modal de edición
+  const openEditModal = (reparto) => {
+    setRepartoToEdit(reparto);
+    setIsEditModalOpen(true);
   };
 
-  // Cargar repartos desde Firebase al inicializar
-  useEffect(() => {
-    if (repartos.length > 0) {
-      console.log('📦 Repartos cargados desde Firebase:', repartos);
-      
-      // Filtrar repartos que tienen múltiples clientes (cards) o están marcados como cards
-      const cardRepartos = repartos.filter(reparto => 
-        reparto.clients && Array.isArray(reparto.clients) && reparto.clients.length > 0
-      );
-      
-      console.log('🎴 Cards encontradas:', cardRepartos);
-      
-      if (cardRepartos.length > 0) {
-        // Convertir a formato de cards
-        const formattedRepartos = cardRepartos.map(reparto => ({
-          id: reparto.id,
-          date: reparto.date,
-          clients: reparto.clients || [],
-          createdAt: reparto.createdAt
-        }));
-        
-        setSavedRepartos(formattedRepartos);
-        console.log('✅ Cards de repartos cargadas desde Firebase:', formattedRepartos.length);
-      }
-      
-      // Cargar repartos individuales del día actual en la tabla
-      const todayIndividualRepartos = repartos.filter(reparto => 
-        reparto.date === new Date().toISOString().split('T')[0] && 
-        reparto.clientName && // Tiene nombre de cliente individual
-        (!reparto.clients || reparto.clients.length === 0) // No es un reparto con múltiples clientes
-      );
-      
-      if (todayIndividualRepartos.length > 0) {
-        const tbody = document.getElementById('clientTableBody');
-        if (tbody) {
-          tbody.innerHTML = '';
-        }
-        
-        todayIndividualRepartos.forEach(reparto => {
-          addClientRow(reparto.clientName, reparto.billAmount.toFixed(2));
-        });
-        
-        updateTotals();
-        console.log('✅ Repartos individuales del día cargados desde Firebase:', todayIndividualRepartos.length);
-      }
+  // Cerrar modal de edición
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setRepartoToEdit(null);
+  };
+
+  // Actualizar reparto
+  const updateReparto = async (repartoId, updatedData) => {
+    try {
+      await updateDocument(repartoId, updatedData);
+      console.log('✅ Reparto actualizado en Firebase:', repartoId);
+    } catch (error) {
+      console.error('❌ Error al actualizar reparto:', error);
     }
-  }, [repartos]);
+  };
 
   // formatCurrency centralizado en utils
 
@@ -294,7 +244,7 @@ const MiReparto = () => {
     }));
   };
 
-  // Manejar envío del formulario
+  // Manejar envío del formulario (React puro)
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -311,15 +261,18 @@ const MiReparto = () => {
     }
     
     try {
-      // Crear objeto cliente
+      // Crear objeto cliente con ID único
       const newClient = {
+        id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID único temporal
         clientName: clientName.trim(),
         billAmount: amount,
         paymentStatus: 'pending',
-        paymentAmount: 0
+        paymentAmount: 0,
+        address: ''
       };
 
-      // Actualizar reparto actual
+      // Actualizar estado React
+      setClientes(prev => [...prev, newClient]);
       setCurrentReparto(prev => ({
         ...prev,
         clients: [...prev.clients, newClient]
@@ -332,247 +285,214 @@ const MiReparto = () => {
         date: new Date().toISOString().split('T')[0]
       });
       
-      // Agregar cliente a la tabla local (para compatibilidad)
-      addClientRow(clientName.trim(), amount.toFixed(2));
-      updateTotals();
-      
       // Limpiar formulario
       setClientName('');
       setBillAmount('');
       setValidationErrors({});
       
-      console.log('✅ Reparto guardado en Firebase');
+      console.log('✅ Cliente agregado');
     } catch (error) {
-      console.error('❌ Error al guardar reparto:', error);
-      // Aún así agregamos localmente para no perder la funcionalidad
-      addClientRow(clientName.trim(), amount.toFixed(2));
-      updateTotals();
+      console.error('❌ Error al guardar cliente:', error);
+      // Aún así agregamos localmente
+      setClientes(prev => [...prev, newClient]);
       setClientName('');
       setBillAmount('');
       setValidationErrors({});
     }
   };
 
-  // Función para agregar fila de cliente (simplificada)
-  const addClientRow = (name, amount) => {
-    const tbody = document.getElementById('clientTableBody');
-    const tr = document.createElement('tr');
-    tr.dataset.bill = amount;
-    tr.dataset.payment = "";
-
-    // Nombre del Cliente
-    const tdName = document.createElement('td');
-    tdName.textContent = name;
-    tr.appendChild(tdName);
-
-    // Dirección (vacía)
-    const tdAddress = document.createElement('td');
-    tdAddress.textContent = "";
-    tr.appendChild(tdAddress);
-
-      // Monto de Boleta (editable con clic - modal)
-      const tdAmount = document.createElement('td');
-      tdAmount.textContent = formatCurrency(amount);
-      tdAmount.style.cursor = 'pointer';
-      tdAmount.title = 'Clic para editar monto';
-      tdAmount.addEventListener('click', function() {
-        const clientName = tr.cells[0].textContent;
-        const currentAmount = parseFloat(tr.dataset.bill);
-        
-        // Usar React state para abrir modal
-        setEditingClient({ name: clientName, tr: tr, td: tdAmount });
-        setNewAmount(currentAmount.toFixed(2));
-        setShowEditModal(true);
-      });
-      tr.appendChild(tdAmount);
-
-    // Columna Pago
-    const tdPago = document.createElement('td');
-    tdPago.style.cursor = 'pointer';
-    tdPago.textContent = "";
-    tdPago.title = "Clic para marcar pago completo; Doble clic para ingresar monto parcial";
-
-    let clickTimer = null;
-
-    const refreshPaymentDisplay = () => {
-      const paymentVal = tr.dataset.payment;
-      if (paymentVal === "full") {
-        tdPago.innerHTML = '<span class="paid">&times;</span>';
-      } else if (paymentVal !== "" && !isNaN(paymentVal)) {
-        tdPago.textContent = formatCurrency(paymentVal);
-      } else {
-        tdPago.textContent = "";
+  // Funciones React puras para manejar clientes
+  const updateCliente = async (clienteId, updates) => {
+    try {
+      // Actualizar en Firebase si no es un ID temporal
+      if (!clienteId.startsWith('temp_')) {
+        await updatePayment(clienteId, updates);
+        console.log('✅ Cliente actualizado en Firebase:', clienteId);
       }
-    };
-
-    tdPago.addEventListener('click', function(e) {
-      if (clickTimer == null) {
-        clickTimer = setTimeout(function(){
-          clickTimer = null;
-          tr.dataset.payment = (tr.dataset.payment === "" || tr.dataset.payment === null) ? "full" : "";
-          refreshPaymentDisplay();
-          updateTotals();
-        }, 200);
-      }
-    });
-
-    tdPago.addEventListener('dblclick', function(e) {
-      e.stopPropagation();
-      if (clickTimer) {
-        clearTimeout(clickTimer);
-        clickTimer = null;
-      }
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.step = '0.01';
-      input.classList.add('payment-input');
-      input.value = (tr.dataset.payment !== "full" && tr.dataset.payment !== "") ? tr.dataset.payment : "";
-      tdPago.innerHTML = "";
-      tdPago.appendChild(input);
-      input.focus();
-      input.addEventListener('blur', function() {
-        tr.dataset.payment = (input.value.trim() !== "") ? parseFloat(input.value).toFixed(2) : "";
-        refreshPaymentDisplay();
-        updateTotals();
-      });
-      input.addEventListener('keydown', function(ev) {
-        if (ev.key === 'Enter') {
-          input.blur();
-        }
-      });
-    });
-
-    tr.appendChild(tdPago);
-
-    // Botón eliminar
-    const tdActions = document.createElement('td');
-    tdActions.classList.add('no-print', 'text-center');
-
-    const deleteBtn = document.createElement('button');
-    deleteBtn.innerHTML = '❌';
-    deleteBtn.classList.add('btn', 'btn-sm', 'btn-link', 'text-danger', 'p-0');
-    deleteBtn.style.fontSize = '1.2em';
-    deleteBtn.title = 'Eliminar cliente';
-
-    deleteBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      tr.classList.add('fade-out');
-      setTimeout(() => {
-        tr.remove();
-        updateTotals();
-      }, 300);
-    });
-
-    tdActions.appendChild(deleteBtn);
-    tr.appendChild(tdActions);
-
-    tbody.appendChild(tr);
+      
+      // Actualizar estado local
+      setClientes(prev => prev.map(cliente => 
+        cliente.id === clienteId ? { ...cliente, ...updates } : cliente
+      ));
+      setCurrentReparto(prev => ({
+        ...prev,
+        clients: prev.clients.map(cliente => 
+          cliente.id === clienteId ? { ...cliente, ...updates } : cliente
+        )
+      }));
+    } catch (error) {
+      console.error('❌ Error al actualizar cliente:', error);
+      // Aún así actualizar localmente para UX
+      setClientes(prev => prev.map(cliente => 
+        cliente.id === clienteId ? { ...cliente, ...updates } : cliente
+      ));
+      setCurrentReparto(prev => ({
+        ...prev,
+        clients: prev.clients.map(cliente => 
+          cliente.id === clienteId ? { ...cliente, ...updates } : cliente
+        )
+      }));
+    }
   };
 
-  // Función para actualizar totales
-  const updateTotals = () => {
-    let subtotal = 0;
-    let totalPending = 0;
-    const rows = document.querySelectorAll("#clientTableBody tr");
-    rows.forEach(row => {
-      const bill = parseFloat(row.dataset.bill);
-      subtotal += bill;
-      let payment = 0;
-      if (row.dataset.payment === "full") {
-        payment = bill;
-      } else if (row.dataset.payment !== "" && !isNaN(row.dataset.payment)) {
-        payment = parseFloat(row.dataset.payment);
-      }
-      totalPending += (bill - payment);
-    });
-    
-    const subtotalEl = document.getElementById("subtotal");
-    const totalEl = document.getElementById("total");
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-    if (totalEl) totalEl.textContent = formatCurrency(totalPending);
+  const deleteCliente = async (clienteId) => {
+    try {
+      // Eliminar de Firebase
+      await deleteReparto(clienteId);
+      console.log('✅ Cliente eliminado de Firebase:', clienteId);
+      
+      // El estado local se actualizará automáticamente por el listener de Firebase
+    } catch (error) {
+      console.error('❌ Error al eliminar cliente:', error);
+      // Aún así eliminar del estado local para UX
+      setClientes(prev => prev.filter(cliente => cliente.id !== clienteId));
+      setCurrentReparto(prev => ({
+        ...prev,
+        clients: prev.clients.filter(cliente => cliente.id !== clienteId)
+      }));
+    }
   };
 
-  // Manejar edición de monto
-  const handleSaveAmount = () => {
-    const amount = parseFloat(newAmount);
+  // Calcular totales con React puro
+  const calcularTotales = () => {
+    const subtotal = clientes.reduce((sum, cliente) => sum + cliente.billAmount, 0);
+    const totalPendiente = clientes.reduce((sum, cliente) => {
+      const pagado = cliente.paymentAmount || 0;
+      return sum + (cliente.billAmount - pagado);
+    }, 0);
     
-    if (isNaN(amount) || amount <= 0) {
-      alert("Ingrese un monto válido");
+    return { subtotal, totalPendiente };
+  };
+
+  const { subtotal, totalPendiente } = calcularTotales();
+
+
+  // Estado para mostrar/ocultar deudores (React puro)
+  const [showDebtors, setShowDebtors] = useState(false);
+
+  // Calcular deudores con React puro
+  const deudores = clientes.filter(cliente => {
+    const pagado = cliente.paymentAmount || 0;
+    return cliente.billAmount - pagado > 0;
+  });
+
+  const handleShowDebtors = () => {
+    if (deudores.length === 0) {
+        alert("No hay deudores.");
+      return;
+    }
+    setShowDebtors(!showDebtors);
+  };
+
+  // Cargar datos desde Firebase al inicializar (consolidado)
+  useEffect(() => {
+    console.log('🔄 useEffect ejecutado - Repartos:', repartos.length, 'Manualmente limpiado:', isManuallyCleared);
+    
+    // No cargar datos si fue limpiado manualmente
+    if (isManuallyCleared) {
+      console.log('🚫 Saltando carga de datos - Tabla limpiada manualmente');
       return;
     }
     
-    if (editingClient) {
-      editingClient.tr.dataset.bill = amount.toFixed(2);
-      editingClient.td.textContent = formatCurrency(amount);
-      updateTotals();
-    }
-    
-    setShowEditModal(false);
-    setEditingClient(null);
-    setNewAmount('');
-  };
-
-  const handleCloseModal = () => {
-    setShowEditModal(false);
-    setEditingClient(null);
-    setNewAmount('');
-  };
-
-  // Manejar deudores
-  const handleShowDebtors = () => {
-    const debtorsListDiv = document.getElementById("debtorsList");
-    const showBtn = document.getElementById("showDebtorsBtn");
-    
-    if (debtorsListDiv.style.display === "block") {
-      debtorsListDiv.style.display = "none";
-      showBtn.textContent = "Ver Deudores";
-    } else {
-      const debtorsUl = document.getElementById("debtorsUl");
-      debtorsUl.innerHTML = "";
-      const rows = document.querySelectorAll("#clientTableBody tr");
-      rows.forEach(row => {
-        const bill = parseFloat(row.dataset.bill);
-        let payment = 0;
-        if (row.dataset.payment === "full") {
-          payment = bill;
-        } else if (row.dataset.payment !== "" && !isNaN(row.dataset.payment)) {
-          payment = parseFloat(row.dataset.payment);
-        }
-        const pending = bill - payment;
-        if (pending > 0) {
-          const debtorName = row.cells[0].textContent;
-          const li = document.createElement('li');
-          li.classList.add('list-group-item');
-          li.textContent = debtorName + " debe " + formatCurrency(pending);
-          debtorsUl.appendChild(li);
-        }
+    if (repartos.length > 0) {
+      console.log('📦 Todos los repartos:', repartos);
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      console.log('📅 Procesando repartos para el día:', todayStr);
+      
+      // 1. Cargar repartos con múltiples clientes (cards)
+      const cardRepartos = repartos.filter(reparto => 
+        reparto.clients && Array.isArray(reparto.clients) && reparto.clients.length > 0
+      );
+      
+      if (cardRepartos.length > 0) {
+        const formattedRepartos = cardRepartos.map(reparto => ({
+          id: reparto.id,
+          date: reparto.date,
+          clients: reparto.clients || [],
+          createdAt: reparto.createdAt
+        }));
+        
+        setSavedRepartos(formattedRepartos);
+        console.log('✅ Cards de repartos cargadas:', formattedRepartos.length);
+      }
+      
+      // 2. Cargar clientes individuales del día actual (mejorado con validaciones)
+      const todayIndividualRepartos = repartos.filter(reparto => {
+        const isToday = reparto.date === todayStr;
+        const hasClientName = reparto.clientName && reparto.clientName.trim() !== '';
+        const isIndividual = !reparto.clients || reparto.clients.length === 0;
+        const hasValidAmount = reparto.billAmount && parseFloat(reparto.billAmount) > 0;
+        const hasValidId = reparto.id && reparto.id.trim() !== '';
+        const isNotCorrupted = reparto.clientName !== 'undefined' && reparto.clientName !== null;
+        
+        return isToday && hasClientName && isIndividual && hasValidAmount && hasValidId && isNotCorrupted;
       });
-      if (document.getElementById("debtorsUl").children.length > 0) {
-        debtorsListDiv.style.display = "block";
-        showBtn.textContent = "Ocultar Deudores";
+      
+      console.log('✅ Repartos individuales del día encontrados:', todayIndividualRepartos.length);
+      
+      if (todayIndividualRepartos.length > 0) {
+        const clientesFormateados = todayIndividualRepartos.map(reparto => ({
+          id: reparto.id,
+          clientName: reparto.clientName.trim(),
+          billAmount: parseFloat(reparto.billAmount),
+          paymentStatus: reparto.paymentStatus || 'pending',
+          paymentAmount: parseFloat(reparto.paymentAmount) || 0,
+          address: reparto.address || ''
+        }));
+        
+        console.log('👥 Clientes formateados:', clientesFormateados);
+        
+        setClientes(clientesFormateados);
+        setCurrentReparto(prev => ({
+          ...prev,
+          clients: clientesFormateados
+        }));
+        
+        console.log('✅ Clientes del día cargados desde Firebase:', clientesFormateados.length);
       } else {
-        debtorsListDiv.style.display = "none";
-        alert("No hay deudores.");
+        // Limpiar clientes si no hay repartos del día
+        setClientes([]);
+        setCurrentReparto(prev => ({
+          ...prev,
+          clients: []
+        }));
+        console.log('🧹 Clientes limpiados - No hay repartos del día');
       }
+    } else {
+      console.log('❌ No hay repartos en Firebase');
+      // Limpiar todo si no hay datos
+      setClientes([]);
+      setSavedRepartos([]);
+      setCurrentReparto(prev => ({
+        ...prev,
+        clients: []
+      }));
     }
-  };
+  }, [repartos]);
 
+  // Limpiar datos al cambiar de día
   useEffect(() => {
-    const tbody = document.getElementById('clientTableBody');
-    if (!tbody) return;
-    const sortable = new Sortable(tbody, {
-      animation: 150,
-      ghostClass: 'sortable-ghost',
-      onEnd: () => updateTotals(),
-    });
-    return () => {
-      try {
-        sortable.destroy();
-      } catch (_) {
-        // ignore
-      }
-    };
-  }, []);
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    if (lastProcessedDate !== todayStr) {
+      console.log('📅 Cambio de fecha detectado:', lastProcessedDate, '->', todayStr);
+      
+      // Limpiar clientes del día anterior
+      setClientes([]);
+      setCurrentReparto(prev => ({
+        ...prev,
+        date: todayStr,
+        clients: []
+      }));
+      setShowDebtors(false);
+      
+      // Actualizar fecha procesada
+      setLastProcessedDate(todayStr);
+      
+      console.log('🧹 Datos limpiados por cambio de fecha');
+    }
+  }, [lastProcessedDate]);
 
   return (
     <div className="container mt-4 printable">
@@ -624,7 +544,7 @@ const MiReparto = () => {
       </div>
       
       {/* Sección de Clientes del Día */}
-      <div className="card p-3 mb-3">
+      <div className="card p-3 mb-3 printable">
         <div className="d-flex justify-content-between align-items-center no-print">
           <h2 className="card-title">Clientes del Día</h2>
           <div className="d-flex gap-2">
@@ -637,7 +557,7 @@ const MiReparto = () => {
                 Guardar
               </button>
             )}
-            <button className="btn btn-secondary" onClick={() => window.print()}>Imprimir</button>
+            <button className="btn btn-secondary" onClick={() => printReparto(clientes, currentReparto.date)}>Imprimir</button>
           </div>
         </div>
         <div className="alert alert-info mt-2 no-print" role="alert">
@@ -656,32 +576,48 @@ const MiReparto = () => {
                 <th className="no-print">Acciones</th>
               </tr>
             </thead>
-            <tbody id="clientTableBody">
-              {/* Las filas se agregarán dinámicamente */}
+            <tbody>
+              {clientes.map(cliente => (
+                <ClienteRow
+                  key={cliente.id}
+                  cliente={cliente}
+                  onUpdate={updateCliente}
+                  onDelete={deleteCliente}
+                />
+              ))}
             </tbody>
           </table>
         </div>
         <div className="mt-3 totals-container">
-          <p><strong>Subtotal:</strong> <span id="subtotal">0</span></p>
-          <p className="total"><strong>Total Pendiente:</strong> <span id="total">0</span></p>
+          <p><strong>Subtotal:</strong> <span>{formatCurrency(subtotal)}</span></p>
+          <p className="total"><strong>Total Pendiente:</strong> <span>{formatCurrency(totalPendiente)}</span></p>
         </div>
       </div>
       
       {/* Sección de Deudores */}
       <div className="card p-3 no-print">
         <button 
-          id="showDebtorsBtn" 
           className="btn btn-warning"
           onClick={handleShowDebtors}
         >
-          Ver Deudores
+          {showDebtors ? 'Ocultar Deudores' : 'Ver Deudores'}
         </button>
-        <div id="debtorsList" className="mt-3" style={{display: 'none'}}>
+        {showDebtors && (
+          <div className="mt-3">
           <h3>Lista de Deudores</h3>
-          <ul className="list-group" id="debtorsUl">
-            {/* Se listarán los deudores */}
+            <ul className="list-group">
+              {deudores.map(deudor => {
+                const pagado = deudor.paymentAmount || 0;
+                const pendiente = deudor.billAmount - pagado;
+                return (
+                  <li key={deudor.id} className="list-group-item">
+                    {deudor.clientName} debe {formatCurrency(pendiente)}
+                  </li>
+                );
+              })}
           </ul>
         </div>
+        )}
       </div>
         </div>
         <div className="col-lg-5 col-md-4">
@@ -766,12 +702,16 @@ const MiReparto = () => {
               ) : error ? (
                 <div className="text-danger">
                   <span className="badge bg-danger me-1">❌</span>
-                  <small>Error de conexión</small>
+                  <small>Error de conexión: {error}</small>
                 </div>
               ) : (
                 <div className="text-success">
                   <span className="badge bg-success me-1">🟢</span>
                   <small>Conectado a Firebase</small>
+                  <br />
+                  <small className="text-muted">{repartos.length} repartos cargados</small>
+                  <br />
+                  <small className="text-info">🔗 Colección: repartos</small>
                 </div>
               )}
             </div>
@@ -800,7 +740,7 @@ const MiReparto = () => {
                     key={reparto.id}
                     reparto={reparto}
                     onDelete={deleteSavedReparto}
-                    onEdit={editSavedReparto}
+                    onEdit={openEditModal}
                   />
                 ))
               )}
@@ -812,52 +752,13 @@ const MiReparto = () => {
         </div>
       </div>
       
-      {/* Modal para editar monto */}
-      <Modal show={showEditModal} onHide={handleCloseModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Editar Monto</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {editingClient && (
-            <>
-              <p><strong>Cliente:</strong> {editingClient.name}</p>
-              <div className="mb-3">
-                <label htmlFor="newAmount" className="form-label">Nuevo monto:</label>
-                <input 
-                  type="number" 
-                  step="0.01" 
-                  className="form-control" 
-                  id="newAmount" 
-                  value={newAmount}
-                  onChange={(e) => setNewAmount(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleSaveAmount();
-                    }
-                  }}
-                  autoFocus
-                  ref={(input) => {
-                    if (input && showEditModal) {
-                      setTimeout(() => {
-                        input.focus();
-                        input.select();
-                      }, 100);
-                    }
-                  }}
-                />
-              </div>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={handleSaveAmount}>
-            Guardar
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      {/* Modal de edición de reparto */}
+      <EditRepartoModal
+        isOpen={isEditModalOpen}
+        onClose={closeEditModal}
+        reparto={repartoToEdit}
+        onSave={updateReparto}
+      />
     </div>
   );
 };

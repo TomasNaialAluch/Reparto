@@ -3,9 +3,23 @@ import { GoogleAuthProvider, signInWithPopup, signInAnonymously } from 'firebase
 import { useFirebase } from '../contexts/FirebaseContext';
 
 const Login = () => {
-  const { auth } = useFirebase();
+  const { auth, firebaseInitialized, loading: firebaseLoading } = useFirebase();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Mostrar loading si Firebase aún no está inicializado
+  if (firebaseLoading || !firebaseInitialized) {
+    return (
+      <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '100vh', backgroundColor: '#FAFBFF' }}>
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </div>
+          <p className="mt-3 text-muted">Inicializando Firebase...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleGoogleLogin = async () => {
     setLoading(true);

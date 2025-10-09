@@ -5,7 +5,7 @@ import { getAuth, signInAnonymously, GoogleAuthProvider, signInWithPopup } from 
 
 // Firebase Configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDXnnN0kwZxmcPZj08IRgoCm6cP89Lmk0E",
+  apiKey: "AIzaSyDXnnN0kwZxmcPZjO8IRgoCm6cP89Lmk0E",
   authDomain: "mireparto-14d64.firebaseapp.com",
   projectId: "mireparto-14d64",
   storageBucket: "mireparto-14d64.firebasestorage.app",
@@ -20,6 +20,14 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firebase services
 export const db = getFirestore(app);
 export const auth = getAuth(app);
+
+// Configurar el idioma para mensajes de error en español
+auth.languageCode = 'es';
+
+// Forzar configuración de dominio autorizado para desarrollo
+if (window.location.hostname === 'localhost') {
+  auth.settings.appVerificationDisabledForTesting = true;
+}
 
 // Initialize anonymous authentication
 export const initAuth = async () => {
