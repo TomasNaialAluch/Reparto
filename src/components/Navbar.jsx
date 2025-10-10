@@ -21,8 +21,9 @@ const Navbar = () => {
     { path: '/', label: 'Inicio' },
     { path: '/saldo-clientes', label: 'Saldo Clientes' },
     { path: '/reparto', label: 'Mi Reparto' },
-    { path: '/dolar', label: 'DolarHoy' },
-    { path: '/transferencias', label: 'Transferencias' }
+    { path: '/transferencias', label: 'Transferencias' },
+    { path: '/asistente', label: 'Asistente' },
+    { path: '/dolar', label: 'DolarHoy' }
   ];
 
   const isActive = (path) => {

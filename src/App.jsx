@@ -11,6 +11,7 @@ import Home from './pages/Home';
 import MiReparto from './pages/MiReparto';
 import SaldoClientes from './pages/SaldoClientes';
 import Transferencias from './pages/Transferencias';
+import Asistente from './pages/Asistente';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -87,6 +88,12 @@ const AppContent = () => {
             <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
               <Navbar />
               <Transferencias />
+            </div>
+          } />
+          <Route path="/asistente" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <Asistente />
             </div>
           } />
         </Routes>
