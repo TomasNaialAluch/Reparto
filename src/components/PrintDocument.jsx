@@ -17,15 +17,15 @@ const PrintDocument = ({ data, type, onClose }) => {
         <style>
           @page {
             size: A4 portrait;
-            margin: 0.5cm 1cm;
+            margin: 1.5cm 2cm;
           }
           
           body {
             font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 5px;
+            padding: 10px;
             font-size: 8pt;
-            line-height: 1.2;
+            line-height: 1.3;
             color: #000;
           }
           
@@ -57,8 +57,8 @@ const PrintDocument = ({ data, type, onClose }) => {
           }
           
           .print-item {
-            margin: 1px 0;
-            padding-left: 5px;
+            margin: 2px 0;
+            padding-left: 10px;
             font-size: 7pt;
           }
           
@@ -71,7 +71,7 @@ const PrintDocument = ({ data, type, onClose }) => {
           .print-table th,
           .print-table td {
             border: 1px solid #000;
-            padding: 2px 4px;
+            padding: 3px 6px;
             text-align: left;
             font-size: 7pt;
           }
