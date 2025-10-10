@@ -50,6 +50,10 @@ const MessageCounter = ({ userId = 'default_user' }) => {
     statusColor = 'warning';
     statusText = 'Casi al límite';
   }
+  if (percentage >= 90) {
+    statusColor = 'warning';
+    statusText = 'Límite cercano';
+  }
   if (percentage >= 95) {
     statusColor = 'danger';
     statusText = 'Límite alcanzado';
@@ -100,6 +104,17 @@ const MessageCounter = ({ userId = 'default_user' }) => {
             {usage.monthId}
           </small>
         </div>
+        
+        {percentage >= 80 && (
+          <div className="mt-2">
+            <small className={`text-${statusColor} fw-bold`}>
+              <i className="fas fa-exclamation-triangle me-1"></i>
+              {percentage >= 95 
+                ? 'Límite de API gratuita alcanzado' 
+                : `Te quedan ${remaining} mensajes este mes`}
+            </small>
+          </div>
+        )}
       </div>
     </div>
   );

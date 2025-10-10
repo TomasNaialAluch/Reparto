@@ -462,7 +462,7 @@ export const useAsistenteUsage = () => {
           userId,
           monthId,
           messageCount: 0,
-          maxMessages: 50,
+          maxMessages: 1500, // Límite real de Gemini API gratuita
           createdAt: new Date().toISOString()
         });
       }

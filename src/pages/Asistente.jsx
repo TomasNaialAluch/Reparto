@@ -89,7 +89,7 @@ const Asistente = () => {
     try {
       const canGenerate = await canGenerateMessage('default_user');
       if (!canGenerate) {
-        showError('🚫 Has alcanzado el límite mensual de 50 mensajes. El contador se reiniciará el próximo mes.');
+        showError('🚫 Has alcanzado el límite mensual de 1,500 mensajes de la API gratuita. El contador se reiniciará el próximo mes.');
         return;
       }
     } catch (error) {
