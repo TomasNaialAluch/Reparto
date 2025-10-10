@@ -167,11 +167,14 @@ const MiReparto = () => {
         setValidationErrors({});
         setShowDebtors(false);
         
+        // Mostrar notificación de éxito
+        showSuccess('✓ Reparto guardado exitosamente - Lista limpiada');
+        
         // Resetear flag después de un tiempo
         setTimeout(() => {
           setIsManuallyCleared(false);
           console.log('🧹 Limpieza completada - Tabla vacía');
-        }, 1000);
+        }, 2000);
         
       } catch (error) {
         console.error('❌ Error al guardar reparto como card:', error);
@@ -194,6 +197,9 @@ const MiReparto = () => {
         setBillAmount('');
         setValidationErrors({});
         setShowDebtors(false);
+        
+        // Mostrar notificación de éxito (aunque haya error en Firebase)
+        showSuccess('✓ Reparto guardado localmente - Lista limpiada');
       }
     }
   };
@@ -429,6 +435,12 @@ const MiReparto = () => {
     // No cargar datos si fue limpiado manualmente
     if (isManuallyCleared) {
       console.log('🚫 Saltando carga de datos - Tabla limpiada manualmente');
+      return;
+    }
+    
+    // No cargar si la tabla ya tiene clientes (evitar sobrescribir)
+    if (clientes.length > 0) {
+      console.log('🚫 Saltando carga - Tabla ya tiene clientes');
       return;
     }
     
