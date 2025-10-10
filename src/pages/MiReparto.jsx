@@ -381,19 +381,21 @@ const MiReparto = () => {
 
   const deleteCliente = async (clienteId) => {
     try {
-      // Eliminar de Firebase
-      await deleteReparto(clienteId);
-      console.log('✅ Cliente eliminado de Firebase:', clienteId);
-      
-      // El estado local se actualizará automáticamente por el listener de Firebase
-    } catch (error) {
-      console.error('❌ Error al eliminar cliente:', error);
-      // Aún así eliminar del estado local para UX
+      // Eliminar PRIMERO del estado local (optimista) para feedback instantáneo
       setClientes(prev => prev.filter(cliente => cliente.id !== clienteId));
       setCurrentReparto(prev => ({
         ...prev,
         clients: prev.clients.filter(cliente => cliente.id !== clienteId)
       }));
+      
+      console.log('✅ Cliente eliminado del estado local (inmediato)');
+      
+      // Luego eliminar de Firebase en segundo plano
+      await deleteReparto(clienteId);
+      console.log('✅ Cliente eliminado de Firebase');
+    } catch (error) {
+      console.error('❌ Error al eliminar cliente de Firebase:', error);
+      // Ya se eliminó del estado local, así que la UX ya está actualizada
     }
   };
 
