@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import NotificationContainer from '../components/NotificationContainer';
-import { generateMessage } from '../config/gemini';
+import MessageCounter from '../components/MessageCounter';
+import { generateMessage, consolidateFeedback } from '../config/gemini';
+import { useAsistenteFeedback, useAsistenteProfile, useAsistenteUsage } from '../firebase/hooks';
 
 const Asistente = () => {
   const [userInput, setUserInput] = useState('');
@@ -19,6 +21,31 @@ const Asistente = () => {
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
+  
+  // Firebase para feedback, perfil y uso
+  const { addFeedback, feedbacks } = useAsistenteFeedback();
+  const { addProfile, updateProfile, getProfileByUser } = useAsistenteProfile();
+  const { incrementMessageCount, canGenerateMessage } = useAsistenteUsage();
+  
+  // Estado para el perfil personalizado
+  const [userProfile, setUserProfile] = useState(null);
+
+  // Cargar perfil personalizado al inicio
+  useEffect(() => {
+    const loadUserProfile = async () => {
+      try {
+        const profile = await getProfileByUser('default_user');
+        if (profile) {
+          setUserProfile(profile.profile);
+          console.log('👤 Perfil personalizado cargado:', profile.profile);
+        }
+      } catch (error) {
+        console.error('Error cargando perfil:', error);
+      }
+    };
+    
+    loadUserProfile();
+  }, [getProfileByUser]);
 
   // Opciones para los selects
   const destinatarios = [
@@ -58,6 +85,19 @@ const Asistente = () => {
       return;
     }
 
+    // Verificar límite de mensajes
+    try {
+      const canGenerate = await canGenerateMessage('default_user');
+      if (!canGenerate) {
+        showError('🚫 Has alcanzado el límite mensual de 50 mensajes. El contador se reiniciará el próximo mes.');
+        return;
+      }
+    } catch (error) {
+      console.error('Error verificando límite:', error);
+      showError('Error verificando límite de mensajes');
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
@@ -66,12 +106,22 @@ const Asistente = () => {
       console.log('👤 Destinatario:', destinatario);
       console.log('🎭 Tono:', tono);
       console.log('📋 Contexto:', contexto);
+      console.log('👤 Perfil personalizado:', userProfile ? 'SÍ' : 'NO');
       
-      // Llamar a Gemini AI
-      const aiMessage = await generateMessage(userInput, destinatario, tono, contexto);
+      // Llamar a Gemini AI con perfil personalizado
+      const aiMessage = await generateMessage(userInput, destinatario, tono, contexto, userProfile);
       
       console.log('✅ Respuesta de Gemini:', aiMessage);
       setGeneratedMessage(aiMessage);
+      
+      // Incrementar contador de mensajes
+      try {
+        await incrementMessageCount('default_user');
+        console.log('📊 Contador de mensajes incrementado');
+      } catch (error) {
+        console.error('Error incrementando contador:', error);
+        // No mostrar error al usuario, solo log
+      }
       
       // Agregar al historial
       const newHistoryItem = {
@@ -149,30 +199,83 @@ const Asistente = () => {
     }
 
     try {
-      // Guardar feedback en localStorage
-      const feedbacks = JSON.parse(localStorage.getItem('asistente_feedbacks') || '[]');
-      const newFeedback = {
-        id: Date.now(),
+      // Guardar feedback en Firebase
+      const feedbackData = {
         originalMessage: generatedMessage,
         editedMessage: editedMessage,
         feedback: feedbackText,
-        timestamp: new Date().toISOString(),
         destinatario,
         tono,
         contexto
       };
       
-      feedbacks.push(newFeedback);
-      localStorage.setItem('asistente_feedbacks', JSON.stringify(feedbacks));
+      await addFeedback(feedbackData);
       
-      showSuccess('✓ Feedback guardado - El asistente aprenderá de tu preferencia');
+      showSuccess('✓ Feedback guardado en la base de datos - El asistente aprenderá de tu preferencia');
       setFeedbackText('');
       
-      // TODO: Implementar consolidación automática cuando haya suficientes feedbacks
+      // Verificar si necesitamos consolidar feedback
+      const totalFeedbacks = feedbacks.length + 1;
+      console.log('📊 Total de feedbacks guardados:', totalFeedbacks);
+      
+      // Consolidar cada 5 feedbacks
+      if (totalFeedbacks % 5 === 0) {
+        console.log('🔄 Iniciando consolidación automática...');
+        await consolidateUserProfile();
+      }
       
     } catch (error) {
       console.error('Error guardando feedback:', error);
-      showError('Error al guardar el feedback');
+      showError('Error al guardar el feedback en la base de datos');
+    }
+  };
+
+  // Función para consolidar perfil del usuario
+  const consolidateUserProfile = async () => {
+    try {
+      console.log('🧠 Consolidando perfil personalizado...');
+      
+      // Obtener los últimos 5 feedbacks
+      const recentFeedbacks = feedbacks.slice(-5);
+      
+      if (recentFeedbacks.length < 5) {
+        console.log('⚠️ No hay suficientes feedbacks para consolidar');
+        return;
+      }
+      
+      // Consolidar con Gemini
+      const consolidatedProfile = await consolidateFeedback(recentFeedbacks);
+      console.log('✅ Perfil consolidado:', consolidatedProfile);
+      
+      // Guardar o actualizar perfil en Firebase
+      const existingProfile = await getProfileByUser('default_user');
+      
+      if (existingProfile) {
+        // Actualizar perfil existente
+        await updateProfile(existingProfile.id, {
+          profile: consolidatedProfile,
+          feedbackCount: feedbacks.length + 1,
+          version: (existingProfile.version || 1) + 1
+        });
+        console.log('✅ Perfil actualizado');
+      } else {
+        // Crear nuevo perfil
+        await addProfile({
+          profile: consolidatedProfile,
+          feedbackCount: feedbacks.length + 1,
+          version: 1
+        });
+        console.log('✅ Nuevo perfil creado');
+      }
+      
+      // Actualizar estado local
+      setUserProfile(consolidatedProfile);
+      
+      showSuccess('🎉 ¡Perfil personalizado actualizado! El asistente ahora conoce mejor tus preferencias.');
+      
+    } catch (error) {
+      console.error('❌ Error consolidando perfil:', error);
+      showError('Error al consolidar el perfil personalizado');
     }
   };
 
@@ -361,6 +464,9 @@ const Asistente = () => {
                 <p>Escribe tu idea en el panel izquierdo y haz clic en "Generar Mensaje"</p>
               </div>
             )}
+
+            {/* Contador de mensajes */}
+            <MessageCounter userId="default_user" />
 
             {/* Historial */}
             {messageHistory.length > 0 && (

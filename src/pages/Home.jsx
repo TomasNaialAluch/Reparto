@@ -18,6 +18,10 @@ const Home = () => {
     { 
       path: '/transferencias', 
       label: 'Transferencias'
+    },
+    { 
+      path: '/asistente', 
+      label: 'Asistente'
     }
   ];
 

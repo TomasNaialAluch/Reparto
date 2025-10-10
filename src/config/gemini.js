@@ -16,7 +16,7 @@ export const listAvailableModels = async () => {
   }
 };
 
-export const generateMessage = async (userInput, destinatario, tono, contexto) => {
+export const generateMessage = async (userInput, destinatario, tono, contexto, userProfile = null) => {
   try {
     console.log('🔧 Gemini config - API Key:', import.meta.env.VITE_GEMINI_API_KEY ? 'Configurada' : 'NO configurada');
     
@@ -24,7 +24,7 @@ export const generateMessage = async (userInput, destinatario, tono, contexto) =
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     // Crear el prompt personalizado según las opciones
-    const prompt = createPrompt(userInput, destinatario, tono, contexto);
+    const prompt = createPrompt(userInput, destinatario, tono, contexto, userProfile);
     console.log('📋 Prompt enviado a Gemini:', prompt);
     
     const result = await model.generateContent(prompt);
@@ -39,7 +39,75 @@ export const generateMessage = async (userInput, destinatario, tono, contexto) =
   }
 };
 
-const createPrompt = (userInput, destinatario, tono, contexto) => {
+// Función para consolidar feedback y crear perfil personalizado
+export const consolidateFeedback = async (feedbacks) => {
+  try {
+    console.log('🔧 Gemini config - API Key:', import.meta.env.VITE_GEMINI_API_KEY ? 'Configurada' : 'NO configurada');
+    
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+    const prompt = `Analiza estos feedbacks del usuario José sobre mensajes generados y crea un perfil personalizado de comunicación.
+
+FEEDBACKS DEL USUARIO:
+${feedbacks.map((fb, index) => `
+${index + 1}. Mensaje original: "${fb.originalMessage}"
+   Mensaje editado: "${fb.editedMessage}"
+   Feedback: "${fb.feedback}"
+   Contexto: ${fb.destinatario} - ${fb.tono} - ${fb.contexto}
+`).join('\n')}
+
+TAREA:
+Crea un perfil personalizado de comunicación para José que incluya:
+
+1. TONO PREFERIDO: Cómo le gusta que suenen los mensajes
+2. ESTRUCTURA: Cómo prefiere que estén organizados
+3. LENGUAJE: Palabras y frases que prefiere usar/evitar
+4. LONGITUD: Preferencias sobre la extensión de los mensajes
+5. FORMALIDAD: Nivel de formalidad que prefiere
+
+FORMATO DE RESPUESTA:
+Responde SOLO con un JSON válido en este formato:
+{
+  "tono": "descripción del tono preferido",
+  "estructura": "descripción de la estructura preferida", 
+  "lenguaje": "palabras/frases que prefiere y que evitar",
+  "longitud": "preferencias de longitud",
+  "formalidad": "nivel de formalidad preferido",
+  "resumen": "resumen general del estilo de comunicación"
+}
+
+NO incluyas explicaciones adicionales, solo el JSON.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    console.log('📨 Respuesta de consolidación:', text);
+    
+    // Intentar parsear el JSON
+    try {
+      const profile = JSON.parse(text.trim());
+      return profile;
+    } catch (parseError) {
+      console.error('Error parseando JSON:', parseError);
+      // Si no se puede parsear, crear un perfil básico
+      return {
+        tono: "formal pero cercano",
+        estructura: "saludo + contexto + petición + consideración + cierre",
+        lenguaje: "usar 'buen día', 'necesitaría', '¿habría posibilidad?', evitar informalismos",
+        longitud: "3-4 oraciones máximo",
+        formalidad: "formal pero accesible",
+        resumen: "Estilo profesional y respetuoso, directo pero cortés"
+      };
+    }
+    
+  } catch (error) {
+    console.error('❌ Error consolidando feedback:', error);
+    throw new Error(`Error al consolidar feedback: ${error.message}`);
+  }
+};
+
+const createPrompt = (userInput, destinatario, tono, contexto, userProfile = null) => {
   const destinatarioText = {
     'cliente': 'un cliente',
     'proveedor': 'un proveedor',
@@ -61,7 +129,7 @@ const createPrompt = (userInput, destinatario, tono, contexto) => {
     'otro': 'comunicar algo importante'
   };
 
-  return `Eres un asistente de mensajes profesionales. Tu tarea es redactar un mensaje profesional basado en la descripción del usuario.
+  let basePrompt = `Eres un asistente de mensajes profesionales. Tu tarea es redactar un mensaje profesional basado en la descripción del usuario.
 
 INSTRUCCIONES:
 - Destinatario: ${destinatarioText[destinatario]}
@@ -78,7 +146,25 @@ REQUISITOS:
 5. Haz el mensaje claro y directo
 6. Máximo 3-4 oraciones
 7. NO incluyas el texto original del usuario tal como está
-8. Genera un mensaje completamente nuevo y profesional
+8. Genera un mensaje completamente nuevo y profesional`;
+
+  // Agregar perfil personalizado si existe
+  if (userProfile) {
+    basePrompt += `
+
+PERSONALIZACIÓN DEL USUARIO:
+- Tono preferido: ${userProfile.tono}
+- Estructura preferida: ${userProfile.estructura}
+- Lenguaje preferido: ${userProfile.lenguaje}
+- Longitud preferida: ${userProfile.longitud}
+- Formalidad preferida: ${userProfile.formalidad}
+
+ADAPTA el mensaje siguiendo estas preferencias personales del usuario.`;
+  }
+
+  basePrompt += `
 
 Responde SOLO con el mensaje final, sin explicaciones adicionales.`;
+
+  return basePrompt;
 };

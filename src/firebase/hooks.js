@@ -363,3 +363,161 @@ export const useTransferenciasClientes = () => {
     deleteTransferencia: deleteDocument
   };
 };
+
+// Hook específico para feedback del asistente
+export const useAsistenteFeedback = () => {
+  const { documents, loading, error } = useFirestoreRealtime('asistente_feedback');
+  const { addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('asistente_feedback');
+
+  const addFeedback = async (data) => {
+    return await addDocument({
+      originalMessage: data.originalMessage,
+      editedMessage: data.editedMessage,
+      feedback: data.feedback,
+      destinatario: data.destinatario,
+      tono: data.tono,
+      contexto: data.contexto,
+      userId: data.userId || 'default_user', // Para futuras implementaciones multi-usuario
+      timestamp: new Date().toISOString()
+    });
+  };
+
+  const getFeedbacksByUser = async (userId = 'default_user') => {
+    return await getDocumentsByField('userId', userId);
+  };
+
+  return {
+    feedbacks: documents,
+    loading,
+    error,
+    addFeedback,
+    updateFeedback: updateDocument,
+    deleteFeedback: deleteDocument,
+    getFeedbacksByUser
+  };
+};
+
+// Hook específico para perfil personalizado del asistente
+export const useAsistenteProfile = () => {
+  const { documents, loading, error } = useFirestoreRealtime('asistente_profile');
+  const { addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('asistente_profile');
+
+  const addProfile = async (data) => {
+    return await addDocument({
+      userId: data.userId || 'default_user',
+      profile: data.profile, // El perfil consolidado de Gemini
+      feedbackCount: data.feedbackCount || 0,
+      lastConsolidation: new Date().toISOString(),
+      version: data.version || 1
+    });
+  };
+
+  const updateProfile = async (profileId, data) => {
+    return await updateDocument(profileId, {
+      ...data,
+      lastConsolidation: new Date().toISOString()
+    });
+  };
+
+  const getProfileByUser = async (userId = 'default_user') => {
+    const profiles = await getDocumentsByField('userId', userId);
+    // Retornar el perfil más reciente
+    return profiles.length > 0 ? profiles[0] : null;
+  };
+
+  return {
+    profiles: documents,
+    loading,
+    error,
+    addProfile,
+    updateProfile,
+    deleteProfile: deleteDocument,
+    getProfileByUser
+  };
+};
+
+// Hook específico para contador de mensajes mensual
+export const useAsistenteUsage = () => {
+  const { documents, loading, error } = useFirestoreRealtime('asistente_usage');
+  const { addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('asistente_usage');
+
+  // Generar ID del mes actual (YYYY-MM)
+  const getCurrentMonthId = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  };
+
+  // Obtener contador del mes actual
+  const getCurrentMonthUsage = async (userId = 'default_user') => {
+    try {
+      const monthId = getCurrentMonthId();
+      const usage = await getDocumentsByField('monthId', monthId);
+      const userUsage = usage.find(u => u.userId === userId);
+      
+      if (userUsage) {
+        return userUsage;
+      } else {
+        // Crear nuevo contador para el mes
+        return await addDocument({
+          userId,
+          monthId,
+          messageCount: 0,
+          maxMessages: 50,
+          createdAt: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Error obteniendo uso del mes:', error);
+      throw error;
+    }
+  };
+
+  // Incrementar contador de mensajes
+  const incrementMessageCount = async (userId = 'default_user') => {
+    try {
+      const currentUsage = await getCurrentMonthUsage(userId);
+      
+      if (currentUsage.messageCount >= currentUsage.maxMessages) {
+        throw new Error('Límite mensual alcanzado');
+      }
+      
+      return await updateDocument(currentUsage.id, {
+        messageCount: currentUsage.messageCount + 1,
+        lastMessageAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error incrementando contador:', error);
+      throw error;
+    }
+  };
+
+  // Verificar si puede generar más mensajes
+  const canGenerateMessage = async (userId = 'default_user') => {
+    try {
+      const currentUsage = await getCurrentMonthUsage(userId);
+      return currentUsage.messageCount < currentUsage.maxMessages;
+    } catch (error) {
+      console.error('Error verificando límite:', error);
+      return false;
+    }
+  };
+
+  // Obtener días hasta el reset
+  const getDaysUntilReset = () => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diffTime = nextMonth - now;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  return {
+    usage: documents,
+    loading,
+    error,
+    getCurrentMonthUsage,
+    incrementMessageCount,
+    canGenerateMessage,
+    getDaysUntilReset
+  };
+};
