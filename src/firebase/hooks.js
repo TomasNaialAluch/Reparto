@@ -338,25 +338,28 @@ export const useClientBalances = () => {
 };
 
 // Hook específico para transferencias
-export const useTransfers = () => {
-  const { documents, loading, error, addDocument, updateDocument, deleteDocument } = useFirestore('transfers');
+export const useTransferenciasClientes = () => {
+  const { documents, loading, error } = useFirestoreRealtime('TransferenciasClientes');
+  const { addDocument, updateDocument, deleteDocument } = useFirestore('TransferenciasClientes');
 
-  const addTransfer = async (transferData) => {
+  const addTransferencia = async (data) => {
     return await addDocument({
-      clientName: transferData.clientName,
-      transfers: transferData.transfers || [],
-      boletas: transferData.boletas || [],
-      finalBalance: transferData.finalBalance,
-      date: new Date().toISOString().split('T')[0]
+      nombreCliente: data.nombreCliente,
+      transferencias: data.transferencias || [],
+      boletas: data.boletas || [],
+      totalTransferencias: data.totalTransferencias || 0,
+      totalBoletas: data.totalBoletas || 0,
+      saldoFinal: data.saldoFinal || 0,
+      fecha: data.fecha || new Date().toISOString().split('T')[0]
     });
   };
 
   return {
-    transfers: documents,
+    transferencias: documents,
     loading,
     error,
-    addTransfer,
-    updateTransfer: updateDocument,
-    deleteTransfer: deleteDocument
+    addTransferencia,
+    updateTransferencia: updateDocument,
+    deleteTransferencia: deleteDocument
   };
 };

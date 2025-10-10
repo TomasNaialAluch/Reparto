@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 const ReportesGraficos = ({ repartos }) => {
   const [tipoReporte, setTipoReporte] = useState('semanal'); // semanal, mensual, anual
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM para mensual
+  const [isExpanded, setIsExpanded] = useState(false); // Estado para vista expandida/colapsada
 
   // Función para obtener nombre del día
   const getDiaNombre = (fecha) => {
@@ -113,58 +114,66 @@ const ReportesGraficos = ({ repartos }) => {
 
   return (
     <div className="card p-3">
+      {/* Header con botón de expandir */}
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h6 className="mb-0">📊 Reportes por Día de la Semana</h6>
-        <div className="d-flex gap-2">
-          <select 
-            className="form-select form-select-sm"
-            value={tipoReporte}
-            onChange={(e) => setTipoReporte(e.target.value)}
-            style={{ width: 'auto' }}
-          >
-            <option value="semanal">Esta Semana</option>
-            <option value="mensual">Este Mes</option>
-            <option value="anual">Este Año</option>
-          </select>
-          
-          {(tipoReporte === 'mensual' || tipoReporte === 'anual') && (
-            <input
-              type={tipoReporte === 'mensual' ? 'month' : 'number'}
-              className="form-control form-control-sm"
-              value={periodo}
-              onChange={(e) => setPeriodo(e.target.value)}
-              style={{ width: 'auto' }}
-            />
+        <div className="d-flex gap-2 align-items-center">
+          {isExpanded && (
+            <div className="d-flex gap-2">
+              <select 
+                className="form-select form-select-sm"
+                value={tipoReporte}
+                onChange={(e) => setTipoReporte(e.target.value)}
+                style={{ width: 'auto' }}
+              >
+                <option value="semanal">Esta Semana</option>
+                <option value="mensual">Este Mes</option>
+                <option value="anual">Este Año</option>
+              </select>
+              
+              {(tipoReporte === 'mensual' || tipoReporte === 'anual') && (
+                <input
+                  type={tipoReporte === 'mensual' ? 'month' : 'number'}
+                  className="form-control form-control-sm"
+                  value={periodo}
+                  onChange={(e) => setPeriodo(e.target.value)}
+                  style={{ width: 'auto' }}
+                />
+              )}
+            </div>
           )}
+          <button 
+            className="btn btn-outline-secondary btn-sm"
+            onClick={() => setIsExpanded(!isExpanded)}
+            title={isExpanded ? "Contraer vista" : "Expandir vista"}
+          >
+            {isExpanded ? 'Contraer' : 'Expandir'}
+          </button>
         </div>
       </div>
 
-      {/* Totales Generales */}
-      <div className="row text-center mb-3">
-        <div className="col-4">
+      {/* Vista Compacta (siempre visible) */}
+      <div className="row text-center">
+        <div className="col-3">
           <div className="border rounded p-2">
             <small className="text-muted">Total Repartos</small>
             <div className="fw-bold text-primary">{totalesGenerales.totalRepartos}</div>
           </div>
         </div>
-        <div className="col-4">
+        <div className="col-3">
           <div className="border rounded p-2">
             <small className="text-muted">Total Ventas</small>
             <div className="fw-bold text-success">{formatCurrency(totalesGenerales.totalVentas)}</div>
           </div>
         </div>
-        <div className="col-4">
+        <div className="col-3">
           <div className="border rounded p-2">
             <small className="text-muted">Promedio/Reparto</small>
             <div className="fw-bold text-info">{formatCurrency(totalesGenerales.promedioPorReparto)}</div>
           </div>
         </div>
-      </div>
-
-      {/* Mejor y Peor Día */}
-      <div className="row text-center mb-3">
-        <div className="col-6">
-          <div className="border rounded p-2 bg-light">
+        <div className="col-3">
+          <div className="border rounded p-2">
             <small className="text-muted">🏆 Mejor Día</small>
             <div className="fw-bold text-success">
               {mejorDia.dia}<br/>
@@ -172,75 +181,84 @@ const ReportesGraficos = ({ repartos }) => {
             </div>
           </div>
         </div>
-        <div className="col-6">
-          <div className="border rounded p-2 bg-light">
-            <small className="text-muted">📉 Peor Día</small>
-            <div className="fw-bold text-warning">
-              {peorDia.dia !== 'N/A' ? peorDia.dia : 'Sin datos'}<br/>
-              <small>{peorDia.dia !== 'N/A' ? formatCurrency(peorDia.total) : '-'}</small>
+      </div>
+
+      {/* Vista Expandida (solo si isExpanded es true) */}
+      {isExpanded && (
+        <>
+          {/* Peor Día (solo en vista expandida) */}
+          <div className="row text-center mb-3 mt-3">
+            <div className="col-12">
+              <div className="border rounded p-2 bg-light">
+                <small className="text-muted">📉 Peor Día</small>
+                <div className="fw-bold text-warning">
+                  {peorDia.dia !== 'N/A' ? peorDia.dia : 'Sin datos'}<br/>
+                  <small>{peorDia.dia !== 'N/A' ? formatCurrency(peorDia.total) : '-'}</small>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Gráfico de Barras */}
-      <div className="mb-3">
-        <h6 className="mb-2">Comparación por Día</h6>
-        <div style={{ height: '200px', display: 'flex', alignItems: 'end', justifyContent: 'space-between', padding: '10px', border: '1px solid #dee2e6', borderRadius: '5px', backgroundColor: '#f8f9fa' }}>
-          {Object.entries(estadisticasPorDia).map(([dia, stats]) => {
-            const maxTotal = Math.max(...Object.values(estadisticasPorDia).map(s => s.total));
-            const altura = maxTotal > 0 ? (stats.total / maxTotal) * 150 : 0;
-            
-            return (
-              <div key={dia} className="d-flex flex-column align-items-center" style={{ width: '12%' }}>
-                <div className="text-center mb-1">
-                  <small className="fw-bold">{dia.slice(0, 3)}</small><br/>
-                  <small className="text-muted">{stats.cantidad}</small>
-                </div>
-                <div 
-                  className="rounded-top"
-                  style={{
-                    width: '100%',
-                    height: `${altura}px`,
-                    backgroundColor: getBarColor(dia),
-                    minHeight: stats.total > 0 ? '5px' : '0px',
-                    transition: 'all 0.3s ease'
-                  }}
-                  title={`${dia}: ${formatCurrency(stats.total)} (${stats.cantidad} repartos)`}
-                />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+          {/* Gráfico de Barras */}
+          <div className="mb-3">
+            <h6 className="mb-2">Comparación por Día</h6>
+            <div style={{ height: '200px', display: 'flex', alignItems: 'end', justifyContent: 'space-between', padding: '10px', border: '1px solid #dee2e6', borderRadius: '5px', backgroundColor: '#f8f9fa' }}>
+              {Object.entries(estadisticasPorDia).map(([dia, stats]) => {
+                const maxTotal = Math.max(...Object.values(estadisticasPorDia).map(s => s.total));
+                const altura = maxTotal > 0 ? (stats.total / maxTotal) * 150 : 0;
+                
+                return (
+                  <div key={dia} className="d-flex flex-column align-items-center" style={{ width: '12%' }}>
+                    <div className="text-center mb-1">
+                      <small className="fw-bold">{dia.slice(0, 3)}</small><br/>
+                      <small className="text-muted">{stats.cantidad}</small>
+                    </div>
+                    <div 
+                      className="rounded-top"
+                      style={{
+                        width: '100%',
+                        height: `${altura}px`,
+                        backgroundColor: getBarColor(dia),
+                        minHeight: stats.total > 0 ? '5px' : '0px',
+                        transition: 'all 0.3s ease'
+                      }}
+                      title={`${dia}: ${formatCurrency(stats.total)} (${stats.cantidad} repartos)`}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-      {/* Tabla Detallada */}
-      <div className="table-responsive">
-        <table className="table table-sm">
-          <thead>
-            <tr>
-              <th>Día</th>
-              <th className="text-center">Repartos</th>
-              <th className="text-end">Total</th>
-              <th className="text-end">Promedio</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(estadisticasPorDia)
-              .sort((a, b) => b[1].total - a[1].total)
-              .map(([dia, stats]) => (
-              <tr key={dia}>
-                <td className="fw-bold">{dia}</td>
-                <td className="text-center">{stats.cantidad}</td>
-                <td className="text-end">{formatCurrency(stats.total)}</td>
-                <td className="text-end">
-                  {stats.cantidad > 0 ? formatCurrency(stats.total / stats.cantidad) : '-'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          {/* Tabla Detallada */}
+          <div className="table-responsive">
+            <table className="table table-sm">
+              <thead>
+                <tr>
+                  <th>Día</th>
+                  <th className="text-center">Repartos</th>
+                  <th className="text-end">Total</th>
+                  <th className="text-end">Promedio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(estadisticasPorDia)
+                  .sort((a, b) => b[1].total - a[1].total)
+                  .map(([dia, stats]) => (
+                  <tr key={dia}>
+                    <td className="fw-bold">{dia}</td>
+                    <td className="text-center">{stats.cantidad}</td>
+                    <td className="text-end">{formatCurrency(stats.total)}</td>
+                    <td className="text-end">
+                      {stats.cantidad > 0 ? formatCurrency(stats.total / stats.cantidad) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       {/* Mensaje si no hay datos */}
       {totalesGenerales.totalRepartos === 0 && (

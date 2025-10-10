@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/money';
 import { useRepartos } from '../firebase/hooks';
+import { useNotifications } from '../hooks/useNotifications';
 import RepartoCard from '../components/RepartoCard';
 import ClienteRow from '../components/ClienteRow';
 import EditRepartoModal from '../components/EditRepartoModal';
 import ReportesGraficos from '../components/ReportesGraficos';
-import { printReparto } from '../utils/printUtils';
+import PrintDocument from '../components/PrintDocument';
+import NotificationContainer from '../components/NotificationContainer';
 
 const MiReparto = () => {
   const [clientName, setClientName] = useState('');
@@ -23,6 +25,9 @@ const MiReparto = () => {
   // Firebase hooks
   const { repartos, todayRepartos, loading, error, addReparto, updatePayment, deleteReparto, updateDocument } = useRepartos();
 
+  // Notificaciones
+  const { notifications, removeNotification, showSuccess, showError } = useNotifications();
+
   // Estados para las cards de repartos guardados
   const [savedRepartos, setSavedRepartos] = useState([]);
   
@@ -35,6 +40,10 @@ const MiReparto = () => {
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [repartoToEdit, setRepartoToEdit] = useState(null);
+  
+  // Estado para impresión
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printData, setPrintData] = useState(null);
 
   // Función para filtrar repartos por fecha
   const getFilteredRepartos = () => {
@@ -216,6 +225,18 @@ const MiReparto = () => {
     setRepartoToEdit(null);
   };
 
+  // Función para manejar impresión desde las cards
+  const handlePrintReparto = (reparto) => {
+    // Convertir el formato del reparto guardado al formato que espera PrintDocument
+    const printData = {
+      clientes: reparto.clients || [],
+      fecha: reparto.date
+    };
+    
+    setPrintData(printData);
+    setShowPrintModal(true);
+  };
+
   // Actualizar reparto
   const updateReparto = async (repartoId, updatedData) => {
     try {
@@ -378,7 +399,7 @@ const MiReparto = () => {
 
   const handleShowDebtors = () => {
     if (deudores.length === 0) {
-        alert("No hay deudores.");
+        showError("No hay deudores");
       return;
     }
     setShowDebtors(!showDebtors);
@@ -557,7 +578,20 @@ const MiReparto = () => {
                 Guardar
               </button>
             )}
-            <button className="btn btn-secondary" onClick={() => printReparto(clientes, currentReparto.date)}>Imprimir</button>
+            <button className="btn btn-secondary" onClick={() => {
+              if (clientes.length === 0) {
+                showError('No hay clientes para imprimir');
+                return;
+              }
+              setPrintData({
+                clientes: clientes,
+                fecha: currentReparto.date
+              });
+              setShowPrintModal(true);
+            }}>
+              <i className="fas fa-print me-2"></i>
+              Imprimir
+            </button>
           </div>
         </div>
         <div className="alert alert-info mt-2 no-print" role="alert">
@@ -741,6 +775,7 @@ const MiReparto = () => {
                     reparto={reparto}
                     onDelete={deleteSavedReparto}
                     onEdit={openEditModal}
+                    onPrint={handlePrintReparto}
                   />
                 ))
               )}
@@ -758,6 +793,24 @@ const MiReparto = () => {
         onClose={closeEditModal}
         reparto={repartoToEdit}
         onSave={updateReparto}
+      />
+      
+      {/* Modal de impresión */}
+      {showPrintModal && printData && (
+        <PrintDocument
+          data={printData}
+          type="reparto"
+          onClose={() => {
+            setShowPrintModal(false);
+            setPrintData(null);
+          }}
+        />
+      )}
+
+      {/* Contenedor de notificaciones */}
+      <NotificationContainer 
+        notifications={notifications} 
+        onRemove={removeNotification} 
       />
     </div>
   );

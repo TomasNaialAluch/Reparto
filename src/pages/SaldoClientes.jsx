@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useClientBalances } from '../firebase/hooks';
+import { useNotifications } from '../hooks/useNotifications';
 import ClienteDeudorCard from '../components/ClienteDeudorCard';
 import EditClienteModal from '../components/EditClienteModal';
-import { printSaldoCliente } from '../utils/printUtils';
+import PrintDocument from '../components/PrintDocument';
+import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 
 const SaldoClientes = () => {
@@ -24,6 +26,9 @@ const SaldoClientes = () => {
   // Firebase hooks
   const { balances, loading, error, addClientBalance, deleteBalance, updateBalance } = useClientBalances();
 
+  // Notificaciones
+  const { notifications, removeNotification, showSuccess, showError } = useNotifications();
+
   // Estados para las cards de clientes guardados
   const [savedClientes, setSavedClientes] = useState([]);
   
@@ -33,6 +38,10 @@ const SaldoClientes = () => {
   
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  // Estado para impresión
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printData, setPrintData] = useState(null);
   const [clienteToEdit, setClienteToEdit] = useState(null);
 
   // Función para filtrar clientes por fecha
@@ -101,6 +110,26 @@ const SaldoClientes = () => {
     setClienteToEdit(null);
   };
 
+  // Función para manejar impresión desde las cards
+  const handlePrintCliente = (cliente) => {
+    // Convertir el formato del cliente guardado al formato que espera PrintDocument
+    const printData = {
+      clientName: cliente.nombreCliente,
+      boletas: cliente.boletas || [],
+      ventas: cliente.ventas || [],
+      plataFavor: cliente.plataFavor || [],
+      efectivo: cliente.efectivo || [],
+      cheques: cliente.cheques || [],
+      transferencias: cliente.transferencias || [],
+      totalBoletas: cliente.totalBoletas || 0,
+      totalIngresos: cliente.totalIngresos || 0,
+      finalBalance: cliente.saldoFinal || 0
+    };
+    
+    setPrintData(printData);
+    setShowPrintModal(true);
+  };
+
   // Actualizar cliente
   const updateCliente = async (clienteId, updatedData) => {
     try {
@@ -142,6 +171,7 @@ const SaldoClientes = () => {
         await addClientBalance(firebaseData);
 
         setSavedClientes(prev => [clienteData, ...prev]);
+        showSuccess('✓ Cliente guardado exitosamente');
         
         setClientName('');
         setBoletas([{ date: '', amount: '' }]);
@@ -157,6 +187,7 @@ const SaldoClientes = () => {
         setShowSummary(false);
       } catch (error) {
         console.error('❌ Error al guardar cliente:', error);
+        showError('Error al guardar el cliente');
       }
     }
   };
@@ -237,7 +268,7 @@ const SaldoClientes = () => {
   // Calcular saldo
   const calculateSaldo = () => {
     if (!clientName.trim()) {
-      alert('Ingrese el nombre del cliente');
+      showError('Por favor ingrese el nombre del cliente');
       return;
     }
 
@@ -537,7 +568,17 @@ const SaldoClientes = () => {
                 )
               )}
 
-              <button className="btn btn-secondary mt-3 no-print" onClick={() => printSaldoCliente(summaryData)}>Imprimir</button>
+              <button className="btn btn-secondary mt-3 no-print" onClick={() => {
+                if (!summaryData) {
+                  showError('No hay datos para imprimir');
+                  return;
+                }
+                setPrintData(summaryData);
+                setShowPrintModal(true);
+              }}>
+                <i className="fas fa-print me-2"></i>
+                Imprimir
+              </button>
             </div>
           )}
         </div>
@@ -587,7 +628,13 @@ const SaldoClientes = () => {
             <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
               {getFilteredClientes().length > 0 ? (
                 getFilteredClientes().map((cliente, index) => (
-                  <ClienteDeudorCard key={cliente.id || index} cliente={cliente} onDelete={deleteCliente} onEdit={openEditModal} />
+                  <ClienteDeudorCard 
+                    key={cliente.id || index} 
+                    cliente={cliente} 
+                    onDelete={deleteCliente} 
+                    onEdit={openEditModal}
+                    onPrint={handlePrintCliente}
+                  />
                 ))
               ) : (
                 <div className="text-center text-muted py-3">
@@ -607,6 +654,24 @@ const SaldoClientes = () => {
         onClose={closeEditModal}
         cliente={clienteToEdit}
         onSave={updateCliente}
+      />
+      
+      {/* Modal de impresión */}
+      {showPrintModal && printData && (
+        <PrintDocument
+          data={printData}
+          type="saldo"
+          onClose={() => {
+            setShowPrintModal(false);
+            setPrintData(null);
+          }}
+        />
+      )}
+
+      {/* Contenedor de notificaciones */}
+      <NotificationContainer 
+        notifications={notifications} 
+        onRemove={removeNotification} 
       />
     </div>
   );

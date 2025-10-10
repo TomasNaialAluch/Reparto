@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const ClienteDeudorCard = ({ cliente, onDelete, onEdit }) => {
+const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Función para formatear montos a moneda argentina
@@ -180,7 +180,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit }) => {
               className="btn btn-sm btn-outline-secondary"
               onClick={(e) => {
                 e.stopPropagation();
-                window.print();
+                onPrint(cliente);
               }}
               title="Imprimir saldo"
             >

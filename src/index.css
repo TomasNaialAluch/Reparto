@@ -286,147 +286,108 @@ table tbody tr:hover {
   animation: fadeOut 0.3s ease-out forwards;
 }
 
-/* Reglas de impresión específicas para MiReparto */
-@media print {
-  .no-print {
-    display: none !important;
-  }
-  
-  .printable {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 600px;
-    font-size: 7pt;
-  }
-  
-  /* En la tabla se muestran solo las columnas de Nombre y Monto de Boleta */
-  table th:nth-child(2),
-  table td:nth-child(2),
-  table th:nth-child(4),
-  table td:nth-child(4),
-  table th:nth-child(5),
-  table td:nth-child(5) {
-    display: none;
-  }
-  
-  .totals-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-  
-  .totals-container p {
-    margin: 0;
-  }
-  
-  .totals-container p.total {
-    font-size: 1.5em;
-    font-weight: bold;
-  }
-}
 
-/* Estilos de impresión específicos para SaldoClientes */
+/* Estilos de impresión simples - usando window.print() */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 0;
+    margin: 1cm;
   }
   
-  body, html {
-    margin: 0;
-    padding: 0;
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
-  .container {
-    margin: 0 auto !important;
+  body {
+    margin: 0 !important;
     padding: 0 !important;
+    background: white !important;
   }
   
+  /* Ocultar solo elementos con clase no-print */
   .no-print {
     display: none !important;
   }
   
-  body * {
-    visibility: hidden;
+  /* IMPORTANTE: Asegurar que todas las columnas se muestren */
+  .row,
+  .col,
+  .col-1, .col-2, .col-3, .col-4, .col-5, .col-6,
+  .col-7, .col-8, .col-9, .col-10, .col-11, .col-12,
+  .col-sm, .col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6,
+  .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12,
+  .col-md, .col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6,
+  .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12,
+  .col-lg, .col-lg-1, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6,
+  .col-lg-7, .col-lg-8, .col-lg-9, .col-lg-10, .col-lg-11, .col-lg-12 {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: none !important;
   }
   
-  .printable, .printable * {
-    visibility: visible;
+  /* Asegurar que el contenedor principal se muestre */
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
   }
   
-  .printable {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    max-width: 600px;
-    padding: 0.5rem;
-    background-color: white;
-    border-radius: 12px;
-  }
-  
-  .printable .card {
-    background-color: white !important;
-    border: none !important;
+  .card {
     box-shadow: none !important;
-    border-radius: 12px !important;
-    padding: 0.5rem !important;
+    border: 1px solid #000 !important;
+    margin-bottom: 10px !important;
+    page-break-inside: avoid;
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  /* Estilos para las tablas */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    display: table !important;
+  }
+  
+  table th,
+  table td {
+    border: 1px solid #000 !important;
+    padding: 5px !important;
+    font-size: 10pt !important;
+  }
+  
+  /* Estilos para encabezados */
+  h1, h2, h3 {
+    page-break-after: avoid;
+    display: block !important;
   }
   
   .print-header {
-    font-size: 24pt;
+    font-size: 16pt !important;
     text-align: center;
-    margin-bottom: 1rem;
+    margin-bottom: 10px !important;
     font-weight: bold;
   }
   
   .print-small {
-    font-size: 10pt;
-    margin: 0;
-    line-height: 1.2;
+    font-size: 9pt !important;
+    margin: 2px 0 !important;
   }
   
   .print-message {
-    font-size: 18pt !important;
+    font-size: 12pt !important;
     text-align: center;
     font-weight: bold;
+    margin: 10px 0 !important;
   }
   
   .print-subtotal {
-    font-size: 14pt;
-    margin-top: 1rem;
-  }
-  
-  .printable h1 {
-    font-size: 24pt;
-    text-align: center;
-    margin-bottom: 1rem;
-    font-weight: bold;
-  }
-  
-  .printable h3 {
-    font-size: 18pt;
-    text-align: center;
-    font-weight: bold;
-  }
-  
-  .printable p {
-    font-size: 10pt;
-    margin: 0;
-    line-height: 1.2;
-  }
-  
-  .printable strong {
-    font-weight: bold;
-  }
-  
-  /* Formato de moneda argentina */
-  .printable {
-    font-family: 'Montserrat', sans-serif;
+    font-size: 11pt !important;
+    margin: 10px 0 !important;
+    padding: 5px !important;
+    background-color: #f0f0f0 !important;
+    border-left: 3px solid #000 !important;
   }
 }

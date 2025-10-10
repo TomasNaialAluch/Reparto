@@ -43,46 +43,8 @@
 
 /* Estilos para impresión */
 @media print {
+  /* Solo ocultar elementos con clase no-print */
   .no-print {
     display: none !important;
-  }
-
-  .printable {
-    display: block !important;
-  }
-
-  .col-lg-5,
-  .col-md-4 {
-    display: none !important;
-  }
-
-  .col-lg-7 .card.no-print {
-    display: none !important;
-  }
-
-  .print-header {
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 20px;
-    color: #000;
-  }
-
-  .print-small {
-    font-size: 14px;
-    margin: 5px 0;
-    color: #000;
-  }
-
-  .print-subtotal {
-    border-top: 1px solid #000;
-    padding-top: 10px;
-    margin: 15px 0;
-  }
-
-  .print-message {
-    font-size: 18px;
-    font-weight: bold;
-    margin: 20px 0;
-    color: #000;
   }
 }

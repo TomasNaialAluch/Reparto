@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const RepartoCard = ({ reparto, onDelete, onEdit }) => {
+const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   // Función para formatear montos a moneda argentina
@@ -124,7 +124,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit }) => {
               className="btn btn-sm btn-outline-secondary"
               onClick={(e) => {
                 e.stopPropagation();
-                window.print();
+                onPrint(reparto);
               }}
               title="Imprimir reparto"
             >
