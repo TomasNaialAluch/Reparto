@@ -5,6 +5,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import PrintDocument from '../components/PrintDocument';
 import TransferenciaCard from '../components/TransferenciaCard';
 import NotificationContainer from '../components/NotificationContainer';
+import EditTransferenciaModal from '../components/EditTransferenciaModal';
 
 const Transferencias = () => {
   const [clientName, setClientName] = useState('');
@@ -187,6 +188,18 @@ const Transferencias = () => {
   const handlePrintTransferencia = (transferencia) => {
     setPrintData(transferencia);
     setShowPrintModal(true);
+  };
+
+  // Función para guardar cambios en la edición
+  const handleSaveEdit = async (id, data) => {
+    try {
+      await updateTransferencia(id, data);
+      showSuccess('✓ Transferencia actualizada exitosamente');
+      closeEditModal();
+    } catch (error) {
+      console.error('Error al actualizar:', error);
+      showError('Error al actualizar la transferencia');
+    }
   };
 
   return (
@@ -495,6 +508,16 @@ const Transferencias = () => {
             setShowPrintModal(false);
             setPrintData(null);
           }}
+        />
+      )}
+
+      {/* Modal de edición */}
+      {isEditModalOpen && transferenciaToEdit && (
+        <EditTransferenciaModal
+          isOpen={isEditModalOpen}
+          onClose={closeEditModal}
+          transferencia={transferenciaToEdit}
+          onSave={handleSaveEdit}
         />
       )}
 
