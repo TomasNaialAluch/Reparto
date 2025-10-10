@@ -436,6 +436,48 @@ export const useAsistenteProfile = () => {
   };
 };
 
+// Hook específico para mensajes guardados del asistente
+export const useAsistenteMessages = () => {
+  const { documents, loading, error } = useFirestoreRealtime('asistente_mensajes');
+  const { addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('asistente_mensajes');
+
+  const addMessage = async (data) => {
+    return await addDocument({
+      userId: data.userId || 'default_user',
+      userInput: data.userInput,
+      generatedMessage: data.generatedMessage,
+      destinatario: data.destinatario,
+      tono: data.tono,
+      contexto: data.contexto,
+      userProfile: data.userProfile || null,
+      timestamp: new Date().toISOString(),
+      isEdited: false,
+      editedMessage: null
+    });
+  };
+
+  const updateMessage = async (messageId, data) => {
+    return await updateDocument(messageId, {
+      ...data,
+      lastEdited: new Date().toISOString()
+    });
+  };
+
+  const getMessagesByUser = async (userId = 'default_user') => {
+    return await getDocumentsByField('userId', userId);
+  };
+
+  return {
+    messages: documents,
+    loading,
+    error,
+    addMessage,
+    updateMessage,
+    deleteMessage: deleteDocument,
+    getMessagesByUser
+  };
+};
+
 // Hook específico para contador de mensajes mensual
 export const useAsistenteUsage = () => {
   const { documents, loading, error } = useFirestoreRealtime('asistente_usage');

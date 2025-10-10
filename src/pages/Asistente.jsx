@@ -3,7 +3,7 @@ import { useNotifications } from '../hooks/useNotifications';
 import NotificationContainer from '../components/NotificationContainer';
 import MessageCounter from '../components/MessageCounter';
 import { generateMessage, consolidateFeedback } from '../config/gemini';
-import { useAsistenteFeedback, useAsistenteProfile, useAsistenteUsage } from '../firebase/hooks';
+import { useAsistenteFeedback, useAsistenteProfile, useAsistenteUsage, useAsistenteMessages } from '../firebase/hooks';
 
 const Asistente = () => {
   const [userInput, setUserInput] = useState('');
@@ -22,10 +22,11 @@ const Asistente = () => {
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
   
-  // Firebase para feedback, perfil y uso
+  // Firebase para feedback, perfil, uso y mensajes
   const { addFeedback, feedbacks } = useAsistenteFeedback();
   const { addProfile, updateProfile, getProfileByUser } = useAsistenteProfile();
   const { incrementMessageCount, canGenerateMessage } = useAsistenteUsage();
+  const { addMessage, updateMessage, messages } = useAsistenteMessages();
   
   // Estado para el perfil personalizado
   const [userProfile, setUserProfile] = useState(null);
@@ -114,6 +115,22 @@ const Asistente = () => {
       console.log('✅ Respuesta de Gemini:', aiMessage);
       setGeneratedMessage(aiMessage);
       
+      // Guardar mensaje en Firebase
+      try {
+        await addMessage({
+          userInput,
+          generatedMessage: aiMessage,
+          destinatario,
+          tono,
+          contexto,
+          userProfile
+        });
+        console.log('💾 Mensaje guardado en Firebase');
+      } catch (error) {
+        console.error('Error guardando mensaje:', error);
+        // No mostrar error al usuario, solo log
+      }
+      
       // Incrementar contador de mensajes
       try {
         await incrementMessageCount('default_user');
@@ -123,7 +140,7 @@ const Asistente = () => {
         // No mostrar error al usuario, solo log
       }
       
-      // Agregar al historial
+      // Agregar al historial local (para mostrar inmediatamente)
       const newHistoryItem = {
         id: Date.now(),
         input: userInput,
@@ -135,7 +152,7 @@ const Asistente = () => {
       };
       
       setMessageHistory(prev => [newHistoryItem, ...prev.slice(0, 4)]); // Mantener solo 5
-      showSuccess('✓ Mensaje generado con IA exitosamente');
+      showSuccess('✓ Mensaje generado y guardado exitosamente');
       
     } catch (error) {
       console.error('Error generando mensaje:', error);
@@ -185,10 +202,26 @@ const Asistente = () => {
   };
 
   // Función para guardar mensaje editado
-  const saveEditedMessage = () => {
-    setGeneratedMessage(editedMessage);
-    closeEditModal();
-    showSuccess('✓ Mensaje actualizado');
+  const saveEditedMessage = async () => {
+    try {
+      setGeneratedMessage(editedMessage);
+      
+      // Actualizar en Firebase si es un mensaje guardado
+      const currentMessage = messages.find(m => m.generatedMessage === generatedMessage);
+      if (currentMessage) {
+        await updateMessage(currentMessage.id, {
+          editedMessage: editedMessage,
+          isEdited: true
+        });
+        console.log('💾 Mensaje editado guardado en Firebase');
+      }
+      
+      closeEditModal();
+      showSuccess('✓ Mensaje actualizado y guardado');
+    } catch (error) {
+      console.error('Error guardando mensaje editado:', error);
+      showError('Error al guardar el mensaje editado');
+    }
   };
 
   // Función para enviar feedback
@@ -468,31 +501,59 @@ const Asistente = () => {
             {/* Contador de mensajes */}
             <MessageCounter userId="default_user" />
 
-            {/* Historial */}
-            {messageHistory.length > 0 && (
+            {/* Historial de mensajes guardados */}
+            {messages.length > 0 && (
               <div className="mt-4">
                 <h6 className="mb-3">
                   <i className="fas fa-history me-2"></i>
-                  Historial (últimos 5)
+                  Mensajes Guardados ({messages.length})
                 </h6>
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  {messageHistory.map((item) => (
-                    <div key={item.id} className="card mb-2">
+                <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                  {messages.slice(0, 10).map((message) => (
+                    <div key={message.id} className="card mb-2">
                       <div className="card-body p-3">
                         <div className="d-flex justify-content-between align-items-start mb-2">
                           <small className="text-muted">
-                            {item.timestamp} • {item.destinatario} • {item.tono} • {item.contexto}
+                            {new Date(message.timestamp).toLocaleString('es-AR')} • 
+                            {message.destinatario} • {message.tono} • {message.contexto}
+                            {message.isEdited && <span className="badge bg-warning ms-2">Editado</span>}
                           </small>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() => setGeneratedMessage(item.message)}
-                          >
-                            Usar
-                          </button>
+                          <div className="btn-group btn-group-sm">
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary"
+                              onClick={() => {
+                                setGeneratedMessage(message.editedMessage || message.generatedMessage);
+                                showSuccess('✓ Mensaje cargado');
+                              }}
+                            >
+                              <i className="fas fa-arrow-up me-1"></i>
+                              Usar
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-outline-secondary"
+                              onClick={() => {
+                                setUserInput(message.userInput);
+                                setDestinatario(message.destinatario);
+                                setTono(message.tono);
+                                setContexto(message.contexto);
+                                showSuccess('✓ Parámetros cargados');
+                              }}
+                            >
+                              <i className="fas fa-cog me-1"></i>
+                              Parámetros
+                            </button>
+                          </div>
                         </div>
-                        <p className="mb-1 small fw-bold text-primary">{item.input}</p>
-                        <p className="mb-0 small">{item.message}</p>
+                        <p className="mb-1 small fw-bold text-primary">
+                          <i className="fas fa-quote-left me-1"></i>
+                          {message.userInput}
+                        </p>
+                        <p className="mb-0 small">
+                          <i className="fas fa-robot me-1"></i>
+                          {message.editedMessage || message.generatedMessage}
+                        </p>
                       </div>
                     </div>
                   ))}
