@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatCurrency } from '../utils/money';
 import { useRepartos } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
@@ -13,6 +13,9 @@ const MiReparto = () => {
   const [clientName, setClientName] = useState('');
   const [billAmount, setBillAmount] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
+  
+  // Referencia para el input de nombre
+  const clientNameInputRef = useRef(null);
   
 
   // Estados para el reparto actual (React puro)
@@ -311,6 +314,13 @@ const MiReparto = () => {
       setBillAmount('');
       setValidationErrors({});
       
+      // Hacer focus en el input de nombre para continuar agregando clientes
+      setTimeout(() => {
+        if (clientNameInputRef.current) {
+          clientNameInputRef.current.focus();
+        }
+      }, 100);
+      
       console.log('✅ Cliente agregado');
     } catch (error) {
       console.error('❌ Error al guardar cliente:', error);
@@ -319,6 +329,13 @@ const MiReparto = () => {
       setClientName('');
       setBillAmount('');
       setValidationErrors({});
+      
+      // Hacer focus en el input de nombre para continuar agregando clientes
+      setTimeout(() => {
+        if (clientNameInputRef.current) {
+          clientNameInputRef.current.focus();
+        }
+      }, 100);
     }
   };
 
@@ -526,6 +543,7 @@ const MiReparto = () => {
           <div className="mb-3">
             <label htmlFor="clientName" className="form-label">Nombre del Cliente *</label>
             <input 
+              ref={clientNameInputRef}
               type="text" 
               className={`form-control ${validationErrors.clientName ? 'is-invalid' : ''}`}
               id="clientName" 
@@ -533,6 +551,12 @@ const MiReparto = () => {
               onChange={(e) => {
                 setClientName(e.target.value);
                 clearValidationError('clientName');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  document.getElementById('billAmount').focus();
+                }
               }}
               placeholder="Ingrese nombre" 
               required 
@@ -552,6 +576,12 @@ const MiReparto = () => {
               onChange={(e) => {
                 setBillAmount(e.target.value);
                 clearValidationError('billAmount');
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSubmit(e);
+                }
               }}
               placeholder="Ingrese monto" 
               required 
