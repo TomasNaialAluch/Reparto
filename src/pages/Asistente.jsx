@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import NotificationContainer from '../components/NotificationContainer';
+import { generateMessage } from '../config/gemini';
 
 const Asistente = () => {
   const [userInput, setUserInput] = useState('');
@@ -36,22 +37,26 @@ const Asistente = () => {
     { value: 'otro', label: 'Otro' }
   ];
 
-  // Función para generar mensaje (placeholder por ahora)
-  const generateMessage = async () => {
+  // Función para generar mensaje con Gemini AI
+  const handleGenerateMessage = async () => {
     if (!userInput.trim()) {
       showError('Por favor describe qué mensaje quieres escribir');
+      return;
+    }
+
+    // Verificar si hay API key configurada
+    if (!import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY === 'your_gemini_api_key_here') {
+      showError('⚠️ API Key de Gemini no configurada. Por favor configura VITE_GEMINI_API_KEY en tu archivo .env');
       return;
     }
 
     setIsGenerating(true);
     
     try {
-      // Simular llamada a API (por ahora)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Llamar a Gemini AI
+      const aiMessage = await generateMessage(userInput, destinatario, tono, contexto);
       
-      const mockMessage = `Hola, ${userInput}. Espero que estés bien. Te contacto para ${contexto === 'cobro' ? 'recordarte sobre el pago pendiente' : `hablar sobre ${contexto}`}. ¿Podrías confirmarme cuando te sea conveniente?`;
-      
-      setGeneratedMessage(mockMessage);
+      setGeneratedMessage(aiMessage);
       
       // Agregar al historial
       const newHistoryItem = {
@@ -60,16 +65,16 @@ const Asistente = () => {
         destinatario,
         tono,
         contexto,
-        message: mockMessage,
+        message: aiMessage,
         timestamp: new Date().toLocaleString('es-AR')
       };
       
       setMessageHistory(prev => [newHistoryItem, ...prev.slice(0, 4)]); // Mantener solo 5
-      showSuccess('✓ Mensaje generado exitosamente');
+      showSuccess('✓ Mensaje generado con IA exitosamente');
       
     } catch (error) {
       console.error('Error generando mensaje:', error);
-      showError('Error al generar el mensaje');
+      showError(`Error al generar el mensaje: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -97,7 +102,7 @@ const Asistente = () => {
   // Función para regenerar mensaje
   const regenerateMessage = () => {
     if (userInput.trim()) {
-      generateMessage();
+      handleGenerateMessage();
     }
   };
 
@@ -114,6 +119,14 @@ const Asistente = () => {
             <p className="text-muted mb-4">
               Describe qué mensaje quieres escribir y el asistente te ayudará a redactarlo de forma profesional.
             </p>
+            
+            {/* Información sobre configuración */}
+            {(!import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY === 'your_gemini_api_key_here') && (
+              <div className="alert alert-warning mb-4">
+                <i className="fas fa-exclamation-triangle me-2"></i>
+                <strong>Configuración requerida:</strong> Para usar el asistente con IA, necesitas configurar tu API Key de Gemini en el archivo <code>.env</code>
+              </div>
+            )}
 
             {/* Campo de texto principal */}
             <div className="mb-4">
@@ -193,7 +206,7 @@ const Asistente = () => {
               <button
                 type="button"
                 className="btn btn-primary btn-lg"
-                onClick={generateMessage}
+                onClick={handleGenerateMessage}
                 disabled={isGenerating || !userInput.trim()}
               >
                 {isGenerating ? (
@@ -329,3 +342,4 @@ const Asistente = () => {
 };
 
 export default Asistente;
+
