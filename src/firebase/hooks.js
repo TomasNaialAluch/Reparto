@@ -436,27 +436,76 @@ export const useAsistenteProfile = () => {
   };
 };
 
+// Hook específico para preferencias del usuario del asistente
+export const useAsistentePreferences = () => {
+  const { documents, loading, error } = useFirestoreRealtime('asistente_preferences');
+  const { addDocument, updateDocument, getDocumentsByField } = useFirestore('asistente_preferences');
+
+  const savePreferences = async (preferences) => {
+    try {
+      const existing = await getDocumentsByField('userId', 'default_user');
+      
+      if (existing.length > 0) {
+        // Actualizar documento existente
+        await updateDocument(existing[0].id, {
+          ...preferences,
+          lastUpdated: new Date().toISOString()
+        });
+        console.log('✅ Preferencias actualizadas');
+      } else {
+        // Crear nuevo documento
+        await addDocument({
+          userId: 'default_user',
+          ...preferences,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        });
+        console.log('✅ Preferencias creadas');
+      }
+    } catch (error) {
+      console.error('Error guardando preferencias:', error);
+    }
+  };
+
+  const getPreferences = () => {
+    const userPrefs = documents.find(doc => doc.userId === 'default_user');
+    return userPrefs || null;
+  };
+
+  return {
+    preferences: getPreferences(),
+    loading,
+    error,
+    savePreferences
+  };
+};
+
 // Hook específico para mensajes guardados del asistente
 export const useAsistenteMessages = () => {
   const { documents, loading, error } = useFirestoreRealtime('asistente_mensajes');
   const { addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('asistente_mensajes');
 
   const addMessage = async (data) => {
-    return await addDocument({
+    console.log('💾 Guardando mensaje en Firebase:', data);
+    const result = await addDocument({
       userId: data.userId || 'default_user',
       userInput: data.userInput,
       generatedMessage: data.generatedMessage,
       destinatario: data.destinatario,
       tono: data.tono,
       contexto: data.contexto,
+      tipoMensaje: data.tipoMensaje || 'whatsapp',
       userProfile: data.userProfile || null,
       timestamp: new Date().toISOString(),
       isEdited: false,
       editedMessage: null
     });
+    console.log('✅ Mensaje guardado con ID:', result);
+    return result;
   };
 
   const updateMessage = async (messageId, data) => {
+    console.log('📝 Actualizando mensaje:', messageId, data);
     return await updateDocument(messageId, {
       ...data,
       lastEdited: new Date().toISOString()
@@ -467,8 +516,15 @@ export const useAsistenteMessages = () => {
     return await getDocumentsByField('userId', userId);
   };
 
+  // Filtrar mensajes del usuario actual y ordenar por timestamp descendente
+  const userMessages = documents
+    .filter(doc => doc.userId === 'default_user')
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  console.log('📨 Mensajes cargados:', userMessages.length, userMessages);
+
   return {
-    messages: documents,
+    messages: userMessages,
     loading,
     error,
     addMessage,
