@@ -336,7 +336,6 @@ const SaldoClientes = () => {
     <div className="container mt-4 printable">
       <div className="row justify-content-start">
         <div className="col-lg-7 col-md-8">
-          <h1 className="text-center mb-4 no-print">Saldo Clientes</h1>
           <div className="card p-3 no-print mb-3">
             <form>
               <h4>Datos del Cliente</h4>
