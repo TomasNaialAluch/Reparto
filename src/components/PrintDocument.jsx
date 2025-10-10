@@ -23,57 +23,57 @@ const PrintDocument = ({ data, type, onClose }) => {
           body {
             font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 10px;
-            font-size: 8pt;
-            line-height: 1.3;
+            padding: 15px;
+            font-size: 11pt;
+            line-height: 1.4;
             color: #000;
           }
           
           .print-header {
             text-align: center;
-            font-size: 12pt;
+            font-size: 16pt;
             font-weight: bold;
-            margin-bottom: 5px;
-            padding-bottom: 3px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
             border-bottom: 2px solid #000;
           }
           
           .print-date {
             text-align: right;
-            font-size: 7pt;
+            font-size: 9pt;
             color: #666;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
           }
           
           .print-section {
-            margin: 5px 0;
+            margin: 10px 0;
           }
           
           .print-section-title {
-            font-size: 9pt;
+            font-size: 12pt;
             font-weight: bold;
-            margin-bottom: 2px;
+            margin-bottom: 8px;
             color: #333;
           }
           
           .print-item {
-            margin: 2px 0;
-            padding-left: 10px;
-            font-size: 7pt;
+            margin: 4px 0;
+            padding-left: 15px;
+            font-size: 10pt;
           }
           
           .print-table {
             width: 100%;
             border-collapse: collapse;
-            margin: 3px 0;
+            margin: 8px 0;
           }
           
           .print-table th,
           .print-table td {
             border: 1px solid #000;
-            padding: 3px 6px;
+            padding: 6px 8px;
             text-align: left;
-            font-size: 7pt;
+            font-size: 10pt;
           }
           
           .print-table th {
@@ -87,28 +87,28 @@ const PrintDocument = ({ data, type, onClose }) => {
           
           .print-subtotal {
             background-color: #f8f9fa;
-            padding: 4px 6px;
-            margin: 5px 0;
+            padding: 8px 12px;
+            margin: 10px 0;
             border-left: 3px solid #007bff;
             font-weight: bold;
-            font-size: 8pt;
+            font-size: 11pt;
           }
           
           .print-total {
-            font-size: 10pt;
+            font-size: 14pt;
             font-weight: bold;
             text-align: center;
-            margin: 8px 0;
-            padding: 6px;
+            margin: 15px 0;
+            padding: 12px;
             background-color: #e9ecef;
             border: 2px solid #000;
           }
           
           .print-message {
             text-align: center;
-            font-size: 8pt;
-            margin: 5px 0;
-            padding: 4px;
+            font-size: 10pt;
+            margin: 10px 0;
+            padding: 8px;
             background-color: #fff3cd;
             border: 1px solid #ffc107;
           }
