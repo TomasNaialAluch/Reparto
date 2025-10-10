@@ -11,6 +11,11 @@ const Asistente = () => {
   const [generatedMessage, setGeneratedMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [messageHistory, setMessageHistory] = useState([]);
+  
+  // Estados para el modal de edición
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editedMessage, setEditedMessage] = useState('');
+  const [feedbackText, setFeedbackText] = useState('');
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
@@ -45,6 +50,9 @@ const Asistente = () => {
     }
 
     // Verificar si hay API key configurada
+    console.log('🔍 API Key configurada:', import.meta.env.VITE_GEMINI_API_KEY ? 'SÍ' : 'NO');
+    console.log('🔍 API Key valor:', import.meta.env.VITE_GEMINI_API_KEY);
+    
     if (!import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY === 'your_gemini_api_key_here') {
       showError('⚠️ API Key de Gemini no configurada. Por favor configura VITE_GEMINI_API_KEY en tu archivo .env');
       return;
@@ -53,9 +61,16 @@ const Asistente = () => {
     setIsGenerating(true);
     
     try {
+      console.log('🚀 Llamando a Gemini AI...');
+      console.log('📝 Input:', userInput);
+      console.log('👤 Destinatario:', destinatario);
+      console.log('🎭 Tono:', tono);
+      console.log('📋 Contexto:', contexto);
+      
       // Llamar a Gemini AI
       const aiMessage = await generateMessage(userInput, destinatario, tono, contexto);
       
+      console.log('✅ Respuesta de Gemini:', aiMessage);
       setGeneratedMessage(aiMessage);
       
       // Agregar al historial
@@ -103,6 +118,61 @@ const Asistente = () => {
   const regenerateMessage = () => {
     if (userInput.trim()) {
       handleGenerateMessage();
+    }
+  };
+
+  // Función para abrir modal de edición
+  const openEditModal = () => {
+    setEditedMessage(generatedMessage);
+    setIsEditModalOpen(true);
+  };
+
+  // Función para cerrar modal de edición
+  const closeEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditedMessage('');
+    setFeedbackText('');
+  };
+
+  // Función para guardar mensaje editado
+  const saveEditedMessage = () => {
+    setGeneratedMessage(editedMessage);
+    closeEditModal();
+    showSuccess('✓ Mensaje actualizado');
+  };
+
+  // Función para enviar feedback
+  const sendFeedback = async () => {
+    if (!feedbackText.trim()) {
+      showError('Por favor escribe tu feedback');
+      return;
+    }
+
+    try {
+      // Guardar feedback en localStorage
+      const feedbacks = JSON.parse(localStorage.getItem('asistente_feedbacks') || '[]');
+      const newFeedback = {
+        id: Date.now(),
+        originalMessage: generatedMessage,
+        editedMessage: editedMessage,
+        feedback: feedbackText,
+        timestamp: new Date().toISOString(),
+        destinatario,
+        tono,
+        contexto
+      };
+      
+      feedbacks.push(newFeedback);
+      localStorage.setItem('asistente_feedbacks', JSON.stringify(feedbacks));
+      
+      showSuccess('✓ Feedback guardado - El asistente aprenderá de tu preferencia');
+      setFeedbackText('');
+      
+      // TODO: Implementar consolidación automática cuando haya suficientes feedbacks
+      
+    } catch (error) {
+      console.error('Error guardando feedback:', error);
+      showError('Error al guardar el feedback');
     }
   };
 
@@ -278,12 +348,7 @@ const Asistente = () => {
                   <button
                     type="button"
                     className="btn btn-outline-secondary"
-                    onClick={() => {
-                      const edited = prompt('Edita el mensaje:', generatedMessage);
-                      if (edited !== null) {
-                        setGeneratedMessage(edited);
-                      }
-                    }}
+                    onClick={openEditModal}
                   >
                     <i className="fas fa-edit me-2"></i>
                     Editar
@@ -331,6 +396,93 @@ const Asistente = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de Edición */}
+      {isEditModalOpen && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="fas fa-edit me-2"></i>
+                  Editar Mensaje
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={closeEditModal}
+                ></button>
+              </div>
+              
+              <div className="modal-body">
+                {/* Mensaje editado */}
+                <div className="mb-4">
+                  <label htmlFor="editedMessage" className="form-label fw-bold">
+                    Mensaje:
+                  </label>
+                  <textarea
+                    id="editedMessage"
+                    className="form-control"
+                    rows="6"
+                    value={editedMessage}
+                    onChange={(e) => setEditedMessage(e.target.value)}
+                    placeholder="Edita el mensaje aquí..."
+                  />
+                </div>
+
+                {/* Feedback */}
+                <div className="mb-4">
+                  <label htmlFor="feedbackText" className="form-label fw-bold">
+                    <i className="fas fa-comment-dots me-2 text-info"></i>
+                    Feedback (opcional):
+                  </label>
+                  <textarea
+                    id="feedbackText"
+                    className="form-control"
+                    rows="3"
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="Ejemplo: 'Prefiero mensajes más cortos' o 'No me gusta que use tanto formal'..."
+                  />
+                  <div className="form-text">
+                    Tu feedback ayuda al asistente a aprender tus preferencias para futuros mensajes.
+                  </div>
+                </div>
+              </div>
+              
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={closeEditModal}
+                >
+                  Cancelar
+                </button>
+                
+                {feedbackText.trim() && (
+                  <button
+                    type="button"
+                    className="btn btn-info"
+                    onClick={sendFeedback}
+                  >
+                    <i className="fas fa-comment-dots me-2"></i>
+                    Enviar Feedback
+                  </button>
+                )}
+                
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={saveEditedMessage}
+                >
+                  <i className="fas fa-save me-2"></i>
+                  Guardar Cambios
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contenedor de notificaciones */}
       <NotificationContainer 
