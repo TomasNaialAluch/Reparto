@@ -380,22 +380,23 @@ const MiReparto = () => {
   };
 
   const deleteCliente = async (clienteId) => {
-    try {
-      // Eliminar PRIMERO del estado local (optimista) para feedback instantáneo
-      setClientes(prev => prev.filter(cliente => cliente.id !== clienteId));
-      setCurrentReparto(prev => ({
-        ...prev,
-        clients: prev.clients.filter(cliente => cliente.id !== clienteId)
-      }));
-      
-      console.log('✅ Cliente eliminado del estado local (inmediato)');
-      
-      // Luego eliminar de Firebase en segundo plano
-      await deleteReparto(clienteId);
-      console.log('✅ Cliente eliminado de Firebase');
-    } catch (error) {
-      console.error('❌ Error al eliminar cliente de Firebase:', error);
-      // Ya se eliminó del estado local, así que la UX ya está actualizada
+    // Eliminar del estado local (React puro - instantáneo)
+    setClientes(prev => prev.filter(cliente => cliente.id !== clienteId));
+    setCurrentReparto(prev => ({
+      ...prev,
+      clients: prev.clients.filter(cliente => cliente.id !== clienteId)
+    }));
+    
+    console.log('✅ Cliente eliminado de la tabla temporal');
+    
+    // Solo eliminar de Firebase si es un cliente que ya estaba guardado (no temp_)
+    if (!clienteId.startsWith('temp_')) {
+      try {
+        await deleteReparto(clienteId);
+        console.log('✅ Cliente también eliminado de Firebase');
+      } catch (error) {
+        console.error('❌ Error al eliminar de Firebase:', error);
+      }
     }
   };
 
