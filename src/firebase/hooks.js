@@ -455,6 +455,14 @@ export const useAsistenteUsage = () => {
       const userUsage = usage.find(u => u.userId === userId);
       
       if (userUsage) {
+        // Actualizar límite si es el viejo (50) al nuevo (1500)
+        if (userUsage.maxMessages === 50) {
+          console.log('🔄 Actualizando límite de 50 a 1,500 mensajes');
+          await updateDocument(userUsage.id, {
+            maxMessages: 1500
+          });
+          userUsage.maxMessages = 1500;
+        }
         return userUsage;
       } else {
         // Crear nuevo contador para el mes
