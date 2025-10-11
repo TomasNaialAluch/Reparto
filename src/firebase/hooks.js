@@ -377,12 +377,12 @@ export const useAsistenteFeedback = () => {
       destinatario: data.destinatario,
       tono: data.tono,
       contexto: data.contexto,
-      userId: data.userId || 'default_user', // Para futuras implementaciones multi-usuario
+      userId: 'shared', // Todos los usuarios comparten los datos
       timestamp: new Date().toISOString()
     });
   };
 
-  const getFeedbacksByUser = async (userId = 'default_user') => {
+  const getFeedbacksByUser = async (userId = 'shared') => {
     return await getDocumentsByField('userId', userId);
   };
 
@@ -404,7 +404,7 @@ export const useAsistenteProfile = () => {
 
   const addProfile = async (data) => {
     return await addDocument({
-      userId: data.userId || 'default_user',
+      userId: 'shared', // Todos los usuarios comparten el perfil
       profile: data.profile, // El perfil consolidado de Gemini
       feedbackCount: data.feedbackCount || 0,
       lastConsolidation: new Date().toISOString(),
@@ -419,7 +419,7 @@ export const useAsistenteProfile = () => {
     });
   };
 
-  const getProfileByUser = async (userId = 'default_user') => {
+  const getProfileByUser = async (userId = 'shared') => {
     const profiles = await getDocumentsByField('userId', userId);
     // Retornar el perfil más reciente
     return profiles.length > 0 ? profiles[0] : null;
@@ -443,7 +443,7 @@ export const useAsistentePreferences = () => {
 
   const savePreferences = async (preferences) => {
     try {
-      const existing = await getDocumentsByField('userId', 'default_user');
+      const existing = await getDocumentsByField('userId', 'shared');
       
       if (existing.length > 0) {
         // Actualizar documento existente
@@ -455,7 +455,7 @@ export const useAsistentePreferences = () => {
       } else {
         // Crear nuevo documento
         await addDocument({
-          userId: 'default_user',
+          userId: 'shared', // Todos los usuarios comparten las preferencias
           ...preferences,
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString()
@@ -468,7 +468,7 @@ export const useAsistentePreferences = () => {
   };
 
   const getPreferences = () => {
-    const userPrefs = documents.find(doc => doc.userId === 'default_user');
+    const userPrefs = documents.find(doc => doc.userId === 'shared');
     return userPrefs || null;
   };
 
@@ -488,7 +488,7 @@ export const useAsistenteMessages = () => {
   const addMessage = async (data) => {
     console.log('💾 Guardando mensaje en Firebase:', data);
     const result = await addDocument({
-      userId: data.userId || 'default_user',
+      userId: 'shared', // Todos los usuarios comparten los mensajes
       userInput: data.userInput,
       generatedMessage: data.generatedMessage,
       destinatario: data.destinatario,
@@ -512,13 +512,12 @@ export const useAsistenteMessages = () => {
     });
   };
 
-  const getMessagesByUser = async (userId = 'default_user') => {
+  const getMessagesByUser = async (userId = 'shared') => {
     return await getDocumentsByField('userId', userId);
   };
 
-  // Filtrar mensajes del usuario actual y ordenar por timestamp descendente
+  // Mostrar todos los mensajes y ordenar por timestamp descendente
   const userMessages = documents
-    .filter(doc => doc.userId === 'default_user')
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   console.log('📨 Mensajes cargados:', userMessages.length, userMessages);
@@ -546,7 +545,7 @@ export const useAsistenteUsage = () => {
   };
 
   // Obtener contador del mes actual
-  const getCurrentMonthUsage = async (userId = 'default_user') => {
+  const getCurrentMonthUsage = async (userId = 'shared') => {
     try {
       const monthId = getCurrentMonthId();
       const usage = await getDocumentsByField('monthId', monthId);
@@ -565,7 +564,7 @@ export const useAsistenteUsage = () => {
       } else {
         // Crear nuevo contador para el mes
         return await addDocument({
-          userId,
+          userId: 'shared', // Todos los usuarios comparten el contador
           monthId,
           messageCount: 0,
           maxMessages: 1500, // Límite real de Gemini API gratuita
@@ -579,7 +578,7 @@ export const useAsistenteUsage = () => {
   };
 
   // Incrementar contador de mensajes
-  const incrementMessageCount = async (userId = 'default_user') => {
+  const incrementMessageCount = async (userId = 'shared') => {
     try {
       const currentUsage = await getCurrentMonthUsage(userId);
       
@@ -598,7 +597,7 @@ export const useAsistenteUsage = () => {
   };
 
   // Verificar si puede generar más mensajes
-  const canGenerateMessage = async (userId = 'default_user') => {
+  const canGenerateMessage = async (userId = 'shared') => {
     try {
       const currentUsage = await getCurrentMonthUsage(userId);
       return currentUsage.messageCount < currentUsage.maxMessages;
@@ -638,25 +637,28 @@ export const useGestionSemanal = (userId) => {
 
   // Obtener o crear semana activa
   useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    // Obtener todas las semanas activas sin filtrar por usuario (sin orderBy para evitar índices)
+    const collectionRef = collection(db, 'gestion_semanal');
 
-    const q = query(
-      collection(db, 'gestion_semanal'),
-      where('userId', '==', userId),
-      where('cerrada', '==', false),
-      orderBy('fechaInicio', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-        setSemanaActiva({ id: doc.id, ...doc.data() });
-      } else {
-        setSemanaActiva(null);
-      }
+    const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
+      // Filtrar localmente por semanas activas (cerrada: false)
+      const semanasActivas = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.cerrada === false) {
+          semanasActivas.push({ id: doc.id, ...data });
+        }
+      });
+      
+      // Ordenar por fecha de inicio (más reciente primero)
+      semanasActivas.sort((a, b) => {
+        const fechaA = new Date(a.fechaInicio);
+        const fechaB = new Date(b.fechaInicio);
+        return fechaB - fechaA;
+      });
+      
+      // Tomar la semana más reciente
+      setSemanaActiva(semanasActivas.length > 0 ? semanasActivas[0] : null);
       setLoading(false);
     }, (err) => {
       console.error('Error al obtener semana activa:', err);
@@ -671,7 +673,7 @@ export const useGestionSemanal = (userId) => {
   const crearNuevaSemana = async () => {
     try {
       const nuevaSemana = {
-        userId,
+        userId: 'shared', // Usuario compartido para que todos vean los datos
         fechaInicio: new Date().toISOString(),
         cerrada: false,
         mercaderia: [],
@@ -1003,17 +1005,26 @@ export const useGestionSemanal = (userId) => {
   // Obtener historial de semanas cerradas
   const getHistorialSemanas = async () => {
     try {
-      const q = query(
-        collection(db, 'gestion_semanal'),
-        where('userId', '==', user.uid),
-        where('cerrada', '==', true),
-        orderBy('fechaCierre', 'desc')
-      );
-      const querySnapshot = await getDocs(q);
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      // Obtener todas las semanas y filtrar localmente
+      const collectionRef = collection(db, 'gestion_semanal');
+      const querySnapshot = await getDocs(collectionRef);
+      
+      const semanasCerradas = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.cerrada === true) {
+          semanasCerradas.push({ id: doc.id, ...data });
+        }
+      });
+      
+      // Ordenar por fecha de cierre (más reciente primero)
+      semanasCerradas.sort((a, b) => {
+        const fechaA = new Date(a.fechaCierre);
+        const fechaB = new Date(b.fechaCierre);
+        return fechaB - fechaA;
+      });
+      
+      return semanasCerradas;
     } catch (err) {
       console.error('Error al obtener historial de semanas:', err);
       throw err;

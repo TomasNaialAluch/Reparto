@@ -141,7 +141,7 @@ const Asistente = () => {
 
     // Verificar límite de mensajes
     try {
-      const canGenerate = await canGenerateMessage('default_user');
+      const canGenerate = await canGenerateMessage('shared');
       if (!canGenerate) {
         showError('🚫 Has alcanzado el límite mensual de 1,500 mensajes de la API gratuita. El contador se reiniciará el próximo mes.');
         return;
@@ -200,7 +200,7 @@ const Asistente = () => {
       
       // Incrementar contador de mensajes
       try {
-        await incrementMessageCount('default_user');
+        await incrementMessageCount('shared');
         console.log('📊 Contador de mensajes incrementado');
       } catch (error) {
         console.error('Error incrementando contador:', error);
@@ -235,7 +235,7 @@ const Asistente = () => {
 
     // Verificar límite de mensajes
     try {
-      const canGenerate = await canGenerateMessage('default_user');
+      const canGenerate = await canGenerateMessage('shared');
       if (!canGenerate) {
         showError('🚫 Has alcanzado el límite mensual de 1,500 mensajes de la API gratuita. El contador se reiniciará el próximo mes.');
         return;
@@ -282,7 +282,7 @@ const Asistente = () => {
       
       // Incrementar contador de mensajes
       try {
-        await incrementMessageCount('default_user');
+        await incrementMessageCount('shared');
         console.log('📊 Contador de mensajes incrementado');
       } catch (error) {
         console.error('Error incrementando contador:', error);

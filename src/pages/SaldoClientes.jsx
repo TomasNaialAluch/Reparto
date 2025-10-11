@@ -27,7 +27,7 @@ const SaldoClientes = () => {
 
   // Firebase hooks
   const { balances, loading, error, addClientBalance, deleteBalance, updateBalance } = useClientBalances();
-  const { semanaActiva } = useGestionSemanal(user?.uid);
+  const { semanaActiva } = useGestionSemanal('shared');
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
