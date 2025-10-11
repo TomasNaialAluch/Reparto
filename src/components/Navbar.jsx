@@ -23,6 +23,8 @@ const Navbar = () => {
     { path: '/reparto', label: 'Mi Reparto' },
     { path: '/transferencias', label: 'Transferencias' },
     { path: '/asistente', label: 'Asistente' },
+    { path: '/gestion-semanal', label: 'Gestión Semanal' },
+    { path: '/contador', label: 'Contador' },
     { path: '/dolar', label: 'DolarHoy' }
   ];
 
@@ -117,6 +119,21 @@ const Navbar = () => {
             </button>
             <Link className="navbar-brand" to="#" style={{ color: '#fff', fontWeight: '700' }}>
               Mi Reparto
+            </Link>
+          </div>
+          
+          {/* Botón Inicio en el centro */}
+          <div className="d-flex justify-content-center flex-grow-1">
+            <Link 
+              to="/" 
+              className="btn btn-outline-light btn-sm"
+              style={{ 
+                fontWeight: '600',
+                padding: '0.5rem 1.5rem'
+              }}
+            >
+              <i className="fas fa-home me-1"></i>
+              Inicio
             </Link>
           </div>
           

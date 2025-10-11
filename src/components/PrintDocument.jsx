@@ -4,9 +4,257 @@ import { formatCurrency } from '../utils/money';
 const PrintDocument = ({ data, type, onClose }) => {
   const printRef = useRef();
 
+  const getStylesForType = (printType) => {
+    // Estilos por defecto para todas las impresiones
+    const baseStyles = `
+      @page {
+        size: A4 portrait;
+        margin: 1.5cm 2cm;
+      }
+      
+      body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 15px;
+        font-size: 11pt;
+        line-height: 1.4;
+        color: #000;
+      }
+      
+      .print-header {
+        text-align: center;
+        font-size: 16pt;
+        font-weight: bold;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #000;
+      }
+      
+      .print-date {
+        text-align: right;
+        font-size: 9pt;
+        color: #666;
+        margin-bottom: 10px;
+      }
+      
+      .print-section {
+        margin: 10px 0;
+      }
+      
+      .print-section-title {
+        font-size: 12pt;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #333;
+      }
+      
+      .print-item {
+        margin: 4px 0;
+        padding-left: 15px;
+        font-size: 10pt;
+      }
+      
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 8px 0;
+      }
+      
+      .print-table th,
+      .print-table td {
+        border: 1px solid #000;
+        padding: 6px 8px;
+        text-align: left;
+        font-size: 10pt;
+      }
+      
+      .print-table th {
+        background-color: #f0f0f0;
+        font-weight: bold;
+      }
+      
+      .print-table td.number {
+        text-align: right;
+      }
+      
+      .print-subtotal {
+        background-color: #f8f9fa;
+        padding: 8px 12px;
+        margin: 10px 0;
+        border-left: 3px solid #007bff;
+        font-weight: bold;
+        font-size: 11pt;
+      }
+      
+      .print-total {
+        font-size: 14pt;
+        font-weight: bold;
+        text-align: center;
+        margin: 15px 0;
+        padding: 12px;
+        background-color: #e9ecef;
+        border: 2px solid #000;
+      }
+      
+      .print-message {
+        text-align: center;
+        font-size: 10pt;
+        margin: 10px 0;
+        padding: 8px;
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+      }
+      
+      .status-paid {
+        color: green;
+        font-weight: bold;
+      }
+      
+      .status-pending {
+        color: orange;
+        font-weight: bold;
+      }
+      
+      .text-end {
+        text-align: right;
+      }
+      
+      .text-muted {
+        color: #777;
+      }
+    `;
+
+    // Estilos específicos para empleados (compactos, alineados a la izquierda)
+    const empleadoStyles = `
+      @page {
+        size: A4 portrait;
+        margin: 0.5cm 1cm;
+      }
+      
+      body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 10px;
+        font-size: 8pt;
+        line-height: 1.2;
+        color: #000;
+        max-width: 50%;
+      }
+      
+      .print-header {
+        text-align: left;
+        font-size: 12pt;
+        font-weight: bold;
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #000;
+      }
+      
+      .print-date {
+        text-align: left;
+        font-size: 7pt;
+        color: #666;
+        margin-bottom: 8px;
+      }
+      
+      .print-section {
+        margin: 5px 0;
+        border-top: 1px solid #eee;
+        padding-top: 5px;
+      }
+      
+      .print-section-title {
+        font-size: 9pt;
+        font-weight: bold;
+        margin-bottom: 4px;
+        color: #333;
+      }
+      
+      .print-item {
+        margin: 2px 0;
+        padding-left: 10px;
+        font-size: 8pt;
+      }
+      
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+      }
+      
+      .print-table th,
+      .print-table td {
+        border: 1px solid #000;
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 11pt;
+      }
+      
+      .print-table th {
+        background-color: #f0f0f0;
+        font-weight: bold;
+      }
+      
+      .print-table td.number {
+        text-align: right;
+      }
+      
+      .print-subtotal {
+        background-color: #f8f9fa;
+        padding: 4px 8px;
+        margin: 3px 0;
+        border-left: 2px solid #007bff;
+        font-weight: bold;
+        font-size: 8pt;
+      }
+      
+      .print-total {
+        font-size: 10pt;
+        font-weight: bold;
+        text-align: left;
+        margin: 5px 0;
+        padding: 6px;
+        background-color: #e9ecef;
+        border: 1px solid #000;
+        max-width: 200px;
+      }
+      
+      .print-message {
+        text-align: center;
+        font-size: 11pt;
+        margin: 15px 0;
+        padding: 12px;
+        background-color: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 4px;
+      }
+      
+      .status-paid {
+        color: green;
+        font-weight: bold;
+      }
+      
+      .status-pending {
+        color: orange;
+        font-weight: bold;
+      }
+      
+      .text-end {
+        text-align: right;
+      }
+      
+      .text-muted {
+        color: #777;
+      }
+    `;
+
+    return printType === 'empleado' ? empleadoStyles : baseStyles;
+  };
+
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     const content = printRef.current.innerHTML;
+    const styles = getStylesForType(type);
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -15,135 +263,17 @@ const PrintDocument = ({ data, type, onClose }) => {
         <meta charset="UTF-8">
         <title>Impresión - Mi Reparto</title>
         <style>
-          @page {
-            size: A4 portrait;
-            margin: 1.5cm 2cm;
-          }
-          
-          body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 15px;
-            font-size: 11pt;
-            line-height: 1.4;
-            color: #000;
-          }
-          
-          .print-header {
-            text-align: center;
-            font-size: 16pt;
-            font-weight: bold;
-            margin-bottom: 10px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #000;
-          }
-          
-          .print-date {
-            text-align: right;
-            font-size: 9pt;
-            color: #666;
-            margin-bottom: 10px;
-          }
-          
-          .print-section {
-            margin: 10px 0;
-          }
-          
-          .print-section-title {
-            font-size: 12pt;
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #333;
-          }
-          
-          .print-item {
-            margin: 4px 0;
-            padding-left: 15px;
-            font-size: 10pt;
-          }
-          
-          .print-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 8px 0;
-          }
-          
-          .print-table th,
-          .print-table td {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            text-align: left;
-            font-size: 10pt;
-          }
-          
-          .print-table th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-          }
-          
-          .print-table td.number {
-            text-align: right;
-          }
-          
-          .print-subtotal {
-            background-color: #f8f9fa;
-            padding: 8px 12px;
-            margin: 10px 0;
-            border-left: 3px solid #007bff;
-            font-weight: bold;
-            font-size: 11pt;
-          }
-          
-          .print-total {
-            font-size: 14pt;
-            font-weight: bold;
-            text-align: center;
-            margin: 15px 0;
-            padding: 12px;
-            background-color: #e9ecef;
-            border: 2px solid #000;
-          }
-          
-          .print-message {
-            text-align: center;
-            font-size: 10pt;
-            margin: 10px 0;
-            padding: 8px;
-            background-color: #fff3cd;
-            border: 1px solid #ffc107;
-          }
-          
-          .status-paid {
-            color: green;
-            font-weight: bold;
-          }
-          
-          .status-pending {
-            color: red;
-            font-weight: bold;
-          }
-          
-          .status-partial {
-            color: orange;
-            font-weight: bold;
-          }
+          ${styles}
         </style>
       </head>
       <body>
         ${content}
-        <script>
-          window.onload = function() {
-            window.print();
-            window.onafterprint = function() {
-              window.close();
-            }
-          }
-        </script>
       </body>
       </html>
     `);
     
     printWindow.document.close();
+    printWindow.print();
   };
 
   const renderRepartoContent = () => {
@@ -156,88 +286,57 @@ const PrintDocument = ({ data, type, onClose }) => {
     return (
       <div ref={printRef}>
         <div className="print-header">
-          Lista de Reparto
+          Resumen de Reparto
         </div>
         
         <div className="print-date">
-          Fecha: {new Date(fecha).toLocaleDateString('es-AR', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
+          Fecha: {new Date(fecha).toLocaleDateString('es-AR')}
         </div>
         
-        <table className="print-table">
-          <thead>
-            <tr>
-              <th style={{ width: '5%' }}>#</th>
-              <th style={{ width: '45%' }}>Cliente</th>
-              <th style={{ width: '25%' }}>Monto</th>
-              <th style={{ width: '25%' }}>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clientes.map((cliente, index) => {
-              const pagado = cliente.paymentAmount || 0;
-              const monto = cliente.billAmount || 0;
-              let estado = 'Pendiente';
-              let estadoClass = 'status-pending';
-              
-              if (pagado >= monto) {
-                estado = 'Pagado';
-                estadoClass = 'status-paid';
-              } else if (pagado > 0) {
-                estado = `Parcial (${formatCurrency(monto - pagado)} pend.)`;
-                estadoClass = 'status-partial';
-              }
-              
-              return (
-                <tr key={index}>
-                  <td style={{ textAlign: 'center' }}>{index + 1}</td>
-                  <td>{cliente.clientName}</td>
-                  <td className="number">{formatCurrency(monto)}</td>
-                  <td className={estadoClass}>{estado}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        
-        <div className="print-subtotal">
-          <div>Total del Día: {formatCurrency(subtotal)}</div>
-          <div>Total Cobrado: {formatCurrency(totalPagado)}</div>
-          <div>Total Pendiente: {formatCurrency(totalPendiente)}</div>
-        </div>
-        
-        {totalPendiente > 0 ? (
-          <div className="print-message">
-            Quedan {clientes.filter(c => (c.paymentAmount || 0) < (c.billAmount || 0)).length} clientes con pagos pendientes
-          </div>
-        ) : (
-          <div className="print-message" style={{ backgroundColor: '#d4edda', borderColor: '#28a745' }}>
-            ¡Todos los clientes han pagado!
+        {/* Clientes */}
+        {clientes && clientes.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Clientes</div>
+            {clientes.map((cliente, i) => (
+              <div key={i} className="print-item">
+                {cliente.clientName}: {formatCurrency(parseFloat(cliente.billAmount) || 0)} - 
+                Pagado: {formatCurrency(parseFloat(cliente.paymentAmount) || 0)}
+              </div>
+            ))}
           </div>
         )}
         
+        {/* Totales */}
+        <div className="print-section">
+          <div className="print-section-title">Totales</div>
+          <div className="print-subtotal">
+            Subtotal: {formatCurrency(subtotal)}
+          </div>
+          <div className="print-subtotal">
+            Total Pagado: {formatCurrency(totalPagado)}
+          </div>
+          <div className="print-total">
+            Total Pendiente: {formatCurrency(totalPendiente)}
+          </div>
+        </div>
       </div>
     );
   };
 
   const renderTransferenciaContent = () => {
-    const {
-      nombreCliente,
-      transferencias,
-      boletas,
+    const { 
+      clientName, 
+      transferencias, 
+      tickets, 
       totalTransferencias,
-      totalBoletas,
-      saldoFinal
+      totalTickets,
+      balance
     } = data;
     
     return (
       <div ref={printRef}>
         <div className="print-header">
-          Resumen de Transferencias
+          Resumen de Transferencia
         </div>
         
         <div className="print-date">
@@ -245,16 +344,16 @@ const PrintDocument = ({ data, type, onClose }) => {
         </div>
         
         <div className="print-section">
-          <div className="print-section-title">Cliente: {nombreCliente}</div>
+          <div className="print-section-title">Cliente: {clientName}</div>
         </div>
         
-        {/* Transferencias Recibidas */}
+        {/* Transferencias */}
         {transferencias && transferencias.length > 0 && (
           <div className="print-section">
             <div className="print-section-title">Transferencias Recibidas:</div>
             {transferencias.map((t, i) => (
               <div key={i} className="print-item">
-                {t.descripcion || `Transferencia ${i + 1}`}: {formatCurrency(parseFloat(t.monto) || 0)}
+                {t.descripcion}: {formatCurrency(parseFloat(t.monto) || 0)}
               </div>
             ))}
             <div className="print-subtotal">
@@ -263,47 +362,27 @@ const PrintDocument = ({ data, type, onClose }) => {
           </div>
         )}
         
-        {/* Boletas */}
-        {boletas && boletas.length > 0 && (
+        {/* Tickets */}
+        {tickets && tickets.length > 0 && (
           <div className="print-section">
-            <div className="print-section-title">Boletas Vendidas:</div>
-            {boletas.map((b, i) => (
+            <div className="print-section-title">Tickets Vendidos:</div>
+            {tickets.map((t, i) => (
               <div key={i} className="print-item">
-                Boleta {i + 1} ({b.fecha}): {formatCurrency(parseFloat(b.monto) || 0)}
+                {t.fecha}: {formatCurrency(parseFloat(t.monto) || 0)}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Boletas: {formatCurrency(totalBoletas || 0)}
+              Total Tickets: {formatCurrency(totalTickets || 0)}
             </div>
           </div>
         )}
         
-        {/* Saldo Final */}
-        <div className="print-total">
-          {saldoFinal > 0 ? (
-            <>
-              <div>Saldo a favor del cliente: {formatCurrency(saldoFinal)}</div>
-              <div style={{ fontSize: '8pt', marginTop: '3px' }}>
-                Le debes {formatCurrency(saldoFinal)} a {nombreCliente}
-              </div>
-            </>
-          ) : saldoFinal < 0 ? (
-            <>
-              <div>Saldo a tu favor: {formatCurrency(Math.abs(saldoFinal))}</div>
-              <div style={{ fontSize: '8pt', marginTop: '3px' }}>
-                {nombreCliente} te debe {formatCurrency(Math.abs(saldoFinal))}
-              </div>
-            </>
-          ) : (
-            <>
-              <div>Saldo Final: {formatCurrency(0)}</div>
-              <div style={{ fontSize: '8pt', marginTop: '3px' }}>
-                Cuentas saldadas
-              </div>
-            </>
-          )}
+        {/* Balance */}
+        <div className="print-section">
+          <div className="print-total">
+            Balance Final: {formatCurrency(balance || 0)}
+          </div>
         </div>
-        
       </div>
     );
   };
@@ -357,87 +436,243 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Ventas a {clientName}:</div>
             {ventas.map((v, i) => (
               <div key={i} className="print-item">
-                Venta {i + 1}: {v.date} - {formatCurrency(parseFloat(v.amount) || 0)}
+                {v.date}: {formatCurrency(parseFloat(v.amount) || 0)}
               </div>
             ))}
+            <div className="print-subtotal">
+              Total Ventas: {formatCurrency(ventas.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0))}
+            </div>
           </div>
         )}
         
-        {/* Plata a Favor */}
+        {/* Plata a favor */}
         {plataFavor && plataFavor.length > 0 && (
           <div className="print-section">
             <div className="print-section-title">Plata a Favor:</div>
             {plataFavor.map((p, i) => (
               <div key={i} className="print-item">
-                {formatCurrency(parseFloat(p.amount) || 0)}
+                {p.date}: {formatCurrency(parseFloat(p.amount) || 0)}
               </div>
             ))}
           </div>
         )}
         
-        {/* Efectivo */}
-        {efectivo && efectivo.length > 0 && (
-          <div className="print-section">
-            <div className="print-section-title">Pagos en Efectivo:</div>
-            {efectivo.map((e, i) => (
-              <div key={i} className="print-item">
-                {formatCurrency(parseFloat(e.amount) || 0)}
-              </div>
-            ))}
+        {/* Ingresos */}
+        <div className="print-section">
+          <div className="print-section-title">Ingresos:</div>
+          {efectivo > 0 && (
+            <div className="print-item">
+              Efectivo: {formatCurrency(efectivo)}
+            </div>
+          )}
+          {cheques > 0 && (
+            <div className="print-item">
+              Cheques: {formatCurrency(cheques)}
+            </div>
+          )}
+          {transferencias > 0 && (
+            <div className="print-item">
+              Transferencias: {formatCurrency(transferencias)}
+            </div>
+          )}
+          <div className="print-subtotal">
+            Total Ingresos: {formatCurrency(totalIngresos || 0)}
           </div>
-        )}
-        
-        {/* Cheques */}
-        {cheques && cheques.length > 0 && (
-          <div className="print-section">
-            <div className="print-section-title">Cheques:</div>
-            {cheques.map((c, i) => (
-              <div key={i} className="print-item">
-                Cheque {c.id}: {formatCurrency(parseFloat(c.amount) || 0)}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Transferencias */}
-        {transferencias && transferencias.length > 0 && (
-          <div className="print-section">
-            <div className="print-section-title">Transferencias:</div>
-            {transferencias.map((t, i) => (
-              <div key={i} className="print-item">
-                {formatCurrency(parseFloat(t.amount) || 0)}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        <div className="print-subtotal">
-          Total Ingresos del Usuario: {formatCurrency(totalIngresos || 0)}
         </div>
         
-        <div className="print-total">
-          {finalBalance > 0 ? (
-            <>
-              <div>Saldo Final: {formatCurrency(finalBalance)}</div>
-              <div style={{ fontSize: '8pt', marginTop: '3px' }}>
-                {clientName} te debe {formatCurrency(finalBalance)}
-              </div>
-            </>
-          ) : finalBalance < 0 ? (
-            <>
-              <div>Saldo Final: {formatCurrency(Math.abs(finalBalance))}</div>
-              <div style={{ fontSize: '8pt', marginTop: '3px' }}>
-                Tú le debes {formatCurrency(Math.abs(finalBalance))} a {clientName}
-              </div>
-            </>
-          ) : (
-            <>
-              <div>Saldo Final: {formatCurrency(0)}</div>
-              <div style={{ fontSize: '8pt', marginTop: '3px' }}>
-                Cuentas saldadas
-              </div>
-            </>
+        {/* Balance Final */}
+        <div className="print-section">
+          <div className="print-total">
+            Balance Final: {formatCurrency(finalBalance || 0)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderEmpleadosContent = () => {
+    const { empleados = [], adelantos = [], fechaInicio } = data || {};
+    
+    // Calcular totales
+    const totalSueldos = empleados.reduce((sum, emp) => sum + (emp.sueldoSemanal || 0), 0);
+    const totalAdelantos = adelantos.reduce((sum, adel) => sum + adel.monto, 0);
+    const saldoPendiente = totalAdelantos - totalSueldos;
+    
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          Comprobante de Empleados
+        </div>
+        
+        <div className="print-date">
+          Semana del {new Date(fechaInicio).toLocaleDateString('es-AR')}
+        </div>
+        
+        {/* Resumen general */}
+        <div className="print-section">
+          <div className="print-section-title">Resumen General</div>
+          <div className="print-table">
+            <table className="table table-bordered">
+              <tbody>
+                <tr>
+                  <td><strong>Total Sueldos Semanales:</strong></td>
+                  <td><strong>{formatCurrency(totalSueldos)}</strong></td>
+                </tr>
+                <tr>
+                  <td><strong>Total Adelantos:</strong></td>
+                  <td><strong>{formatCurrency(totalAdelantos)}</strong></td>
+                </tr>
+                <tr className={saldoPendiente >= 0 ? 'table-success' : 'table-warning'}>
+                  <td><strong>Saldo Pendiente:</strong></td>
+                  <td><strong>{formatCurrency(Math.abs(saldoPendiente))} {saldoPendiente >= 0 ? '(A favor del empleado)' : '(Debe el empleado)'}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        {/* Detalle de empleados */}
+        <div className="print-section">
+          <div className="print-section-title">Detalle de Empleados</div>
+          <div className="print-table">
+            <table className="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Empleado</th>
+                  <th>Sueldo Semanal</th>
+                  <th>Adelantos</th>
+                  <th>Saldo</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {empleados.map((empleado, index) => {
+                  const adelantosEmpleado = adelantos.filter(a => a.empleado === empleado.nombre);
+                  const totalAdelantosEmpleado = adelantosEmpleado.reduce((sum, a) => sum + a.monto, 0);
+                  const saldoEmpleado = totalAdelantosEmpleado - empleado.sueldoSemanal;
+                  const estaPagado = totalAdelantosEmpleado >= empleado.sueldoSemanal;
+                  
+                  return (
+                    <tr key={index}>
+                      <td><strong>{empleado.nombre}</strong></td>
+                      <td>{formatCurrency(empleado.sueldoSemanal)}</td>
+                      <td>{formatCurrency(totalAdelantosEmpleado)}</td>
+                      <td className={saldoEmpleado >= 0 ? 'text-success' : 'text-warning'}>
+                        {formatCurrency(Math.abs(saldoEmpleado))} {saldoEmpleado >= 0 ? '(A favor)' : '(Debe)'}
+                      </td>
+                      <td>
+                        <span className={`badge ${estaPagado ? 'bg-success' : 'bg-warning'}`}>
+                          {estaPagado ? 'Pagado' : 'Pendiente'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        {/* Detalle de adelantos */}
+        {adelantos.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Detalle de Adelantos</div>
+            <div className="print-table">
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th>Empleado</th>
+                    <th>Día</th>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adelantos.map((adelanto, index) => (
+                    <tr key={index}>
+                      <td><strong>{adelanto.empleado}</strong></td>
+                      <td>{adelanto.dia}</td>
+                      <td>{adelanto.descripcion}</td>
+                      <td>{formatCurrency(adelanto.monto)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        
+        {/* Mensaje final */}
+        <div className="print-message">
+          <p><strong>Comprobante generado automáticamente</strong></p>
+          <p>Este documento resume la situación de empleados y adelantos para la semana correspondiente.</p>
+        </div>
+        
+      </div>
+    );
+  };
+
+  const renderEmpleadoContent = () => {
+    const { empleado, adelantos = [], fechaInicio } = data || {};
+    
+    // Validar que tenemos datos del empleado
+    if (!empleado) {
+      return <div>Error: No se encontraron datos del empleado</div>;
+    }
+    
+    // Calcular totales para este empleado específico
+    const totalSueldo = empleado.sueldoSemanal || 0;
+    const totalAdelantos = adelantos.reduce((sum, adel) => sum + adel.monto, 0);
+    const saldoPendiente = totalAdelantos - totalSueldo;
+    const estaPagado = totalAdelantos >= totalSueldo;
+    
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          Comprobante de {empleado.nombre}
+        </div>
+        
+        <div className="print-date">
+          Semana del {new Date(fechaInicio).toLocaleDateString('es-AR')}
+        </div>
+        
+        {/* Información del empleado */}
+        <div className="print-section">
+          <div className="print-item">
+            <strong>Sueldo Semanal:</strong> {formatCurrency(totalSueldo)}
+          </div>
+          {!estaPagado && (
+            <div className="print-item" style={{ color: '#d63384', fontWeight: 'bold' }}>
+              <strong>Falta Pagar:</strong> {formatCurrency(Math.abs(saldoPendiente))}
+            </div>
           )}
+          {estaPagado && totalAdelantos > totalSueldo && (
+            <div className="print-item" style={{ color: '#198754', fontWeight: 'bold' }}>
+              <strong>A Favor:</strong> {formatCurrency(Math.abs(saldoPendiente))}
+            </div>
+          )}
+        </div>
+        
+        {/* Detalle de adelantos */}
+        {adelantos.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Pagos por Día</div>
+            {adelantos.map((adelanto, index) => (
+              <div key={index} className="print-item">
+                {adelanto.dia} - {adelanto.descripcion || 'Adelanto'}: {formatCurrency(adelanto.monto)}
+              </div>
+            ))}
+            <div className="print-subtotal">
+              Total Pagado: {formatCurrency(totalAdelantos)}
+            </div>
+          </div>
+        )}
+        
+        {/* Estado final */}
+        <div className="print-section">
+          <div className="print-total">
+            {estaPagado ? '✅ PAGADO COMPLETAMENTE' : '⚠️ PENDIENTE DE PAGO'}
+          </div>
         </div>
         
       </div>
@@ -455,6 +690,8 @@ const PrintDocument = ({ data, type, onClose }) => {
           <div className="modal-body" style={{ maxHeight: '60vh', overflow: 'auto' }}>
             {type === 'reparto' ? renderRepartoContent() : 
              type === 'transferencia' ? renderTransferenciaContent() : 
+             type === 'empleados' ? renderEmpleadosContent() :
+             type === 'empleado' ? renderEmpleadoContent() :
              renderSaldoContent()}
           </div>
           <div className="modal-footer">
@@ -473,4 +710,3 @@ const PrintDocument = ({ data, type, onClose }) => {
 };
 
 export default PrintDocument;
-

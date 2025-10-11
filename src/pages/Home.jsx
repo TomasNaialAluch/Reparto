@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Home = () => {
+  const [hoverGestion, setHoverGestion] = useState(false);
+
   const menuItems = [
     { 
       path: '/reparto', 
@@ -22,6 +24,15 @@ const Home = () => {
     { 
       path: '/asistente', 
       label: 'Asistente'
+    },
+    { 
+      path: '/gestion-semanal', 
+      label: 'Gestión Semanal',
+      submenu: { path: '/balance', label: 'Balance' }
+    },
+    { 
+      path: '/contador', 
+      label: 'Contador'
     }
   ];
 
@@ -55,35 +66,94 @@ const Home = () => {
         </p>
         <div>
           {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              style={{
-                textDecoration: 'none',
-                color: '#fff',
-                backgroundColor: '#A9D6E5',
-                padding: '1rem 2rem',
-                borderRadius: '8px',
-                fontSize: '1.5rem',
-                fontWeight: '700',
+            <div 
+              key={item.path} 
+              style={{ 
+                display: 'inline-block',
+                position: 'relative',
                 margin: '1rem',
-                transition: 'background-color 0.3s ease, transform 0.3s ease',
-                boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                display: 'inline-block'
+                paddingBottom: item.submenu ? '3rem' : '0' // Espacio para el submenú
               }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = '#90C3D4';
-                e.target.style.transform = 'translateY(-3px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = '#A9D6E5';
-                e.target.style.transform = 'translateY(0)';
-              }}
+              onMouseEnter={() => item.submenu && setHoverGestion(true)}
+              onMouseLeave={() => item.submenu && setHoverGestion(false)}
             >
-              {item.label}
-            </Link>
+              <Link
+                to={item.path}
+                style={{
+                  textDecoration: 'none',
+                  color: '#fff',
+                  backgroundColor: '#A9D6E5',
+                  padding: '1rem 2rem',
+                  borderRadius: '8px',
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  transition: 'background-color 0.3s ease, transform 0.3s ease',
+                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                  display: 'inline-block'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#90C3D4';
+                  e.target.style.transform = 'translateY(-3px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#A9D6E5';
+                  e.target.style.transform = 'translateY(0)';
+                }}
+              >
+                {item.label}
+              </Link>
+              
+              {/* Submenú que aparece en hover */}
+              {item.submenu && hoverGestion && (
+                <Link
+                  to={item.submenu.path}
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 0.5rem)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    textDecoration: 'none',
+                    color: '#fff',
+                    backgroundColor: '#61a5c2',
+                    padding: '0.5rem 1rem',
+                    borderRadius: '6px',
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                    display: 'block',
+                    whiteSpace: 'nowrap',
+                    animation: 'fadeInDown 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#4a8ba6';
+                    e.target.style.transform = 'translateX(-50%) translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#61a5c2';
+                    e.target.style.transform = 'translateX(-50%) translateY(0)';
+                  }}
+                >
+                  {item.submenu.label}
+                </Link>
+              )}
+            </div>
           ))}
         </div>
+        
+        {/* Animación para el submenú */}
+        <style>{`
+          @keyframes fadeInDown {
+            from {
+              opacity: 0;
+              transform: translateX(-50%) translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateX(-50%) translateY(0);
+            }
+          }
+        `}</style>
       </div>
     </div>
   );

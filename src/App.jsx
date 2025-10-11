@@ -12,6 +12,9 @@ import MiReparto from './pages/MiReparto';
 import SaldoClientes from './pages/SaldoClientes';
 import Transferencias from './pages/Transferencias';
 import Asistente from './pages/Asistente';
+import GestionSemanal from './pages/GestionSemanal';
+import Balance from './pages/Balance';
+import Contador from './pages/Contador';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -94,6 +97,24 @@ const AppContent = () => {
             <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
               <Navbar />
               <Asistente />
+            </div>
+          } />
+          <Route path="/gestion-semanal" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <GestionSemanal />
+            </div>
+          } />
+          <Route path="/balance" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <Balance />
+            </div>
+          } />
+          <Route path="/contador" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <Contador />
             </div>
           } />
         </Routes>

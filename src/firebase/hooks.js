@@ -627,3 +627,437 @@ export const useAsistenteUsage = () => {
     getDaysUntilReset
   };
 };
+
+// ==================== GESTIÓN SEMANAL ====================
+
+// Hook para gestionar la semana activa
+export const useGestionSemanal = (userId) => {
+  const [semanaActiva, setSemanaActiva] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Obtener o crear semana activa
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'gestion_semanal'),
+      where('userId', '==', userId),
+      where('cerrada', '==', false),
+      orderBy('fechaInicio', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        setSemanaActiva({ id: doc.id, ...doc.data() });
+      } else {
+        setSemanaActiva(null);
+      }
+      setLoading(false);
+    }, (err) => {
+      console.error('Error al obtener semana activa:', err);
+      setError(err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [userId]);
+
+  // Crear nueva semana
+  const crearNuevaSemana = async () => {
+    try {
+      const nuevaSemana = {
+        userId,
+        fechaInicio: new Date().toISOString(),
+        cerrada: false,
+        mercaderia: [],
+        embutidos: [],
+        empleados: [],
+        adelantos: [],
+        gastos: [],
+        clientesCuenta: []
+      };
+
+      const docRef = await addDoc(collection(db, 'gestion_semanal'), nuevaSemana);
+      return docRef.id;
+    } catch (err) {
+      console.error('Error al crear semana:', err);
+      throw err;
+    }
+  };
+
+  // Cerrar semana actual
+  const cerrarSemana = async () => {
+    if (!semanaActiva) return;
+
+    try {
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        cerrada: true,
+        fechaCierre: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Error al cerrar semana:', err);
+      throw err;
+    }
+  };
+
+  // Agregar entrada de mercadería
+  const agregarMercaderia = async (entrada) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        mercaderia: [{ ...entrada, timestamp: new Date().toISOString() }]
+      });
+      return;
+    }
+
+    try {
+      const mercaderiaActual = semanaActiva.mercaderia || [];
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        mercaderia: [...mercaderiaActual, { ...entrada, timestamp: new Date().toISOString() }]
+      });
+    } catch (err) {
+      console.error('Error al agregar mercadería:', err);
+      throw err;
+    }
+  };
+
+  // Eliminar entrada de mercadería
+  const eliminarMercaderia = async (index) => {
+    if (!semanaActiva) return;
+
+    try {
+      const mercaderiaActual = semanaActiva.mercaderia || [];
+      const nuevaMercaderia = mercaderiaActual.filter((_, i) => i !== index);
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        mercaderia: nuevaMercaderia
+      });
+    } catch (err) {
+      console.error('Error al eliminar mercadería:', err);
+      throw err;
+    }
+  };
+
+  // Actualizar entrada de mercadería
+  const actualizarMercaderia = async (index, entradaActualizada) => {
+    if (!semanaActiva) return;
+
+    try {
+      const mercaderiaActual = semanaActiva.mercaderia || [];
+      const nuevaMercaderia = [...mercaderiaActual];
+      nuevaMercaderia[index] = { ...entradaActualizada, timestamp: mercaderiaActual[index]?.timestamp || new Date().toISOString() };
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        mercaderia: nuevaMercaderia
+      });
+    } catch (err) {
+      console.error('Error al actualizar mercadería:', err);
+      throw err;
+    }
+  };
+
+  // Agregar entrada de embutidos
+  const agregarEmbutidos = async (entrada) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        embutidos: [{ ...entrada, timestamp: new Date().toISOString() }]
+      });
+      return;
+    }
+
+    try {
+      const embutidosActual = semanaActiva.embutidos || [];
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        embutidos: [...embutidosActual, { ...entrada, timestamp: new Date().toISOString() }]
+      });
+    } catch (err) {
+      console.error('Error al agregar embutidos:', err);
+      throw err;
+    }
+  };
+
+  // Eliminar entrada de embutidos
+  const eliminarEmbutidos = async (index) => {
+    if (!semanaActiva) return;
+
+    try {
+      const embutidosActual = semanaActiva.embutidos || [];
+      const nuevosEmbutidos = embutidosActual.filter((_, i) => i !== index);
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        embutidos: nuevosEmbutidos
+      });
+    } catch (err) {
+      console.error('Error al eliminar embutidos:', err);
+      throw err;
+    }
+  };
+
+  // Actualizar entrada de embutidos
+  const actualizarEmbutidos = async (index, entradaActualizada) => {
+    if (!semanaActiva) return;
+
+    try {
+      const embutidosActual = semanaActiva.embutidos || [];
+      const nuevosEmbutidos = [...embutidosActual];
+      nuevosEmbutidos[index] = { ...entradaActualizada, timestamp: embutidosActual[index]?.timestamp || new Date().toISOString() };
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        embutidos: nuevosEmbutidos
+      });
+    } catch (err) {
+      console.error('Error al actualizar embutidos:', err);
+      throw err;
+    }
+  };
+
+  // Agregar/actualizar empleado
+  const gestionarEmpleado = async (empleado) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        empleados: [empleado]
+      });
+      return;
+    }
+
+    try {
+      const empleadosActual = semanaActiva.empleados || [];
+      const index = empleadosActual.findIndex(e => e.nombre === empleado.nombre);
+      
+      let nuevosEmpleados;
+      if (index !== -1) {
+        nuevosEmpleados = [...empleadosActual];
+        nuevosEmpleados[index] = empleado;
+      } else {
+        nuevosEmpleados = [...empleadosActual, empleado];
+      }
+
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        empleados: nuevosEmpleados
+      });
+    } catch (err) {
+      console.error('Error al gestionar empleado:', err);
+      throw err;
+    }
+  };
+
+  // Agregar adelanto a empleado
+  const agregarAdelanto = async (adelanto) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        adelantos: [{ ...adelanto, timestamp: new Date().toISOString() }]
+      });
+      return;
+    }
+
+    try {
+      const adelantosActual = semanaActiva.adelantos || [];
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        adelantos: [...adelantosActual, { ...adelanto, timestamp: new Date().toISOString() }]
+      });
+    } catch (err) {
+      console.error('Error al agregar adelanto:', err);
+      throw err;
+    }
+  };
+
+  // Eliminar adelanto
+  const eliminarAdelanto = async (index) => {
+    if (!semanaActiva) return;
+
+    try {
+      const adelantosActual = semanaActiva.adelantos || [];
+      const nuevosAdelantos = adelantosActual.filter((_, i) => i !== index);
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        adelantos: nuevosAdelantos
+      });
+    } catch (err) {
+      console.error('Error al eliminar adelanto:', err);
+      throw err;
+    }
+  };
+
+  // Agregar gasto
+  const agregarGasto = async (gasto) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        gastos: [{ ...gasto, timestamp: new Date().toISOString() }]
+      });
+      return;
+    }
+
+    try {
+      const gastosActual = semanaActiva.gastos || [];
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        gastos: [...gastosActual, { ...gasto, timestamp: new Date().toISOString() }]
+      });
+    } catch (err) {
+      console.error('Error al agregar gasto:', err);
+      throw err;
+    }
+  };
+
+  // Eliminar gasto
+  const eliminarGasto = async (index) => {
+    if (!semanaActiva) return;
+
+    try {
+      const gastosActual = semanaActiva.gastos || [];
+      const nuevosGastos = gastosActual.filter((_, i) => i !== index);
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        gastos: nuevosGastos
+      });
+    } catch (err) {
+      console.error('Error al eliminar gasto:', err);
+      throw err;
+    }
+  };
+
+  // Agregar boleta a cliente
+  const agregarBoletaCliente = async (nombreCliente, boleta) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        clientesCuenta: [{
+          nombre: nombreCliente,
+          boletas: [{ ...boleta, timestamp: new Date().toISOString() }]
+        }]
+      });
+      return;
+    }
+
+    try {
+      const clientesActual = semanaActiva.clientesCuenta || [];
+      const clienteIndex = clientesActual.findIndex(c => c.nombre === nombreCliente);
+
+      let nuevosClientes;
+      if (clienteIndex !== -1) {
+        nuevosClientes = [...clientesActual];
+        const boletasActuales = nuevosClientes[clienteIndex].boletas || [];
+        nuevosClientes[clienteIndex].boletas = [...boletasActuales, { ...boleta, timestamp: new Date().toISOString() }];
+      } else {
+        nuevosClientes = [...clientesActual, {
+          nombre: nombreCliente,
+          boletas: [{ ...boleta, timestamp: new Date().toISOString() }]
+        }];
+      }
+
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        clientesCuenta: nuevosClientes
+      });
+    } catch (err) {
+      console.error('Error al agregar boleta a cliente:', err);
+      throw err;
+    }
+  };
+
+  // Eliminar boleta de cliente
+  const eliminarBoletaCliente = async (nombreCliente, boletaIndex) => {
+    if (!semanaActiva) return;
+
+    try {
+      const clientesActual = semanaActiva.clientesCuenta || [];
+      const clienteIndex = clientesActual.findIndex(c => c.nombre === nombreCliente);
+
+      if (clienteIndex === -1) return;
+
+      const nuevosClientes = [...clientesActual];
+      nuevosClientes[clienteIndex].boletas = nuevosClientes[clienteIndex].boletas.filter((_, i) => i !== boletaIndex);
+
+      // Si no quedan boletas, eliminar el cliente
+      if (nuevosClientes[clienteIndex].boletas.length === 0) {
+        nuevosClientes.splice(clienteIndex, 1);
+      }
+
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        clientesCuenta: nuevosClientes
+      });
+    } catch (err) {
+      console.error('Error al eliminar boleta de cliente:', err);
+      throw err;
+    }
+  };
+
+  // Actualizar cliente completo (nombre y boletas)
+  const actualizarCliente = async (clienteIndex, clienteActualizado) => {
+    if (!semanaActiva) return;
+
+    try {
+      const clientesActual = semanaActiva.clientesCuenta || [];
+      const nuevosClientes = [...clientesActual];
+      nuevosClientes[clienteIndex] = clienteActualizado;
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        clientesCuenta: nuevosClientes
+      });
+    } catch (err) {
+      console.error('Error al actualizar cliente:', err);
+      throw err;
+    }
+  };
+
+  // Obtener historial de semanas cerradas
+  const getHistorialSemanas = async () => {
+    try {
+      const q = query(
+        collection(db, 'gestion_semanal'),
+        where('userId', '==', user.uid),
+        where('cerrada', '==', true),
+        orderBy('fechaCierre', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (err) {
+      console.error('Error al obtener historial de semanas:', err);
+      throw err;
+    }
+  };
+
+  // Obtener datos de una semana específica por ID
+  const getSemanaById = async (semanaId) => {
+    try {
+      const docRef = doc(db, 'gestion_semanal', semanaId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        return { id: docSnap.id, ...docSnap.data() };
+      } else {
+        throw new Error('Semana no encontrada');
+      }
+    } catch (err) {
+      console.error('Error al obtener semana por ID:', err);
+      throw err;
+    }
+  };
+
+  return {
+    semanaActiva,
+    loading,
+    error,
+    crearNuevaSemana,
+    cerrarSemana,
+    agregarMercaderia,
+    eliminarMercaderia,
+    actualizarMercaderia,
+    agregarEmbutidos,
+    eliminarEmbutidos,
+    actualizarEmbutidos,
+    gestionarEmpleado,
+    agregarAdelanto,
+    eliminarAdelanto,
+    agregarGasto,
+    eliminarGasto,
+    agregarBoletaCliente,
+    eliminarBoletaCliente,
+    actualizarCliente,
+    getHistorialSemanas,
+    getSemanaById
+  };
+};

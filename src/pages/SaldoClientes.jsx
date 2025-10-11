@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useClientBalances } from '../firebase/hooks';
+import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
+import { useFirebase } from '../contexts/FirebaseContext';
 import ClienteDeudorCard from '../components/ClienteDeudorCard';
 import EditClienteModal from '../components/EditClienteModal';
 import PrintDocument from '../components/PrintDocument';
@@ -8,6 +9,7 @@ import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 
 const SaldoClientes = () => {
+  const { user } = useFirebase();
   const [clientName, setClientName] = useState('');
   const [boletas, setBoletas] = useState([{ date: '', amount: '' }]);
   const [showVentas, setShowVentas] = useState(false);
@@ -25,6 +27,7 @@ const SaldoClientes = () => {
 
   // Firebase hooks
   const { balances, loading, error, addClientBalance, deleteBalance, updateBalance } = useClientBalances();
+  const { semanaActiva } = useGestionSemanal(user?.uid);
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
@@ -138,6 +141,24 @@ const SaldoClientes = () => {
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
     }
+  };
+
+  // Importar boletas desde Gestión Semanal
+  const importarBoletasDesdeGestion = (clienteGestion) => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const ventasImportadas = clienteGestion.boletas.map(boleta => ({
+      date: hoy, // Fecha del día por defecto
+      amount: boleta.monto.toString()
+    }));
+    
+    // Establecer el nombre del cliente
+    setClientName(clienteGestion.nombre);
+    
+    // Activar la sección de ventas y agregar las boletas ahí
+    setShowVentas(true);
+    setVentas(ventasImportadas.length > 0 ? ventasImportadas : [{ date: '', amount: '' }]);
+    
+    showSuccess(`✓ ${ventasImportadas.length} boletas importadas a "Ventas" de ${clienteGestion.nombre}`);
   };
 
   // Guardar el cliente actual como card
@@ -334,8 +355,9 @@ const SaldoClientes = () => {
 
   return (
     <div className="container mt-4 printable">
-      <div className="row justify-content-start">
-        <div className="col-lg-7 col-md-8">
+      <div className="row">
+        {/* Formulario Principal - Izquierda */}
+        <div className="col-lg-7 col-md-12">
           <div className="card p-3 no-print mb-3">
             <form>
               <h4>Datos del Cliente</h4>
@@ -607,6 +629,52 @@ const SaldoClientes = () => {
               </div>
             )}
           </div>
+          
+          {/* Panel de Deudas de Gestión Semanal */}
+          {semanaActiva && semanaActiva.clientesCuenta && semanaActiva.clientesCuenta.length > 0 && (
+            <div className="card p-3 mb-3 border-info">
+              <h6 className="text-info">
+                <i className="fas fa-calendar-week me-2"></i>
+                Deudas de Gestión Semanal
+              </h6>
+              <small className="text-muted d-block mb-3">
+                Importa boletas desde la gestión semanal activa
+              </small>
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {semanaActiva.clientesCuenta.map((cliente, index) => {
+                  const deudaTotal = cliente.boletas.reduce((sum, b) => sum + b.monto, 0);
+                  return (
+                    <div key={index} className="card mb-2 border-primary">
+                      <div className="card-body p-2">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div>
+                            <strong className="d-block">{cliente.nombre}</strong>
+                            <small className="text-danger fw-bold">
+                              Debe: {formatCurrency(deudaTotal)}
+                            </small>
+                            <div className="mt-1">
+                              <small className="text-muted">
+                                {cliente.boletas.length} {cliente.boletas.length === 1 ? 'boleta' : 'boletas'}
+                              </small>
+                            </div>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => importarBoletasDesdeGestion(cliente)}
+                            title="Importar boletas a Saldo Clientes"
+                          >
+                            <i className="fas fa-download me-1"></i>
+                            Importar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
           <div className="card p-3 mb-3">
             <h6>Clientes Guardados</h6>
             <div className="mb-3">
