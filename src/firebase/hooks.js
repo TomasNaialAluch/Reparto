@@ -1048,6 +1048,53 @@ export const useGestionSemanal = (userId) => {
     }
   };
 
+  // Funciones para configuraciones de usuario
+  const getConfiguracionesUsuario = async () => {
+    try {
+      const q = query(
+        collection(db, 'user_configs'),
+        where('userId', '==', userId)
+      );
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error obteniendo configuraciones:', error);
+      return null;
+    }
+  };
+
+  const guardarConfiguracionesUsuario = async (configuraciones) => {
+    try {
+      const configuracionesExistentes = await getConfiguracionesUsuario();
+      
+      if (configuracionesExistentes) {
+        // Actualizar documento existente
+        await updateDoc(doc(db, 'user_configs', configuracionesExistentes.id), {
+          ...configuraciones,
+          lastUpdated: new Date().toISOString()
+        });
+        console.log('✅ Configuraciones actualizadas');
+      } else {
+        // Crear nuevo documento
+        await addDoc(collection(db, 'user_configs'), {
+          userId,
+          ...configuraciones,
+          createdAt: new Date().toISOString(),
+          lastUpdated: new Date().toISOString()
+        });
+        console.log('✅ Configuraciones creadas');
+      }
+    } catch (error) {
+      console.error('Error guardando configuraciones:', error);
+      throw error;
+    }
+  };
+
   return {
     semanaActiva,
     loading,
@@ -1069,6 +1116,8 @@ export const useGestionSemanal = (userId) => {
     eliminarBoletaCliente,
     actualizarCliente,
     getHistorialSemanas,
-    getSemanaById
+    getSemanaById,
+    getConfiguracionesUsuario,
+    guardarConfiguracionesUsuario
   };
 };

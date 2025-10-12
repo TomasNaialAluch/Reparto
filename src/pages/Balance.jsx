@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/money';
 export default function Balance() {
   const navigate = useNavigate();
   const { user } = useFirebase();
-  const { semanaActiva, loading, getHistorialSemanas, getSemanaById } = useGestionSemanal(user?.uid);
+  const { semanaActiva, loading, getHistorialSemanas, getSemanaById, getConfiguracionesUsuario, guardarConfiguracionesUsuario } = useGestionSemanal(user?.uid);
   const [balanceData, setBalanceData] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [coeficientes, setCoeficientes] = useState({
@@ -17,6 +17,11 @@ export default function Balance() {
   const [historialSemanas, setHistorialSemanas] = useState([]);
   const [semanaSeleccionada, setSemanaSeleccionada] = useState(null);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [expandirResumen, setExpandirResumen] = useState(false);
+  const [valoresDefecto, setValoresDefecto] = useState({
+    mercaderia: 2500,
+    embutidos: 1800
+  });
 
   useEffect(() => {
     if (semanaActiva) {
@@ -29,6 +34,44 @@ export default function Balance() {
       behavior: 'smooth'
     });
   }, [semanaActiva]);
+
+  // Cargar configuraciones del usuario desde la base de datos
+  useEffect(() => {
+    const cargarConfiguraciones = async () => {
+      if (user?.uid) {
+        try {
+          const configs = await getConfiguracionesUsuario();
+          if (configs) {
+            setValoresDefecto({
+              mercaderia: configs.gananciaDefectoMercaderia || 2500,
+              embutidos: configs.gananciaDefectoEmbutidos || 1800
+            });
+            
+            // Aplicar valores por defecto si los coeficientes están en 0
+            if (coeficientes.mercaderia === 0 && coeficientes.embutidos === 0) {
+              setCoeficientes({
+                mercaderia: configs.gananciaDefectoMercaderia || 2500,
+                embutidos: configs.gananciaDefectoEmbutidos || 1800
+              });
+            }
+          } else {
+            // Si no hay configuraciones, aplicar valores por defecto
+            if (coeficientes.mercaderia === 0 && coeficientes.embutidos === 0) {
+              setCoeficientes(valoresDefecto);
+            }
+          }
+        } catch (error) {
+          console.error('Error cargando configuraciones:', error);
+          // En caso de error, aplicar valores por defecto
+          if (coeficientes.mercaderia === 0 && coeficientes.embutidos === 0) {
+            setCoeficientes(valoresDefecto);
+          }
+        }
+      }
+    };
+
+    cargarConfiguraciones();
+  }, [user?.uid]);
 
   // Cargar historial de semanas cerradas
   const cargarHistorial = async () => {
@@ -60,6 +103,19 @@ export default function Balance() {
     }
   };
 
+  // Guardar configuraciones cuando cambien los valores por defecto
+  const guardarValoresDefecto = async (nuevosValores) => {
+    try {
+      await guardarConfiguracionesUsuario({
+        gananciaDefectoMercaderia: nuevosValores.mercaderia,
+        gananciaDefectoEmbutidos: nuevosValores.embutidos
+      });
+      console.log('✅ Valores por defecto guardados');
+    } catch (error) {
+      console.error('Error guardando valores por defecto:', error);
+    }
+  };
+
   const calcularIngresosEstimados = () => {
     if (!balanceData) return 0;
     
@@ -67,6 +123,114 @@ export default function Balance() {
     const ingresosEmbutidos = balanceData.inventarioEmbutidos * coeficientes.embutidos;
     
     return ingresosMercaderia + ingresosEmbutidos;
+  };
+
+  // Calcular costo promedio general de toda la mercadería
+  const calcularCostoPromedioGeneral = () => {
+    const semanaAData = semanaSeleccionada || semanaActiva;
+    if (!semanaAData?.mercaderia) return 0;
+
+    let costoTotal = 0;
+    let totalKilos = 0;
+
+    semanaAData.mercaderia.forEach(entrada => {
+      entrada.cortes.forEach(corte => {
+        if (corte.precioKg && corte.precioKg > 0) {
+          costoTotal += corte.kg * corte.precioKg;
+          totalKilos += corte.kg;
+        }
+      });
+    });
+
+    return totalKilos > 0 ? costoTotal / totalKilos : 0;
+  };
+
+  // Calcular costo promedio por cada corte
+  const calcularCostosPromedioPorCorte = () => {
+    const semanaAData = semanaSeleccionada || semanaActiva;
+    if (!semanaAData?.mercaderia) return {};
+
+    const cortesAcumulados = {};
+
+    // Acumular datos por tipo de corte
+    semanaAData.mercaderia.forEach(entrada => {
+      entrada.cortes.forEach(corte => {
+        if (corte.precioKg && corte.precioKg > 0) {
+          if (!cortesAcumulados[corte.corte]) {
+            cortesAcumulados[corte.corte] = {
+              totalKilos: 0,
+              costoTotal: 0
+            };
+          }
+          cortesAcumulados[corte.corte].totalKilos += corte.kg;
+          cortesAcumulados[corte.corte].costoTotal += corte.kg * corte.precioKg;
+        }
+      });
+    });
+
+    // Calcular promedios
+    const promedios = {};
+    Object.entries(cortesAcumulados).forEach(([corte, datos]) => {
+      if (datos.totalKilos > 0) {
+        promedios[corte] = datos.costoTotal / datos.totalKilos;
+      }
+    });
+
+    return promedios;
+  };
+
+  // Calcular costo promedio general de embutidos
+  const calcularCostoPromedioGeneralEmbutidos = () => {
+    const semanaAData = semanaSeleccionada || semanaActiva;
+    if (!semanaAData?.embutidos) return 0;
+
+    let costoTotal = 0;
+    let totalKilos = 0;
+
+    semanaAData.embutidos.forEach(entrada => {
+      entrada.embutidos.forEach(embutido => {
+        if (embutido.precioKg && embutido.precioKg > 0) {
+          costoTotal += embutido.kg * embutido.precioKg;
+          totalKilos += embutido.kg;
+        }
+      });
+    });
+
+    return totalKilos > 0 ? costoTotal / totalKilos : 0;
+  };
+
+  // Calcular costo promedio por cada tipo de embutido
+  const calcularCostosPromedioPorEmbutido = () => {
+    const semanaAData = semanaSeleccionada || semanaActiva;
+    if (!semanaAData?.embutidos) return {};
+
+    const embutidosAcumulados = {};
+
+    // Acumular datos por tipo de embutido
+    semanaAData.embutidos.forEach(entrada => {
+      entrada.embutidos.forEach(embutido => {
+        if (embutido.precioKg && embutido.precioKg > 0) {
+          if (!embutidosAcumulados[embutido.tipo]) {
+            embutidosAcumulados[embutido.tipo] = {
+              totalKilos: 0,
+              costoTotal: 0
+            };
+          }
+          embutidosAcumulados[embutido.tipo].totalKilos += embutido.kg;
+          embutidosAcumulados[embutido.tipo].costoTotal += embutido.kg * embutido.precioKg;
+        }
+      });
+    });
+
+    // Calcular promedios
+    const promedios = {};
+    Object.entries(embutidosAcumulados).forEach(([tipo, datos]) => {
+      if (datos.totalKilos > 0) {
+        promedios[tipo] = datos.costoTotal / datos.totalKilos;
+      }
+    });
+
+    return promedios;
   };
 
   const calcularBalance = (semana = null) => {
@@ -362,6 +526,166 @@ export default function Balance() {
                 <div className="row">
                   {/* INGRESOS ESTIMADOS - BLOQUE IZQUIERDA */}
                   <div className="col-md-6">
+                    {/* COSTO PROMEDIO GENERAL */}
+                    {calcularCostoPromedioGeneral() > 0 && (
+                      <div className="mb-4">
+                        <div className="bg-light border rounded p-3">
+                          <div className="d-flex justify-content-between align-items-center mb-2">
+                            <h6 className="text-muted mb-0">Costo Promedio de Mercadería</h6>
+                            <button 
+                              className="btn btn-outline-primary btn-sm"
+                              onClick={() => setExpandirResumen(!expandirResumen)}
+                            >
+                              {expandirResumen ? '📉 Contraer' : '📈 Expandir'}
+                            </button>
+                          </div>
+                          <h4 className="text-success mb-1">
+                            <strong>${calcularCostoPromedioGeneral().toFixed(2)}/kg</strong>
+                          </h4>
+                          <small className="text-muted">Promedio ponderado de todos los cortes</small>
+                          
+                          {/* COSTO PROMEDIO DE EMBUTIDOS */}
+                          {calcularCostoPromedioGeneralEmbutidos() > 0 && (
+                            <div className="mt-3 pt-2 border-top">
+                              <h6 className="text-muted mb-1">Costo Promedio de Embutidos</h6>
+                              <h5 className="text-info mb-1">
+                                <strong>${calcularCostoPromedioGeneralEmbutidos().toFixed(2)}/kg</strong>
+                              </h5>
+                              <small className="text-muted">Promedio ponderado de todos los embutidos</small>
+                            </div>
+                          )}
+                          
+                          {/* SECCIÓN EXPANDIDA - COSTOS POR CORTE Y EMBUTIDOS */}
+                          <div 
+                            className={`mt-3 pt-2 border-top ${expandirResumen ? 'expand-section' : 'collapse-section'}`}
+                            style={{
+                              maxHeight: expandirResumen ? '500px' : '0',
+                              overflow: 'hidden',
+                              transition: 'all 0.3s ease-in-out',
+                              opacity: expandirResumen ? 1 : 0
+                            }}
+                          >
+                            <small className="text-muted d-block mb-2">Costos promedio por tipo:</small>
+                            
+                            {/* CORTES DE CARNE */}
+                            {Object.keys(calcularCostosPromedioPorCorte()).length > 0 && (
+                              <div className="mb-3">
+                                <small className="text-muted fw-bold d-block mb-1">Cortes de Carne:</small>
+                                <div className="row g-1">
+                                  {Object.entries(calcularCostosPromedioPorCorte()).map(([corte, precioPromedio]) => (
+                                    <div key={corte} className="col-6">
+                                      <small className="text-dark">
+                                        <strong>{corte}:</strong> ${precioPromedio.toFixed(2)}/kg
+                                      </small>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* EMBUTIDOS */}
+                            {Object.keys(calcularCostosPromedioPorEmbutido()).length > 0 && (
+                              <div className="mb-3">
+                                <small className="text-muted fw-bold d-block mb-1">Embutidos:</small>
+                                <div className="row g-1">
+                                  {Object.entries(calcularCostosPromedioPorEmbutido()).map(([tipo, precioPromedio]) => (
+                                    <div key={tipo} className="col-6">
+                                      <small className="text-dark">
+                                        <strong>{tipo}:</strong> ${precioPromedio.toFixed(2)}/kg
+                                      </small>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {Object.keys(calcularCostosPromedioPorCorte()).length === 0 && 
+                             Object.keys(calcularCostosPromedioPorEmbutido()).length === 0 && (
+                              <small className="text-muted">No hay datos de precios disponibles</small>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* GANANCIA MÍNIMA NECESARIA */}
+                    {balanceData && (
+                      <div className="mb-4">
+                        <div className="bg-light border rounded p-3">
+                          <h6 className="text-muted mb-2">Ganancia Mínima Necesaria</h6>
+                          <h4 className="text-warning mb-1">
+                            <strong>${((balanceData.sueldos + balanceData.gastos) / (balanceData.inventarioMercaderia + balanceData.inventarioEmbutidos)).toFixed(2)}/kg</strong>
+                          </h4>
+                          <small className="text-muted">
+                            Para cubrir sueldos (${balanceData.sueldos.toLocaleString()}) + gastos (${balanceData.gastos.toLocaleString()})
+                          </small>
+                          <div className="mt-2">
+                            <small className="text-muted">
+                              <strong>Total a cubrir:</strong> ${(balanceData.sueldos + balanceData.gastos).toLocaleString()} ÷ {(balanceData.inventarioMercaderia + balanceData.inventarioEmbutidos).toFixed(0)}kg
+                            </small>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* CONFIGURACIÓN DE VALORES POR DEFECTO */}
+                    <div className="mb-4">
+                      <div className="bg-light border rounded p-3">
+                        <h6 className="text-muted mb-3">⚙️ Configuración de Ganancia por Defecto</h6>
+                        <div className="row">
+                          <div className="col-6">
+                            <label className="form-label small">
+                              <strong>Mercadería - Valor por defecto</strong>
+                            </label>
+                            <input 
+                              type="number" 
+                              className="form-control form-control-sm"
+                              value={valoresDefecto.mercaderia}
+                              onChange={async (e) => {
+                                const nuevosValores = {
+                                  ...valoresDefecto, 
+                                  mercaderia: parseFloat(e.target.value) || 0
+                                };
+                                setValoresDefecto(nuevosValores);
+                                await guardarValoresDefecto(nuevosValores);
+                              }}
+                              placeholder="Ej: 2500"
+                            />
+                            <small className="text-muted">Valor inicial para carne</small>
+                          </div>
+                          <div className="col-6">
+                            <label className="form-label small">
+                              <strong>Embutidos - Valor por defecto</strong>
+                            </label>
+                            <input 
+                              type="number" 
+                              className="form-control form-control-sm"
+                              value={valoresDefecto.embutidos}
+                              onChange={async (e) => {
+                                const nuevosValores = {
+                                  ...valoresDefecto, 
+                                  embutidos: parseFloat(e.target.value) || 0
+                                };
+                                setValoresDefecto(nuevosValores);
+                                await guardarValoresDefecto(nuevosValores);
+                              }}
+                              placeholder="Ej: 1800"
+                            />
+                            <small className="text-muted">Valor inicial para embutidos</small>
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <button 
+                            className="btn btn-outline-secondary btn-sm"
+                            onClick={() => setCoeficientes(valoresDefecto)}
+                          >
+                            🔄 Aplicar Valores por Defecto
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+
                     <h6 className="text-success mb-2">Ingresos Estimados</h6>
                     <small className="text-muted d-block mb-3">
                       <strong>Ganancia por kilogramo:</strong> ¿Cuánto ganas por cada kilo que vendés?
@@ -463,6 +787,7 @@ export default function Balance() {
                     
                   </div>
                 </div>
+
               </div>
             </div>
           </div>

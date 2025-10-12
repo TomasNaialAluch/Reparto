@@ -215,7 +215,7 @@ export default function GestionSemanal() {
   const agregarCorteEnEdicion = () => {
     setTempMercaderiaData(prev => ({
       ...prev,
-      cortes: [...prev.cortes, { corte: 'Nuevo Corte', kg: 0 }]
+      cortes: [...prev.cortes, { corte: 'Nuevo Corte', kg: 0, precioKg: 0 }]
     }));
   };
 
@@ -286,7 +286,7 @@ export default function GestionSemanal() {
   const agregarEmbutidoEnEdicion = () => {
     setTempEmbutidosData(prev => ({
       ...prev,
-      embutidos: [...prev.embutidos, { tipo: 'Nuevo Tipo', kg: 0 }]
+      embutidos: [...prev.embutidos, { tipo: 'Nuevo Tipo', kg: 0, precioKg: 0 }]
     }));
   };
 
@@ -465,8 +465,12 @@ export default function GestionSemanal() {
   const handleAgregarMercaderia = async () => {
     try {
       const cortesConDatos = Object.entries(formMercaderia.cortes)
-        .filter(([_, kg]) => kg && parseFloat(kg) > 0)
-        .map(([corte, kg]) => ({ corte, kg: parseFloat(kg) }));
+        .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0)
+        .map(([corte, datos]) => ({ 
+          corte, 
+          kg: parseFloat(datos.kg),
+          precioKg: datos.precioKg ? parseFloat(datos.precioKg) : 0
+        }));
 
       if (cortesConDatos.length === 0) {
         addNotification('Debe ingresar al menos un corte con kilos', 'warning');
@@ -526,8 +530,12 @@ export default function GestionSemanal() {
   const handleAgregarEmbutidos = async () => {
     try {
       const embutidosConDatos = Object.entries(formEmbutidos.embutidos)
-        .filter(([_, kg]) => kg && parseFloat(kg) > 0)
-        .map(([tipo, kg]) => ({ tipo, kg: parseFloat(kg) }));
+        .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0)
+        .map(([tipo, datos]) => ({ 
+          tipo, 
+          kg: parseFloat(datos.kg),
+          precioKg: datos.precioKg ? parseFloat(datos.precioKg) : 0
+        }));
 
       if (embutidosConDatos.length === 0) {
         addNotification('Debe ingresar al menos un tipo de embutido con kilos', 'warning');
@@ -958,25 +966,58 @@ export default function GestionSemanal() {
                   )}
 
                   <div className="mb-3">
-                    <label className="form-label fw-bold">Cortes (kg):</label>
+                    <label className="form-label fw-bold">Cortes (kg y precio por kg):</label>
                     <div className="row">
                       {CORTES_CARNE.map(corte => {
-                        const nombreCorto = corte.length > 5 ? corte.substring(0, 5) : corte;
+                        const nombreCorto = corte.length > 8 ? corte.substring(0, 8) : corte;
                         return (
-                          <div key={corte} className="col-md-4 col-sm-6 mb-2">
-                            <div className="input-group">
-                              <span className="input-group-text" style={{ width: '80px', fontSize: '0.9rem' }}>{nombreCorto}</span>
-                              <input 
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                step="0.1"
-                                value={formMercaderia.cortes[corte] || ''}
-                                onChange={(e) => setFormMercaderia({
-                                  ...formMercaderia,
-                                  cortes: { ...formMercaderia.cortes, [corte]: e.target.value }
-                                })}
-                              />
+                          <div key={corte} className="col-lg-4 col-md-6 mb-3">
+                            <div className="card h-100">
+                              <div className="card-body p-2">
+                                <label className="form-label mb-2 fw-bold" style={{ fontSize: '0.9rem' }}>{corte}</label>
+                                <div className="d-flex flex-column gap-1">
+                                  <div className="input-group input-group-sm">
+                                    <span className="input-group-text">Kg</span>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="0"
+                                      step="0.1"
+                                      value={formMercaderia.cortes[corte]?.kg || ''}
+                                      onChange={(e) => setFormMercaderia({
+                                        ...formMercaderia,
+                                        cortes: { 
+                                          ...formMercaderia.cortes, 
+                                          [corte]: {
+                                            ...formMercaderia.cortes[corte],
+                                            kg: e.target.value
+                                          }
+                                        }
+                                      })}
+                                    />
+                                  </div>
+                                  <div className="input-group input-group-sm">
+                                    <span className="input-group-text">$/Kg</span>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="0"
+                                      step="0.01"
+                                      value={formMercaderia.cortes[corte]?.precioKg || ''}
+                                      onChange={(e) => setFormMercaderia({
+                                        ...formMercaderia,
+                                        cortes: { 
+                                          ...formMercaderia.cortes, 
+                                          [corte]: {
+                                            ...formMercaderia.cortes[corte],
+                                            precioKg: e.target.value
+                                          }
+                                        }
+                                      })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1006,10 +1047,12 @@ export default function GestionSemanal() {
                     <div className="row">
                       {semanaActiva.mercaderia.map((entrada, index) => {
                         const totalKilos = entrada.cortes.reduce((sum, corte) => sum + corte.kg, 0);
+                        const costoTotal = entrada.cortes.reduce((sum, corte) => sum + (corte.kg * (corte.precioKg || 0)), 0);
+                        const costoPromedioKg = totalKilos > 0 ? costoTotal / totalKilos : 0;
                         const isExpanded = expandedMercaderia[index];
                         
                         return (
-                          <div key={index} className={`mb-3 card-transition ${editingMercaderia === index ? 'col-12 card-expand' : 'col-md-4 col-sm-6'}`}>
+                          <div key={index} className={`mb-3 card-transition ${editingMercaderia === index ? 'col-12 card-expand' : 'col-lg-4 col-md-6 col-sm-6'}`}>
                             <div 
                               className={`card border-primary h-100 ${editingMercaderia !== index ? 'smooth-hover' : ''}`}
                               style={{ cursor: editingMercaderia === index ? 'default' : 'pointer' }}
@@ -1037,6 +1080,11 @@ export default function GestionSemanal() {
                                   <h5 className="text-primary mb-1">
                                     <strong>{totalKilos} kg</strong>
                                   </h5>
+                                  {costoPromedioKg > 0 && (
+                                    <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
+                                      <strong>${costoPromedioKg.toFixed(2)}/kg</strong>
+                                    </h6>
+                                  )}
                                   <small className="text-muted">
                                     {entrada.cortes.length} tipos de corte
                                   </small>
@@ -1146,15 +1194,27 @@ export default function GestionSemanal() {
                                                 onChange={(e) => updateCorte(i, 'corte', e.target.value)}
                                                 placeholder="Nombre del corte"
                                               />
-                                              <div className="input-group input-group-sm">
+                                              <div className="input-group input-group-sm mb-1">
+                                                <span className="input-group-text" style={{fontSize: '0.75rem'}}>Kg</span>
                                                 <input 
                                                   type="number" 
                                                   className="form-control" 
                                                   value={corte.kg}
                                                   onChange={(e) => updateCorte(i, 'kg', parseFloat(e.target.value) || 0)}
                                                   step="0.1"
+                                                  placeholder="0"
                                                 />
-                                                <span className="input-group-text">kg</span>
+                                              </div>
+                                              <div className="input-group input-group-sm">
+                                                <span className="input-group-text" style={{fontSize: '0.75rem'}}>$/Kg</span>
+                                                <input 
+                                                  type="number" 
+                                                  className="form-control" 
+                                                  value={corte.precioKg || 0}
+                                                  onChange={(e) => updateCorte(i, 'precioKg', parseFloat(e.target.value) || 0)}
+                                                  step="0.01"
+                                                  placeholder="0"
+                                                />
                                               </div>
                                             </div>
                                           </div>
@@ -1180,6 +1240,24 @@ export default function GestionSemanal() {
                                             {tempMercaderiaData.cortes.reduce((sum, corte) => sum + corte.kg, 0).toFixed(1)} kg
                                           </strong>
                                         </div>
+                                        {tempMercaderiaData.cortes.some(c => c.precioKg && c.precioKg > 0) && (
+                                          <>
+                                            <div className="d-flex justify-content-between mt-1">
+                                              <strong>Costo Total:</strong>
+                                              <strong className="text-success">
+                                                ${tempMercaderiaData.cortes.reduce((sum, c) => sum + (c.kg * (c.precioKg || 0)), 0).toFixed(2)}
+                                              </strong>
+                                            </div>
+                                            <div className="d-flex justify-content-between mt-1">
+                                              <strong>Costo Promedio:</strong>
+                                              <strong className="text-info">
+                                                ${tempMercaderiaData.cortes.reduce((sum, c) => sum + c.kg, 0) > 0 ? 
+                                                  (tempMercaderiaData.cortes.reduce((sum, c) => sum + (c.kg * (c.precioKg || 0)), 0) / 
+                                                   tempMercaderiaData.cortes.reduce((sum, c) => sum + c.kg, 0)).toFixed(2) : '0.00'}/kg
+                                              </strong>
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
                                     </div>
                                   ) : (
@@ -1187,7 +1265,12 @@ export default function GestionSemanal() {
                                     <div>
                                       <ul className="list-unstyled mb-0 small">
                                         {entrada.cortes.map((corte, i) => (
-                                          <li key={i} className="mb-1">• {corte.corte}: <strong>{corte.kg} kg</strong></li>
+                                          <li key={i} className="mb-1">
+                                            • {corte.corte}: <strong>{corte.kg} kg</strong>
+                                            {corte.precioKg ? (
+                                              <span className="text-muted"> (${corte.precioKg}/kg = ${(corte.kg * corte.precioKg).toFixed(2)})</span>
+                                            ) : null}
+                                          </li>
                                         ))}
                                       </ul>
                                       <div className="mt-2 pt-2 border-top">
@@ -1197,6 +1280,22 @@ export default function GestionSemanal() {
                                             {totalKilos} kg
                                           </strong>
                                         </div>
+                                        {entrada.cortes.some(c => c.precioKg) && (
+                                          <>
+                                            <div className="d-flex justify-content-between mt-1">
+                                              <strong>Costo Total:</strong>
+                                              <strong className="text-success">
+                                                ${entrada.cortes.reduce((sum, c) => sum + (c.kg * (c.precioKg || 0)), 0).toFixed(2)}
+                                              </strong>
+                                            </div>
+                                            <div className="d-flex justify-content-between mt-1">
+                                              <strong>Costo Promedio:</strong>
+                                              <strong className="text-info">
+                                                ${costoPromedioKg.toFixed(2)}/kg
+                                              </strong>
+                                            </div>
+                                          </>
+                                        )}
                                       </div>
                                     </div>
                                   )}
@@ -1266,25 +1365,57 @@ export default function GestionSemanal() {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label fw-bold">Embutidos (kg):</label>
+                    <label className="form-label fw-bold">Embutidos (kg y precio por kg):</label>
                     <div className="row">
                       {TIPOS_EMBUTIDOS.map(tipo => {
-                        const nombreCorto = tipo.length > 5 ? tipo.substring(0, 5) : tipo;
                         return (
-                          <div key={tipo} className="col-md-4 col-sm-6 mb-2">
-                            <div className="input-group">
-                              <span className="input-group-text" style={{ width: '80px', fontSize: '0.9rem' }}>{nombreCorto}</span>
-                              <input 
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                step="0.1"
-                                value={formEmbutidos.embutidos[tipo] || ''}
-                                onChange={(e) => setFormEmbutidos({
-                                  ...formEmbutidos,
-                                  embutidos: { ...formEmbutidos.embutidos, [tipo]: e.target.value }
-                                })}
-                              />
+                          <div key={tipo} className="col-lg-4 col-md-6 mb-3">
+                            <div className="card h-100">
+                              <div className="card-body p-2">
+                                <label className="form-label mb-2 fw-bold" style={{ fontSize: '0.9rem' }}>{tipo}</label>
+                                <div className="d-flex flex-column gap-1">
+                                  <div className="input-group input-group-sm">
+                                    <span className="input-group-text">Kg</span>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="0"
+                                      step="0.1"
+                                      value={formEmbutidos.embutidos[tipo]?.kg || ''}
+                                      onChange={(e) => setFormEmbutidos({
+                                        ...formEmbutidos,
+                                        embutidos: { 
+                                          ...formEmbutidos.embutidos, 
+                                          [tipo]: {
+                                            ...formEmbutidos.embutidos[tipo],
+                                            kg: e.target.value
+                                          }
+                                        }
+                                      })}
+                                    />
+                                  </div>
+                                  <div className="input-group input-group-sm">
+                                    <span className="input-group-text">$/Kg</span>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="0"
+                                      step="0.01"
+                                      value={formEmbutidos.embutidos[tipo]?.precioKg || ''}
+                                      onChange={(e) => setFormEmbutidos({
+                                        ...formEmbutidos,
+                                        embutidos: { 
+                                          ...formEmbutidos.embutidos, 
+                                          [tipo]: {
+                                            ...formEmbutidos.embutidos[tipo],
+                                            precioKg: e.target.value
+                                          }
+                                        }
+                                      })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1314,6 +1445,8 @@ export default function GestionSemanal() {
                     <div className="row">
                       {semanaActiva.embutidos.map((entrada, index) => {
                         const totalKilos = entrada.embutidos.reduce((sum, emb) => sum + emb.kg, 0);
+                        const costoTotal = entrada.embutidos.reduce((sum, emb) => sum + (emb.kg * (emb.precioKg || 0)), 0);
+                        const costoPromedioKg = totalKilos > 0 ? costoTotal / totalKilos : 0;
                         const isExpanded = expandedEmbutidos[index];
                         
                         return (
@@ -1343,6 +1476,11 @@ export default function GestionSemanal() {
                                   <h5 className="text-primary mb-1">
                                     <strong>{totalKilos} kg</strong>
                                   </h5>
+                                  {costoPromedioKg > 0 && (
+                                    <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
+                                      <strong>${costoPromedioKg.toFixed(2)}/kg</strong>
+                                    </h6>
+                                  )}
                                   <small className="text-muted">
                                     {entrada.embutidos.length} tipos de embutidos
                                   </small>
@@ -1443,15 +1581,27 @@ export default function GestionSemanal() {
                                                 onChange={(e) => updateEmbutido(i, 'tipo', e.target.value)}
                                                 placeholder="Tipo de embutido"
                                               />
-                                              <div className="input-group input-group-sm">
+                                              <div className="input-group input-group-sm mb-1">
+                                                <span className="input-group-text" style={{fontSize: '0.75rem'}}>Kg</span>
                                                 <input 
                                                   type="number" 
                                                   className="form-control" 
                                                   value={emb.kg}
                                                   onChange={(e) => updateEmbutido(i, 'kg', parseFloat(e.target.value) || 0)}
                                                   step="0.1"
+                                                  placeholder="0"
                                                 />
-                                                <span className="input-group-text">kg</span>
+                                              </div>
+                                              <div className="input-group input-group-sm">
+                                                <span className="input-group-text" style={{fontSize: '0.75rem'}}>$/Kg</span>
+                                                <input 
+                                                  type="number" 
+                                                  className="form-control" 
+                                                  value={emb.precioKg || 0}
+                                                  onChange={(e) => updateEmbutido(i, 'precioKg', parseFloat(e.target.value) || 0)}
+                                                  step="0.01"
+                                                  placeholder="0"
+                                                />
                                               </div>
                                             </div>
                                           </div>
@@ -1484,7 +1634,12 @@ export default function GestionSemanal() {
                                     <div>
                                       <ul className="list-unstyled mb-0 small">
                                         {entrada.embutidos.map((emb, i) => (
-                                          <li key={i} className="mb-1">• {emb.tipo}: <strong>{emb.kg} kg</strong></li>
+                                          <li key={i} className="mb-1">
+                                            • {emb.tipo}: <strong>{emb.kg} kg</strong>
+                                            {emb.precioKg ? (
+                                              <span className="text-muted"> (${emb.precioKg}/kg = ${(emb.kg * emb.precioKg).toFixed(2)})</span>
+                                            ) : null}
+                                          </li>
                                         ))}
                                       </ul>
                                       <div className="mt-2 pt-2 border-top">
@@ -1494,6 +1649,14 @@ export default function GestionSemanal() {
                                             {totalKilos} kg
                                           </strong>
                                         </div>
+                                        {entrada.embutidos.some(e => e.precioKg) && (
+                                          <div className="d-flex justify-content-between mt-1">
+                                            <strong>Costo Total:</strong>
+                                            <strong className="text-success">
+                                              ${entrada.embutidos.reduce((sum, e) => sum + (e.kg * (e.precioKg || 0)), 0).toFixed(2)}
+                                            </strong>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   )}

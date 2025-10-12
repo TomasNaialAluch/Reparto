@@ -114,6 +114,182 @@ El sistema de impresión fue completamente rediseñado usando un enfoque modular
 
 ---
 
+## 🎯 **FUNCIONALIDADES PENDIENTES**
+
+### **1. Sistema de Facturación**
+- ✅ **Asistente de Mensajes con IA** - COMPLETADO (Gemini AI integrado)
+- ⚠️ **Sistema de Facturación** - PENDIENTE
+- ⚠️ **Relación de Clientes** - PENDIENTE  
+- ⚠️ **Asistente AI de Navegación** - PENDIENTE
+
+---
+
+## 📊 **SISTEMA DE FACTURACIÓN**
+
+### **Descripción:**
+Sistema completo de facturación que permita generar facturas, control de stock, gestión de productos y seguimiento de pagos.
+
+### **Funcionalidades Requeridas:**
+
+#### **Gestión de Productos:**
+- ✅ Catálogo de productos con precios
+- ✅ Control de stock (entrada/salida)
+- ✅ Categorías de productos
+- ✅ Códigos de barras o SKU
+- ✅ Imágenes de productos
+
+#### **Generación de Facturas:**
+- ✅ Facturas con numeración automática
+- ✅ Múltiples items por factura
+- ✅ Cálculo automático de totales
+- ✅ Impuestos (IVA, etc.)
+- ✅ Formato PDF para impresión/envío
+
+#### **Gestión de Clientes:**
+- ✅ Base de datos unificada de clientes
+- ✅ Historial de compras por cliente
+- ✅ Estados de cuenta
+- ✅ Límites de crédito
+
+#### **Reportes de Facturación:**
+- ✅ Ventas por período
+- ✅ Productos más vendidos
+- ✅ Clientes con mayor facturación
+- ✅ Análisis de cobranza
+
+---
+
+## 👥 **RELACIÓN DE CLIENTES A LO LARGO DE LA APP**
+
+### **Descripción:**
+Sistema unificado donde los clientes aparezcan consistentemente en todas las secciones de la aplicación.
+
+### **Base de Datos Unificada:**
+
+#### **Colección Firebase: `clientes`**
+```javascript
+{
+  id: string,
+  nombre: string,
+  email: string,
+  telefono: string,
+  direccion: string,
+  fechaRegistro: timestamp,
+  tipoCliente: 'minorista' | 'mayorista' | 'especial',
+  limiteCredito: number,
+  estado: 'activo' | 'inactivo' | 'suspendido',
+  observaciones: string,
+  tags: string[], // ej: ['frecuente', 'puntual', 'moroso']
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+```
+
+### **Integración en Todas las Secciones:**
+
+#### **Mi Reparto:**
+- ✅ Autocompletado de nombres de clientes
+- ✅ Historial de repartos por cliente
+- ✅ Estados de pago históricos
+
+#### **Saldo Clientes:**
+- ✅ Información completa del cliente
+- ✅ Historial de transacciones
+- ✅ Alertas de límites de crédito
+
+#### **Transferencias:**
+- ✅ Datos de contacto del cliente
+- ✅ Historial de transferencias
+
+#### **Facturación:**
+- ✅ Datos fiscales del cliente
+- ✅ Historial de facturas
+- ✅ Estados de cuenta
+
+#### **Gestión Semanal:**
+- ✅ Clientes que compraron en la semana
+- ✅ Análisis de comportamiento
+
+### **Funcionalidades Adicionales:**
+- ✅ **Búsqueda inteligente** - Buscar por nombre, teléfono, dirección
+- ✅ **Etiquetas personalizadas** - Clasificar clientes (frecuente, moroso, etc.)
+- ✅ **Notificaciones automáticas** - Recordatorios de pago, cumpleaños
+- ✅ **Exportar datos** - Lista de clientes en Excel/CSV
+
+---
+
+## 🤖 **ASISTENTE AI DE NAVEGACIÓN CON CHAT ANIMADO**
+
+### **Descripción:**
+Chat inteligente que ayuda a los usuarios a navegar por la aplicación y encontrar lo que necesitan usando IA.
+
+### **Funcionalidades:**
+
+#### **Chat Inteligente:**
+- ✅ **Reconocimiento de intención** - "Quiero ver mis repartos de hoy"
+- ✅ **Navegación automática** - Lleva al usuario a la sección correcta
+- ✅ **Animaciones de navegación** - Transiciones suaves entre páginas
+- ✅ **Sugerencias contextuales** - Recomendaciones basadas en la hora/día
+
+#### **Comandos de Voz y Texto:**
+```
+Usuario: "¿Cómo están mis cobros pendientes?"
+AI: "Te llevo a la sección de Saldo de Clientes..."
+[Navegación animada]
+
+Usuario: "Quiero facturar a Juan Pérez"
+AI: "Perfecto, voy a la facturación con Juan Pérez preseleccionado..."
+[Navegación + datos precargados]
+
+Usuario: "¿Qué repartos hice ayer?"
+AI: "Te muestro el historial de repartos de ayer..."
+[Navegación + filtros aplicados]
+```
+
+#### **Integración con IA:**
+- ✅ **Gemini AI** - Para entender el lenguaje natural
+- ✅ **Análisis de contexto** - Entiende qué necesita el usuario
+- ✅ **Aprendizaje** - Mejora con el uso
+
+#### **Componente Chat:**
+```javascript
+// ChatWidget.jsx
+- Botón flotante en esquina inferior derecha
+- Ventana expandible con historial de conversación
+- Indicador de escritura cuando AI está procesando
+- Sugerencias rápidas con botones
+- Integración con todas las páginas
+```
+
+#### **Animaciones de Navegación:**
+- ✅ **Transiciones suaves** - Entre páginas
+- ✅ **Highlighting** - Destacar elementos relevantes
+- ✅ **Loading states** - Indicadores de carga
+- ✅ **Success feedback** - Confirmación de acciones
+
+### **Tecnología:**
+- ✅ **Gemini AI** - Para procesamiento de lenguaje natural
+- ✅ **React Router** - Para navegación programática
+- ✅ **Framer Motion** - Para animaciones suaves
+- ✅ **Speech Recognition** - Para comandos de voz (opcional)
+
+### **Ejemplos de Uso:**
+```
+"Muéstrame el balance de la semana"
+→ Navega a Gestión Semanal → Balance
+
+"¿Quién me debe dinero?"
+→ Navega a Saldo Clientes → Filtra deudores
+
+"Quiero imprimir los repartos de hoy"
+→ Navega a Mi Reparto → Filtra hoy → Abre modal de impresión
+
+"Facturar 3 productos a María"
+→ Navega a Facturación → Preselecciona María → Abre formulario
+```
+
+---
+
 ## 🎯 **PRÓXIMA FUNCIONALIDAD: Asistente de Mensajes con IA (Gemini AI)**
 
 ### **Descripción:**
@@ -321,20 +497,30 @@ src/
 - ✅ **Reportes gráficos** - Vista colapsable/expandible
 - ✅ **CRUD completo** - Todas las operaciones funcionando
 - ✅ **Firebase integrado** - Tiempo real operativo
-- ⚠️ **Asistente de Mensajes IA** - Pendiente de implementar
+- ✅ **Asistente de Mensajes IA** - COMPLETADO (Gemini AI integrado)
+- ✅ **Sistema de datos compartidos** - Todos los usuarios ven todos los datos
+- ✅ **Navegación mejorada** - Submenú intuitivo implementado
 
 ---
 
-## 🎯 **Próximos Pasos**
+## 🎯 **Próximos Pasos (Prioridad)**
 
-1. **Implementar Asistente de Mensajes con Gemini AI** (ver detalles arriba)
-2. **Eliminar componentes obsoletos** (PrintReparto.jsx, PrintSaldoCliente.jsx)
-3. **Optimizar rendimiento** si es necesario
-4. **Testing exhaustivo** del sistema de impresión en diferentes navegadores
-5. **Documentación de usuario** para nuevas funcionalidades
+### **ALTA PRIORIDAD:**
+1. **Sistema de Facturación** - Gestión completa de productos, stock y facturas
+2. **Base de Datos Unificada de Clientes** - Integración en todas las secciones
+3. **Asistente AI de Navegación** - Chat inteligente con navegación animada
+
+### **MEDIA PRIORIDAD:**
+4. **Optimización de rendimiento** - Mejoras en carga y respuesta
+5. **Testing exhaustivo** - Pruebas en diferentes navegadores y dispositivos
+6. **Documentación de usuario** - Manuales para nuevas funcionalidades
+
+### **BAJA PRIORIDAD:**
+7. **Eliminar componentes obsoletos** (PrintReparto.jsx, PrintSaldoCliente.jsx)
+8. **Mejoras de UX/UI** - Refinamientos visuales y de usabilidad
 
 ---
 
-**Última actualización:** Octubre 2025  
-**Estado:** Sistema de impresión y notificaciones completamente funcional  
+**Última actualización:** Diciembre 2024  
+**Estado:** Sistema completo con asistente IA funcionando  
 **Desarrollado por:** Tomas Naial Aluch
