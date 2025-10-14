@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/money';
+import { getLocalDateString } from '../utils/date';
 
 const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
   const [formData, setFormData] = useState({
@@ -11,7 +12,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
   useEffect(() => {
     if (isOpen && reparto) {
       setFormData({
-        date: reparto.date || new Date().toISOString().split('T')[0],
+        date: reparto.date || getLocalDateString(),
         clients: reparto.clients || []
       });
     }

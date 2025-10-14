@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { formatCurrency } from '../utils/money';
+import { getLocalDateString, dateToLocalString } from '../utils/date';
 import { useRepartos } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import RepartoCard from '../components/RepartoCard';
@@ -21,7 +22,7 @@ const MiReparto = () => {
   // Estados para el reparto actual (React puro)
   const [clientes, setClientes] = useState([]);
   const [currentReparto, setCurrentReparto] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     clients: []
   });
 
@@ -36,8 +37,11 @@ const MiReparto = () => {
   
   // Estados para filtros de fecha
   const [dateFilter, setDateFilter] = useState('hoy');
-  const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
-  const [lastProcessedDate, setLastProcessedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [customMonth, setCustomMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [lastProcessedDate, setLastProcessedDate] = useState(getLocalDateString());
   const [isManuallyCleared, setIsManuallyCleared] = useState(false);
   
   // Estados para el modal de edición
@@ -48,17 +52,20 @@ const MiReparto = () => {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printData, setPrintData] = useState(null);
 
+  // Actualizar fecha del reparto actual cada vez que se carga la página
+  useEffect(() => {
+    const today = getLocalDateString();
+    
+    setCurrentReparto(prev => ({
+      ...prev,
+      date: today
+    }));
+    setLastProcessedDate(today);
+  }, []);
+
   // Función para filtrar repartos por fecha
   const getFilteredRepartos = () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    
-    console.log('🔍 Filtrando repartos:', {
-      dateFilter,
-      totalRepartos: savedRepartos.length,
-      repartos: savedRepartos.map(r => ({ id: r.id, date: r.date }))
-    });
-    
+    const todayStr = getLocalDateString();
     let filtered = [];
     
     switch (dateFilter) {
@@ -69,15 +76,16 @@ const MiReparto = () => {
       case 'semana':
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
-        const weekStartStr = weekStart.toISOString().split('T')[0];
-        const weekEndStr = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const weekStartStr = dateToLocalString(weekStart);
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const weekEndStr = dateToLocalString(weekEnd);
         filtered = savedRepartos.filter(reparto => 
           reparto.date >= weekStartStr && reparto.date <= weekEndStr
         );
         break;
       
       case 'mes':
-        const currentMonth = today.toISOString().slice(0, 7);
+        const currentMonth = getLocalDateString().slice(0, 7);
         filtered = savedRepartos.filter(reparto => reparto.date.startsWith(currentMonth));
         break;
       
@@ -98,14 +106,13 @@ const MiReparto = () => {
         filtered = savedRepartos;
     }
     
-    console.log('✅ Repartos filtrados:', filtered.length);
     return filtered;
   };
 
   // Función para obtener el título del filtro
   const getFilterTitle = () => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     
     switch (dateFilter) {
       case 'hoy':
@@ -113,8 +120,9 @@ const MiReparto = () => {
       case 'semana':
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
-        const weekStartStr = weekStart.toISOString().split('T')[0];
-        const weekEndStr = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const weekStartStr = dateToLocalString(weekStart);
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const weekEndStr = dateToLocalString(weekEnd);
         return `Esta Semana (${weekStartStr} - ${weekEndStr})`;
       case 'mes':
         return `Este Mes (${today.toISOString().slice(0, 7)})`;
@@ -131,35 +139,34 @@ const MiReparto = () => {
   const saveCurrentReparto = async () => {
     if (currentReparto.clients.length > 0) {
       try {
-        const newReparto = {
-          ...currentReparto,
-          clients: currentReparto.clients,
+        const fechaActual = getLocalDateString();
+        
+        // Calcular total del reparto
+        const total = currentReparto.clients.reduce((sum, cliente) => sum + (cliente.billAmount || 0), 0);
+        
+        // Construir reparto completo
+        const repartoCompleto = {
+          date: fechaActual,
+          clientes: currentReparto.clients,
+          total: total,
+          cantidad: currentReparto.clients.length,
           createdAt: new Date().toISOString()
         };
 
-        console.log('📝 Intentando guardar reparto:', newReparto);
-
-        // Guardar en Firebase
-        const repartoId = await addReparto({
-          ...newReparto,
-          isCardReparto: true // Marcar como reparto guardado como card
-        });
-
-        console.log('✅ Reparto guardado con ID:', repartoId);
+        // Guardar TODO el reparto como un solo documento
+        const repartoId = await addReparto(repartoCompleto);
 
         // Actualizar estado local
-        setSavedRepartos(prev => [newReparto, ...prev]);
+        setSavedRepartos(prev => [repartoCompleto, ...prev]);
         
         // LIMPIAR COMPLETAMENTE TODO DESPUÉS DE GUARDAR (React puro)
-        console.log('🧹 Iniciando limpieza después de guardar...');
-        
         // Marcar como limpiado manualmente para evitar interferencia del listener
         setIsManuallyCleared(true);
         
         // Limpiar todo de forma síncrona
         setClientes([]);
         setCurrentReparto({
-          date: new Date().toISOString().split('T')[0],
+          date: getLocalDateString(),
           clients: []
         });
         setClientName('');
@@ -173,7 +180,6 @@ const MiReparto = () => {
         // Resetear flag después de un tiempo
         setTimeout(() => {
           setIsManuallyCleared(false);
-          console.log('🧹 Limpieza completada - Tabla vacía');
         }, 2000);
         
       } catch (error) {
@@ -190,7 +196,7 @@ const MiReparto = () => {
         console.log('🧹 Limpiando después de error...');
         setClientes([]);
         setCurrentReparto({
-          date: new Date().toISOString().split('T')[0],
+          date: getLocalDateString(),
           clients: []
         });
         setClientName('');
@@ -214,9 +220,11 @@ const MiReparto = () => {
       // Eliminar del estado local
       setSavedRepartos(prev => prev.filter(reparto => reparto.id !== repartoId));
       
+      showSuccess('Reparto eliminado exitosamente');
       console.log('✅ Reparto eliminado de Firebase');
     } catch (error) {
       console.error('❌ Error al eliminar reparto:', error);
+      showError('Error al eliminar el reparto');
       // Aún así eliminar localmente
       setSavedRepartos(prev => prev.filter(reparto => reparto.id !== repartoId));
     }
@@ -238,7 +246,7 @@ const MiReparto = () => {
   const handlePrintReparto = (reparto) => {
     // Convertir el formato del reparto guardado al formato que espera PrintDocument
     const printData = {
-      clientes: reparto.clients || [],
+      clientes: reparto.clientes || [],
       fecha: reparto.date
     };
     
@@ -290,59 +298,35 @@ const MiReparto = () => {
       return;
     }
     
-    try {
-      // Crear objeto cliente con ID único
-      const newClient = {
-        id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID único temporal
-        clientName: clientName.trim(),
-        billAmount: amount,
-        paymentStatus: 'pending',
-        paymentAmount: 0,
-        address: ''
-      };
+    // Crear objeto cliente con ID único
+    const newClient = {
+      id: `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // ID único temporal
+      clientName: clientName.trim(),
+      billAmount: amount,
+      paymentStatus: 'pending',
+      paymentAmount: 0,
+      address: ''
+    };
 
-      // Actualizar estado React
-      setClientes(prev => [...prev, newClient]);
-      setCurrentReparto(prev => ({
-        ...prev,
-        clients: [...prev.clients, newClient]
-      }));
-      
-      // Guardar en Firebase
-      await addReparto({
-        clientName: clientName.trim(),
-        billAmount: amount,
-        date: new Date().toISOString().split('T')[0]
-      });
-      
-      // Limpiar formulario
-      setClientName('');
-      setBillAmount('');
-      setValidationErrors({});
-      
-      // Hacer focus en el input de nombre para continuar agregando clientes
-      setTimeout(() => {
-        if (clientNameInputRef.current) {
-          clientNameInputRef.current.focus();
-        }
-      }, 100);
-      
-      console.log('✅ Cliente agregado');
-    } catch (error) {
-      console.error('❌ Error al guardar cliente:', error);
-      // Aún así agregamos localmente
-      setClientes(prev => [...prev, newClient]);
-      setClientName('');
-      setBillAmount('');
-      setValidationErrors({});
-      
-      // Hacer focus en el input de nombre para continuar agregando clientes
-      setTimeout(() => {
-        if (clientNameInputRef.current) {
-          clientNameInputRef.current.focus();
-        }
-      }, 100);
-    }
+    // Actualizar estado React (solo local, NO guardar en Firebase aún)
+    setClientes(prev => [...prev, newClient]);
+    setCurrentReparto(prev => ({
+      ...prev,
+      clients: [...prev.clients, newClient]
+    }));
+    
+    // Limpiar formulario
+    setClientName('');
+    setBillAmount('');
+    setValidationErrors({});
+    
+    // Hacer focus en el input de nombre para continuar agregando clientes
+    setTimeout(() => {
+      if (clientNameInputRef.current) {
+        clientNameInputRef.current.focus();
+      }
+    }, 100);
+    
   };
 
   // Funciones React puras para manejar clientes
@@ -351,7 +335,6 @@ const MiReparto = () => {
       // Actualizar en Firebase si no es un ID temporal
       if (!clienteId.startsWith('temp_')) {
         await updatePayment(clienteId, updates);
-        console.log('✅ Cliente actualizado en Firebase:', clienteId);
       }
       
       // Actualizar estado local
@@ -387,13 +370,10 @@ const MiReparto = () => {
       clients: prev.clients.filter(cliente => cliente.id !== clienteId)
     }));
     
-    console.log('✅ Cliente eliminado de la tabla temporal');
-    
     // Solo eliminar de Firebase si es un cliente que ya estaba guardado (no temp_)
     if (!clienteId.startsWith('temp_')) {
       try {
         await deleteReparto(clienteId);
-        console.log('✅ Cliente también eliminado de Firebase');
       } catch (error) {
         console.error('❌ Error al eliminar de Firebase:', error);
       }
@@ -433,87 +413,26 @@ const MiReparto = () => {
 
   // Cargar datos desde Firebase al inicializar (consolidado)
   useEffect(() => {
-    console.log('🔄 useEffect ejecutado - Repartos:', repartos.length, 'Manualmente limpiado:', isManuallyCleared);
-    
     // No cargar datos si fue limpiado manualmente
     if (isManuallyCleared) {
-      console.log('🚫 Saltando carga de datos - Tabla limpiada manualmente');
       return;
     }
     
     // No cargar si la tabla ya tiene clientes (evitar sobrescribir)
     if (clientes.length > 0) {
-      console.log('🚫 Saltando carga - Tabla ya tiene clientes');
       return;
     }
     
     if (repartos.length > 0) {
-      console.log('📦 Todos los repartos:', repartos);
-      
-      const todayStr = new Date().toISOString().split('T')[0];
-      console.log('📅 Procesando repartos para el día:', todayStr);
-      
-      // 1. Cargar repartos con múltiples clientes (cards)
-      const cardRepartos = repartos.filter(reparto => 
-        reparto.clients && Array.isArray(reparto.clients) && reparto.clients.length > 0
+      // Cargar solo repartos completos (nueva estructura)
+      const repartosCompletos = repartos.filter(reparto => 
+        reparto.clientes && Array.isArray(reparto.clientes) && reparto.clientes.length > 0
       );
       
-      if (cardRepartos.length > 0) {
-        const formattedRepartos = cardRepartos.map(reparto => ({
-          id: reparto.id,
-          date: reparto.date,
-          clients: reparto.clients || [],
-          createdAt: reparto.createdAt
-        }));
-        
-        setSavedRepartos(formattedRepartos);
-        console.log('✅ Cards de repartos cargadas:', formattedRepartos.length);
-      }
-      
-      // 2. Cargar clientes individuales del día actual (mejorado con validaciones)
-      const todayIndividualRepartos = repartos.filter(reparto => {
-        const isToday = reparto.date === todayStr;
-        const hasClientName = reparto.clientName && reparto.clientName.trim() !== '';
-        const isIndividual = !reparto.clients || reparto.clients.length === 0;
-        const hasValidAmount = reparto.billAmount && parseFloat(reparto.billAmount) > 0;
-        const hasValidId = reparto.id && reparto.id.trim() !== '';
-        const isNotCorrupted = reparto.clientName !== 'undefined' && reparto.clientName !== null;
-        
-        return isToday && hasClientName && isIndividual && hasValidAmount && hasValidId && isNotCorrupted;
-      });
-      
-      console.log('✅ Repartos individuales del día encontrados:', todayIndividualRepartos.length);
-      
-      if (todayIndividualRepartos.length > 0) {
-        const clientesFormateados = todayIndividualRepartos.map(reparto => ({
-          id: reparto.id,
-          clientName: reparto.clientName.trim(),
-          billAmount: parseFloat(reparto.billAmount),
-          paymentStatus: reparto.paymentStatus || 'pending',
-          paymentAmount: parseFloat(reparto.paymentAmount) || 0,
-          address: reparto.address || ''
-        }));
-        
-        console.log('👥 Clientes formateados:', clientesFormateados);
-        
-        setClientes(clientesFormateados);
-        setCurrentReparto(prev => ({
-          ...prev,
-          clients: clientesFormateados
-        }));
-        
-        console.log('✅ Clientes del día cargados desde Firebase:', clientesFormateados.length);
-      } else {
-        // Limpiar clientes si no hay repartos del día
-        setClientes([]);
-        setCurrentReparto(prev => ({
-          ...prev,
-          clients: []
-        }));
-        console.log('🧹 Clientes limpiados - No hay repartos del día');
+      if (repartosCompletos.length > 0) {
+        setSavedRepartos(repartosCompletos);
       }
     } else {
-      console.log('❌ No hay repartos en Firebase');
       // Limpiar todo si no hay datos
       setClientes([]);
       setSavedRepartos([]);
@@ -526,11 +445,9 @@ const MiReparto = () => {
 
   // Limpiar datos al cambiar de día
   useEffect(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     
     if (lastProcessedDate !== todayStr) {
-      console.log('📅 Cambio de fecha detectado:', lastProcessedDate, '->', todayStr);
-      
       // Limpiar clientes del día anterior
       setClientes([]);
       setCurrentReparto(prev => ({
@@ -542,8 +459,6 @@ const MiReparto = () => {
       
       // Actualizar fecha procesada
       setLastProcessedDate(todayStr);
-      
-      console.log('🧹 Datos limpiados por cambio de fecha');
     }
   }, [lastProcessedDate]);
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
+import { getLocalDateString } from '../utils/date';
 
 const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
   const [formData, setFormData] = useState({
@@ -24,7 +25,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
               fecha: b.fecha || '',
               monto: formatCurrencyNoSymbol(parseFloat(b.monto) || 0)
             }))
-          : [{ fecha: new Date().toISOString().split('T')[0], monto: '' }]
+          : [{ fecha: getLocalDateString(), monto: '' }]
       });
     }
   }, [isOpen, transferencia]);
@@ -70,7 +71,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
 
   // Funciones para Boletas
   const addBoleta = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     setFormData(prev => ({
       ...prev,
       boletas: [...prev.boletas, { fecha: today, monto: '' }]
@@ -132,7 +133,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
       totalTransferencias: totalTransferencias,
       totalBoletas: totalBoletas,
       saldoFinal: saldoFinal,
-      fecha: transferencia.fecha || new Date().toISOString().split('T')[0]
+      fecha: transferencia.fecha || getLocalDateString()
     };
 
     onSave(transferencia.id, transferenciaData);

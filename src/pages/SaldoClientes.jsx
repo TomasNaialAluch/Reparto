@@ -7,6 +7,7 @@ import EditClienteModal from '../components/EditClienteModal';
 import PrintDocument from '../components/PrintDocument';
 import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
+import { getLocalDateString } from '../utils/date';
 
 const SaldoClientes = () => {
   const { user } = useFirebase();
@@ -50,7 +51,7 @@ const SaldoClientes = () => {
   // Función para filtrar clientes por fecha
   const getFilteredClientes = () => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     
     let filtered = [];
     
@@ -61,8 +62,12 @@ const SaldoClientes = () => {
       case 'semana':
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
-        const weekStartStr = weekStart.toISOString().split('T')[0];
-        const weekEndStr = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const year = weekStart.getFullYear();
+        const month = String(weekStart.getMonth() + 1).padStart(2, '0');
+        const day = String(weekStart.getDate()).padStart(2, '0');
+        const weekStartStr = `${year}-${month}-${day}`;
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
         filtered = savedClientes.filter(cliente => 
           cliente.fecha >= weekStartStr && cliente.fecha <= weekEndStr
         );
@@ -145,7 +150,7 @@ const SaldoClientes = () => {
 
   // Importar boletas desde Gestión Semanal
   const importarBoletasDesdeGestion = (clienteGestion) => {
-    const hoy = new Date().toISOString().split('T')[0];
+    const hoy = getLocalDateString();
     const ventasImportadas = clienteGestion.boletas.map(boleta => ({
       date: hoy, // Fecha del día por defecto
       amount: boleta.monto.toString()
@@ -168,7 +173,7 @@ const SaldoClientes = () => {
         const clienteData = {
           id: `cliente_${Date.now()}`,
           nombreCliente: clientName.trim(),
-          fecha: new Date().toISOString().split('T')[0],
+          fecha: getLocalDateString(),
           boletas: boletas.filter(b => b.date && b.amount),
           ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
           efectivo: showEfectivo ? efectivo.filter(e => e.date && e.amount) : [],
@@ -228,10 +233,10 @@ const SaldoClientes = () => {
 
   // Add rows
   const addBoleta = () => {
-    setBoletas([...boletas, { date: new Date().toISOString().split('T')[0], amount: '' }]);
+    setBoletas([...boletas, { date: getLocalDateString(), amount: '' }]);
   };
   const addVenta = () => {
-    setVentas([...ventas, { date: new Date().toISOString().split('T')[0], amount: '' }]);
+    setVentas([...ventas, { date: getLocalDateString(), amount: '' }]);
   };
   const addPlata = () => {
     setPlata([...plata, { amount: '' }]);
@@ -330,7 +335,7 @@ const SaldoClientes = () => {
   };
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     if (boletas[0].date === '') {
       updateBoleta(0, 'date', today);
     }

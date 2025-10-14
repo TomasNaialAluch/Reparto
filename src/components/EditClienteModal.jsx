@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
+import { getLocalDateString } from '../utils/date';
 
 const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   const [formData, setFormData] = useState({
@@ -75,8 +76,8 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   };
 
   // Funciones específicas para cada tipo
-  const addBoleta = () => addItem('boletas', { date: new Date().toISOString().split('T')[0], amount: '' });
-  const addVenta = () => addItem('ventas', { date: new Date().toISOString().split('T')[0], amount: '' });
+  const addBoleta = () => addItem('boletas', { date: getLocalDateString(), amount: '' });
+  const addVenta = () => addItem('ventas', { date: getLocalDateString(), amount: '' });
   const addEfectivo = () => addItem('efectivo', { amount: '' });
   const addCheque = () => addItem('cheques', { id: '', amount: '' });
   const addTransferencia = () => addItem('transferencias', { amount: '' });

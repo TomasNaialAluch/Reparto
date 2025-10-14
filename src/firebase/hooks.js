@@ -16,6 +16,7 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { db } from './config';
+import { getLocalDateString } from '../utils/date';
 
 // Hook para operaciones CRUD genéricas
 export const useFirestore = (collectionName) => {
@@ -61,6 +62,10 @@ export const useFirestore = (collectionName) => {
   const addDocument = async (data, customId = null) => {
     try {
       console.log(`📝 Intentando agregar documento a colección: ${collectionName}`, data);
+      console.log('🔥 ===== FIREBASE addDocument =====');
+      console.log('📅 Fecha específica que se guarda:', data.date);
+      console.log('📅 Tipo de fecha:', typeof data.date);
+      console.log('📅 Fecha actual del sistema:', new Date().toLocaleDateString('es-AR'));
       
       if (customId) {
         const customRef = doc(db, collectionName, customId);
@@ -101,6 +106,7 @@ export const useFirestore = (collectionName) => {
       throw error;
     }
   };
+
 
   // Función para obtener documentos con filtro (simplificada)
   const getDocumentsByField = async (field, value) => {
@@ -230,35 +236,40 @@ export const useRepartos = () => {
   const { documents, loading, error } = useFirestoreRealtime('repartos');
   const { addDocument, updateDocument, deleteDocument, getDocumentsByField, getDocumentsByDateId } = useFirestore('repartos');
 
-  const addReparto = async (clientData) => {
+  // Función específica para eliminar repartos
+  const deleteReparto = async (repartoId) => {
     try {
-      // Si es un reparto con múltiples clientes (card)
-      if (clientData.clients && Array.isArray(clientData.clients)) {
-        return await addDocument({
-          date: clientData.date || new Date().toISOString().split('T')[0],
-          clients: clientData.clients,
-          isCardReparto: clientData.isCardReparto || false,
-          createdAt: clientData.createdAt || new Date().toISOString()
-        });
+      await deleteDoc(doc(db, 'repartos', repartoId));
+    } catch (error) {
+      console.error('Error al eliminar reparto:', error);
+      throw error;
+    }
+  };
+
+  const addReparto = async (repartoCompleto) => {
+    try {
+      // Validaciones
+      if (!repartoCompleto.clientes || repartoCompleto.clientes.length === 0) {
+        throw new Error('El reparto debe tener al menos un cliente');
       }
       
-      // Si es un cliente individual (formato original)
-      if (!clientData.clientName?.trim()) {
-        throw new Error('El nombre del cliente es requerido');
-      }
-      if (!clientData.billAmount || clientData.billAmount <= 0) {
-        throw new Error('El monto debe ser mayor a 0');
+      if (!repartoCompleto.date) {
+        throw new Error('La fecha del reparto es requerida');
       }
 
-      return await addDocument({
-        clientName: clientData.clientName.trim(),
-        billAmount: parseFloat(clientData.billAmount),
-        address: clientData.address || '',
-        paymentStatus: clientData.paymentStatus || 'pending',
-        paymentAmount: clientData.paymentAmount || 0,
-        date: clientData.date || new Date().toISOString().split('T')[0],
-        isCardReparto: clientData.isCardReparto || false
+      // Guardar TODO el reparto como un solo documento
+      const repartoId = await addDocument({
+        date: repartoCompleto.date,
+        clientes: repartoCompleto.clientes,
+        total: repartoCompleto.total || 0,
+        cantidad: repartoCompleto.cantidad || repartoCompleto.clientes.length,
+        createdAt: new Date().toISOString()
       });
+
+      // Log único para verificar la fecha
+      console.log('📅 REPARTO GUARDADO - Fecha del programa:', repartoCompleto.date, '| Fecha guardada en Firebase:', repartoCompleto.date);
+      
+      return repartoId;
     } catch (error) {
       console.error('Error en addReparto:', error);
       throw error;
@@ -294,7 +305,7 @@ export const useRepartos = () => {
 
   // Filtrar repartos del día actual
   const todayRepartos = documents.filter(reparto => 
-    reparto.date === new Date().toISOString().split('T')[0]
+    reparto.date === getLocalDateString()
   );
 
   return {
@@ -304,7 +315,7 @@ export const useRepartos = () => {
     error,
     addReparto,
     updatePayment,
-    deleteReparto: deleteDocument,
+    deleteReparto,
     getRepartosByDate
   };
 };
@@ -324,7 +335,7 @@ export const useClientBalances = () => {
       cheques: clientData.cheques || [],
       transferencias: clientData.transferencias || [],
       finalBalance: clientData.finalBalance,
-      date: new Date().toISOString().split('T')[0]
+      date: getLocalDateString()
     });
   };
 
@@ -351,7 +362,7 @@ export const useTransferenciasClientes = () => {
       totalTransferencias: data.totalTransferencias || 0,
       totalBoletas: data.totalBoletas || 0,
       saldoFinal: data.saldoFinal || 0,
-      fecha: data.fecha || new Date().toISOString().split('T')[0]
+      fecha: data.fecha || getLocalDateString()
     });
   };
 

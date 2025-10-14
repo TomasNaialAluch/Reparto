@@ -24,6 +24,38 @@ export default function Balance() {
     mercaderia: 2500,
     embutidos: 1800
   });
+  
+  // Estados para filtro de proveedores
+  const [proveedoresSeleccionados, setProveedoresSeleccionados] = useState([]);
+  const [mostrarModalProveedores, setMostrarModalProveedores] = useState(false);
+
+  // Obtener lista de proveedores únicos de la semana
+  const obtenerProveedoresDisponibles = () => {
+    const semanaAData = semanaSeleccionada || semanaActiva;
+    if (!semanaAData?.mercaderia) return [];
+    
+    const proveedores = [...new Set(semanaAData.mercaderia.map(entrada => entrada.proveedor))];
+    return proveedores.sort();
+  };
+
+  // Manejar selección de proveedores
+  const toggleProveedor = (proveedor) => {
+    setProveedoresSeleccionados(prev => 
+      prev.includes(proveedor) 
+        ? prev.filter(p => p !== proveedor)
+        : [...prev, proveedor]
+    );
+  };
+
+  // Seleccionar todos los proveedores
+  const seleccionarTodosProveedores = () => {
+    setProveedoresSeleccionados(obtenerProveedoresDisponibles());
+  };
+
+  // Deseleccionar todos los proveedores
+  const deseleccionarTodosProveedores = () => {
+    setProveedoresSeleccionados([]);
+  };
 
   useEffect(() => {
     if (semanaActiva) {
@@ -135,7 +167,12 @@ export default function Balance() {
     let costoTotal = 0;
     let totalKilos = 0;
 
-    semanaAData.mercaderia.forEach(entrada => {
+    // Filtrar por proveedores seleccionados si hay alguno seleccionado
+    const mercaderiaFiltrada = proveedoresSeleccionados.length > 0 
+      ? semanaAData.mercaderia.filter(entrada => proveedoresSeleccionados.includes(entrada.proveedor))
+      : semanaAData.mercaderia;
+
+    mercaderiaFiltrada.forEach(entrada => {
       entrada.cortes.forEach(corte => {
         if (corte.precioKg && corte.precioKg > 0) {
           costoTotal += corte.kg * corte.precioKg;
@@ -154,8 +191,13 @@ export default function Balance() {
 
     const cortesAcumulados = {};
 
+    // Filtrar por proveedores seleccionados si hay alguno seleccionado
+    const mercaderiaFiltrada = proveedoresSeleccionados.length > 0 
+      ? semanaAData.mercaderia.filter(entrada => proveedoresSeleccionados.includes(entrada.proveedor))
+      : semanaAData.mercaderia;
+
     // Acumular datos por tipo de corte
-    semanaAData.mercaderia.forEach(entrada => {
+    mercaderiaFiltrada.forEach(entrada => {
       entrada.cortes.forEach(corte => {
         if (corte.precioKg && corte.precioKg > 0) {
           if (!cortesAcumulados[corte.corte]) {
@@ -544,17 +586,56 @@ export default function Balance() {
                         <div className="bg-light border rounded p-3">
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <h6 className="text-muted mb-0">Costo Promedio de Mercadería</h6>
-                            <button 
-                              className="btn btn-outline-primary btn-sm"
-                              onClick={() => setExpandirResumen(!expandirResumen)}
-                            >
-                              {expandirResumen ? '📉 Contraer' : '📈 Expandir'}
-                            </button>
+                            <div className="d-flex gap-2">
+                              <button 
+                                className="btn btn-sm"
+                                onClick={() => setMostrarModalProveedores(true)}
+                                title="Seleccionar proveedores para el promedio"
+                                style={{
+                                  backgroundColor: '#A9D6E5',
+                                  color: 'white',
+                                  border: 'none',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                <i className="fas fa-filter me-1"></i>
+                                Proveedores
+                              </button>
+                              <button 
+                                className="btn btn-outline-primary btn-sm"
+                                onClick={() => setExpandirResumen(!expandirResumen)}
+                              >
+                                {expandirResumen ? '📉 Contraer' : '📈 Expandir'}
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Indicador de proveedores seleccionados */}
+                          {proveedoresSeleccionados.length > 0 && (
+                            <div className="mb-2">
+                              <small className="text-info">
+                                <i className="fas fa-filter me-1"></i>
+                                Filtrado por {proveedoresSeleccionados.length} proveedor{proveedoresSeleccionados.length !== 1 ? 'es' : ''}: 
+                                <strong className="ms-1">{proveedoresSeleccionados.join(', ')}</strong>
+                                <button 
+                                  className="btn btn-link btn-sm p-0 ms-2"
+                                  onClick={() => setProveedoresSeleccionados([])}
+                                  title="Limpiar filtro"
+                                >
+                                  <i className="fas fa-times text-danger"></i>
+                                </button>
+                              </small>
+                            </div>
+                          )}
                           <h4 className="text-success mb-1">
                             <strong>${calcularCostoPromedioGeneral().toFixed(2)}/kg</strong>
                           </h4>
-                          <small className="text-muted">Promedio ponderado de todos los cortes</small>
+                          <small className="text-muted">
+                            {proveedoresSeleccionados.length > 0 
+                              ? `Promedio ponderado de ${proveedoresSeleccionados.length} proveedor${proveedoresSeleccionados.length !== 1 ? 'es' : ''} seleccionado${proveedoresSeleccionados.length !== 1 ? 's' : ''}`
+                              : 'Promedio ponderado de todos los cortes'
+                            }
+                          </small>
                           
                           {/* COSTO PROMEDIO DE EMBUTIDOS */}
                           {calcularCostoPromedioGeneralEmbutidos() > 0 && (
@@ -830,6 +911,175 @@ export default function Balance() {
         cancelText="Cancelar"
         confirmButtonClass="btn-danger"
       />
+
+      {/* Modal de selección de proveedores */}
+      {mostrarModalProveedores && (
+        <div 
+          className="modal show d-block" 
+          tabIndex="-1"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            animation: 'fadeIn 0.2s ease-in-out'
+          }}
+          onClick={() => setMostrarModalProveedores(false)}
+        >
+          <div 
+            className="modal-dialog modal-dialog-centered"
+            style={{ maxWidth: '550px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div 
+              className="modal-content"
+              style={{
+                animation: 'slideDown 0.3s ease-out',
+                boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              <div 
+                className="modal-header border-0 pb-0 text-white"
+                style={{ backgroundColor: '#A9D6E5' }}
+              >
+                <h5 className="modal-title fw-bold">
+                  <i className="fas fa-filter me-2"></i>
+                  Seleccionar Proveedores
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close btn-close-white" 
+                  onClick={() => setMostrarModalProveedores(false)}
+                  aria-label="Close"
+                ></button>
+              </div>
+              
+              <div className="modal-body pt-2" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                <p className="text-muted mb-3">
+                  Elegí los proveedores para calcular el promedio de mercadería
+                </p>
+                
+                {/* Botones de selección masiva */}
+                <div className="d-flex gap-2 mb-3">
+                  <button 
+                    className="btn btn-success btn-sm flex-fill"
+                    onClick={seleccionarTodosProveedores}
+                  >
+                    <i className="fas fa-check-double me-1"></i>
+                    Todos
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm flex-fill"
+                    onClick={deseleccionarTodosProveedores}
+                  >
+                    <i className="fas fa-times me-1"></i>
+                    Ninguno
+                  </button>
+                </div>
+
+                {/* Lista de proveedores */}
+                <div className="d-flex flex-column gap-2">
+                  {obtenerProveedoresDisponibles().map(proveedor => {
+                    const isSelected = proveedoresSeleccionados.includes(proveedor);
+                    return (
+                      <div 
+                        key={proveedor} 
+                        className={`card ${isSelected ? 'border-success' : ''}`}
+                        style={{
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          backgroundColor: isSelected ? '#d1f4e0' : 'white'
+                        }}
+                        onClick={() => toggleProveedor(proveedor)}
+                      >
+                        <div className="card-body py-2 px-3">
+                          <div className="form-check mb-0">
+                            <input
+                              className="form-check-input"
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              style={{ cursor: 'pointer' }}
+                            />
+                            <label 
+                              className="form-check-label fw-bold w-100"
+                              style={{ cursor: 'pointer' }}
+                            >
+                              {proveedor}
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Resumen de selección */}
+                {proveedoresSeleccionados.length > 0 && (
+                  <div className="alert alert-info mt-3 mb-0">
+                    <small className="fw-bold d-block mb-1">
+                      <i className="fas fa-info-circle me-1"></i>
+                      Seleccionados ({proveedoresSeleccionados.length}):
+                    </small>
+                    <div className="d-flex flex-wrap gap-1">
+                      {proveedoresSeleccionados.map(proveedor => (
+                        <span key={proveedor} className="badge bg-info">
+                          {proveedor}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {obtenerProveedoresDisponibles().length === 0 && (
+                  <div className="text-center py-4">
+                    <i className="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+                    <p className="text-muted mb-0">No hay proveedores disponibles</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="modal-footer border-0 pt-0">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => setMostrarModalProveedores(false)}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button" 
+                  className="btn"
+                  onClick={() => setMostrarModalProveedores(false)}
+                  style={{
+                    backgroundColor: '#A9D6E5',
+                    color: 'white',
+                    border: 'none',
+                    fontWeight: '600'
+                  }}
+                >
+                  <i className="fas fa-check me-1"></i>
+                  Aplicar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideDown {
+              from {
+                transform: translateY(-50px);
+                opacity: 0;
+              }
+              to {
+                transform: translateY(0);
+                opacity: 1;
+              }
+            }
+          `}</style>
+        </div>
+      )}
 
     </div>
   );

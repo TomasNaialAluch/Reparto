@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
+import { getLocalDateString } from '../utils/date';
 import { useTransferenciasClientes } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import PrintDocument from '../components/PrintDocument';
@@ -40,7 +41,7 @@ const Transferencias = () => {
   const [transferenciaToEdit, setTransferenciaToEdit] = useState(null);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     if (boletas[0].fecha === '') {
       updateBoleta(0, 'fecha', today);
     }
@@ -65,7 +66,7 @@ const Transferencias = () => {
 
   // Funciones para Boletas
   const addBoleta = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     setBoletas([...boletas, { fecha: today, monto: '' }]);
   };
 
@@ -99,7 +100,7 @@ const Transferencias = () => {
       totalTransferencias,
       totalBoletas,
       saldoFinal,
-      fecha: new Date().toISOString().split('T')[0]
+      fecha: getLocalDateString()
     });
     setShowSummary(true);
 
@@ -125,7 +126,7 @@ const Transferencias = () => {
       // Limpiar formulario
       setClientName('');
       setTransferencias([{ descripcion: '', monto: '' }]);
-      setBoletas([{ fecha: new Date().toISOString().split('T')[0], monto: '' }]);
+      setBoletas([{ fecha: getLocalDateString(), monto: '' }]);
       setSummaryData(null);
       setShowSummary(false);
     } catch (error) {
@@ -139,7 +140,7 @@ const Transferencias = () => {
     if (!savedTransferencias) return [];
 
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     switch (dateFilter) {
       case 'hoy':

@@ -4,6 +4,8 @@ import { useFirebase } from '../contexts/FirebaseContext';
 import { useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import { formatCurrency } from '../utils/money';
+import { getLocalDateString } from '../utils/date';
+import ConfirmModal from '../components/ConfirmModal';
 import PrintDocument from '../components/PrintDocument';
 
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -136,6 +138,10 @@ export default function GestionSemanal() {
   const [expandedMercaderia, setExpandedMercaderia] = useState({});
   const [editingMercaderia, setEditingMercaderia] = useState(null);
   const [tempMercaderiaData, setTempMercaderiaData] = useState({});
+  
+  // Estados para modal de confirmación de eliminación de corte
+  const [showDeleteCorteModal, setShowDeleteCorteModal] = useState(false);
+  const [corteToDelete, setCorteToDelete] = useState(null);
   const [expandedEmbutidos, setExpandedEmbutidos] = useState({});
   const [editingEmbutidos, setEditingEmbutidos] = useState(null);
   const [tempEmbutidosData, setTempEmbutidosData] = useState({});
@@ -215,6 +221,37 @@ export default function GestionSemanal() {
       ...prev,
       cortes: prev.cortes.filter((_, index) => index !== corteIndex)
     }));
+  };
+
+  // Función para mostrar modal de confirmación de eliminación de corte
+  const confirmarEliminarCorte = (entradaIndex, corteIndex) => {
+    const corte = semanaActiva.mercaderia[entradaIndex].cortes[corteIndex];
+    setCorteToDelete({ entradaIndex, corteIndex, corte });
+    setShowDeleteCorteModal(true);
+  };
+
+  // Función para eliminar un corte de mercadería guardada
+  const eliminarCorteDeMercaderia = async () => {
+    if (!semanaActiva?.mercaderia || !corteToDelete) return;
+    
+    try {
+      const { entradaIndex, corteIndex } = corteToDelete;
+      const nuevaMercaderia = [...semanaActiva.mercaderia];
+      nuevaMercaderia[entradaIndex].cortes = nuevaMercaderia[entradaIndex].cortes.filter((_, index) => index !== corteIndex);
+      
+      // Si no quedan cortes, eliminar toda la entrada
+      if (nuevaMercaderia[entradaIndex].cortes.length === 0) {
+        nuevaMercaderia.splice(entradaIndex, 1);
+      }
+      
+      await updateDocument(semanaActiva.id, { mercaderia: nuevaMercaderia });
+      addNotification('Corte eliminado exitosamente', 'success');
+      setShowDeleteCorteModal(false);
+      setCorteToDelete(null);
+    } catch (error) {
+      console.error('Error al eliminar corte:', error);
+      addNotification('Error al eliminar el corte', 'error');
+    }
   };
 
   // Función para agregar un corte en edición
@@ -524,6 +561,50 @@ export default function GestionSemanal() {
     cortes: {}
   });
 
+  // Estados para agregar cortes personalizados
+  const [nuevoCorte, setNuevoCorte] = useState('');
+  const [mostrarInputNuevoCorte, setMostrarInputNuevoCorte] = useState(false);
+
+  // Función para agregar un nuevo tipo de corte
+  const agregarNuevoCorte = () => {
+    const corteTrimmed = nuevoCorte.trim();
+    if (!corteTrimmed) {
+      addNotification('Ingrese un nombre para el nuevo corte', 'warning');
+      return;
+    }
+
+    // Verificar si ya existe
+    if (formMercaderia.cortes[corteTrimmed]) {
+      addNotification('Este corte ya existe', 'warning');
+      return;
+    }
+
+    // Agregar el nuevo corte al formulario
+    setFormMercaderia(prev => ({
+      ...prev,
+      cortes: {
+        ...prev.cortes,
+        [corteTrimmed]: { kg: '', precioKg: '' }
+      }
+    }));
+
+    setNuevoCorte('');
+    setMostrarInputNuevoCorte(false);
+    addNotification(`Corte "${corteTrimmed}" agregado`, 'success');
+  };
+
+  // Función para eliminar un corte del formulario
+  const eliminarCorteDelFormulario = (corte) => {
+    setFormMercaderia(prev => {
+      const nuevosCortes = { ...prev.cortes };
+      delete nuevosCortes[corte];
+      return {
+        ...prev,
+        cortes: nuevosCortes
+      };
+    });
+  };
+
   const handleAgregarMercaderia = async () => {
     try {
       const cortesConDatos = Object.entries(formMercaderia.cortes)
@@ -777,7 +858,7 @@ export default function GestionSemanal() {
 
   // ==================== TAB GASTOS ====================
   const [formGasto, setFormGasto] = useState({
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getLocalDateString(),
     descripcion: '',
     monto: ''
   });
@@ -796,7 +877,7 @@ export default function GestionSemanal() {
       });
 
       setFormGasto({
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: getLocalDateString(),
         descripcion: '',
         monto: ''
       });
@@ -1028,15 +1109,66 @@ export default function GestionSemanal() {
                   )}
 
                   <div className="mb-3">
-                    <label className="form-label fw-bold">Cortes (kg y precio por kg):</label>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <label className="form-label fw-bold mb-0">Cortes (kg y precio por kg):</label>
+                      <button
+                        className="btn btn-sm btn-outline-success"
+                        onClick={() => setMostrarInputNuevoCorte(!mostrarInputNuevoCorte)}
+                      >
+                        {mostrarInputNuevoCorte ? '✕ Cancelar' : '➕ Agregar Corte'}
+                      </button>
+                    </div>
+
+                    {/* Input para agregar nuevo corte */}
+                    {mostrarInputNuevoCorte && (
+                      <div className="card mb-3 border-success">
+                        <div className="card-body p-3">
+                          <div className="input-group">
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder="Nombre del nuevo corte (ej: Bife de chorizo, Asado, etc.)"
+                              value={nuevoCorte}
+                              onChange={(e) => setNuevoCorte(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  agregarNuevoCorte();
+                                }
+                              }}
+                            />
+                            <button
+                              className="btn btn-success"
+                              onClick={agregarNuevoCorte}
+                            >
+                              ✅ Agregar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="row">
+                      {/* Cortes predefinidos */}
                       {CORTES_CARNE.map(corte => {
                         const nombreCorto = corte.length > 8 ? corte.substring(0, 8) : corte;
+                        const esPersonalizado = !CORTES_CARNE.includes(corte);
                         return (
                           <div key={corte} className="col-lg-4 col-md-6 mb-3">
-                            <div className="card h-100">
+                            <div className={`card h-100 ${esPersonalizado ? 'border-success' : ''}`}>
                               <div className="card-body p-2">
-                                <label className="form-label mb-2 fw-bold" style={{ fontSize: '0.9rem' }}>{corte}</label>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>{corte}</label>
+                                  {esPersonalizado && (
+                                    <button
+                                      className="btn btn-sm btn-outline-danger"
+                                      style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
+                                      onClick={() => eliminarCorteDelFormulario(corte)}
+                                      title="Eliminar corte"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+                                </div>
                                 <div className="d-flex flex-column gap-1">
                                   <div className="input-group input-group-sm">
                                     <span className="input-group-text">Kg</span>
@@ -1084,6 +1216,74 @@ export default function GestionSemanal() {
                           </div>
                         );
                       })}
+
+                      {/* Cortes personalizados */}
+                      {Object.keys(formMercaderia.cortes)
+                        .filter(corte => !CORTES_CARNE.includes(corte))
+                        .map(corte => (
+                          <div key={corte} className="col-lg-4 col-md-6 mb-3">
+                            <div className="card h-100 border-success">
+                              <div className="card-body p-2">
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
+                                    {corte}
+                                    <span className="badge bg-success ms-1" style={{ fontSize: '0.6rem' }}>Personalizado</span>
+                                  </label>
+                                  <button
+                                    className="btn btn-sm btn-outline-danger"
+                                    style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
+                                    onClick={() => eliminarCorteDelFormulario(corte)}
+                                    title="Eliminar corte"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                                <div className="d-flex flex-column gap-1">
+                                  <div className="input-group input-group-sm">
+                                    <span className="input-group-text">Kg</span>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="0"
+                                      step="0.1"
+                                      value={formMercaderia.cortes[corte]?.kg || ''}
+                                      onChange={(e) => setFormMercaderia({
+                                        ...formMercaderia,
+                                        cortes: { 
+                                          ...formMercaderia.cortes, 
+                                          [corte]: {
+                                            ...formMercaderia.cortes[corte],
+                                            kg: e.target.value
+                                          }
+                                        }
+                                      })}
+                                    />
+                                  </div>
+                                  <div className="input-group input-group-sm">
+                                    <span className="input-group-text">$/Kg</span>
+                                    <input 
+                                      type="number"
+                                      className="form-control"
+                                      placeholder="0"
+                                      step="0.01"
+                                      value={formMercaderia.cortes[corte]?.precioKg || ''}
+                                      onChange={(e) => setFormMercaderia({
+                                        ...formMercaderia,
+                                        cortes: { 
+                                          ...formMercaderia.cortes, 
+                                          [corte]: {
+                                            ...formMercaderia.cortes[corte],
+                                            precioKg: e.target.value
+                                          }
+                                        }
+                                      })}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </div>
 
@@ -1327,11 +1527,24 @@ export default function GestionSemanal() {
                                     <div>
                                       <ul className="list-unstyled mb-0 small">
                                         {entrada.cortes.map((corte, i) => (
-                                          <li key={i} className="mb-1">
-                                            • {corte.corte}: <strong>{corte.kg} kg</strong>
-                                            {corte.precioKg ? (
-                                              <span className="text-muted"> (${corte.precioKg}/kg = ${(corte.kg * corte.precioKg).toFixed(2)})</span>
-                                            ) : null}
+                                          <li key={i} className="mb-1 d-flex justify-content-between align-items-center">
+                                            <div>
+                                              • {corte.corte}: <strong>{corte.kg} kg</strong>
+                                              {corte.precioKg ? (
+                                                <span className="text-muted"> (${corte.precioKg}/kg = ${(corte.kg * corte.precioKg).toFixed(2)})</span>
+                                              ) : null}
+                                            </div>
+                                            <button
+                                              className="btn btn-sm btn-outline-danger"
+                                              style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                confirmarEliminarCorte(index, i);
+                                              }}
+                                              title="Eliminar corte"
+                                            >
+                                              ✕
+                                            </button>
                                           </li>
                                         ))}
                                       </ul>
@@ -2638,6 +2851,21 @@ export default function GestionSemanal() {
           }}
         />
       )}
+
+      {/* Modal de confirmación para eliminar corte */}
+      <ConfirmModal
+        isOpen={showDeleteCorteModal}
+        onClose={() => {
+          setShowDeleteCorteModal(false);
+          setCorteToDelete(null);
+        }}
+        onConfirm={eliminarCorteDeMercaderia}
+        title="Eliminar Corte"
+        message={`¿Estás seguro de que querés eliminar el corte "${corteToDelete?.corte?.corte}"?\n\nEsta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        confirmButtonClass="btn-danger"
+      />
       </div>
     </>
   );

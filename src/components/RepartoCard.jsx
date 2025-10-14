@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import ConfirmModal from './ConfirmModal';
 
 const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Función para formatear montos a moneda argentina
   const formatCurrency = (value) => {
@@ -23,12 +25,12 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
     });
   };
 
-  // Calcular total del reparto
-  const totalReparto = reparto.clients?.reduce((sum, client) => sum + parseFloat(client.billAmount || 0), 0) || 0;
+  // Calcular total del reparto (nueva estructura)
+  const totalReparto = reparto.total || reparto.clientes?.reduce((sum, client) => sum + parseFloat(client.billAmount || 0), 0) || 0;
   
   // Contar clientes pagados vs pendientes
-  const clientesPagados = reparto.clients?.filter(client => client.paymentStatus === 'paid').length || 0;
-  const clientesPendientes = reparto.clients?.filter(client => client.paymentStatus === 'pending').length || 0;
+  const clientesPagados = reparto.clientes?.filter(client => client.paymentStatus === 'paid').length || 0;
+  const clientesPendientes = reparto.clientes?.filter(client => client.paymentStatus === 'pending').length || 0;
 
   return (
     <div className={`card mb-3 ${isExpanded ? 'expanded' : 'collapsed'}`} 
@@ -46,12 +48,12 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
               Reparto {formatDate(reparto.date)}
             </h6>
             <small className="text-muted">
-              {reparto.clients?.length || 0} clientes • {formatCurrency(totalReparto)}
+              {reparto.cantidad || reparto.clientes?.length || 0} clientes • {formatCurrency(totalReparto)}
             </small>
           </div>
           <div className="d-flex align-items-center">
             <span className={`badge ${clientesPendientes > 0 ? 'bg-warning' : 'bg-success'} me-2`}>
-              {clientesPagados}/{reparto.clients?.length || 0}
+              {clientesPagados}/{reparto.cantidad || reparto.clientes?.length || 0}
             </span>
             <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: '0.8rem' }}></i>
           </div>
@@ -70,7 +72,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
               </div>
               <div className="col-6">
                 <small className="text-muted">Clientes</small>
-                <div className="fw-bold">{reparto.clients?.length || 0}</div>
+                <div className="fw-bold">{reparto.cantidad || reparto.clientes?.length || 0}</div>
               </div>
             </div>
             <div className="row text-center mt-2">
@@ -89,7 +91,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
           <div className="mb-3">
             <h6 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Clientes:</h6>
             <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              {reparto.clients?.map((client, index) => (
+              {reparto.clientes?.map((client, index) => (
                 <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
                   <div>
                     <small className="fw-bold">{client.clientName}</small>
@@ -134,9 +136,9 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
               className="btn btn-sm btn-outline-danger flex-fill"
               onClick={(e) => {
                 e.stopPropagation();
-                // Eliminar directamente sin confirmación
-                onDelete(reparto.id);
+                setShowDeleteModal(true);
               }}
+              title="Eliminar reparto permanentemente"
             >
               <i className="fas fa-trash me-1"></i>
               Eliminar
@@ -144,6 +146,21 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación personalizado */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={() => {
+          onDelete(reparto.id);
+          setShowDeleteModal(false);
+        }}
+        title="Eliminar Reparto"
+        message={`¿Estás seguro de que querés eliminar el reparto del ${formatDate(reparto.date)}?\n\nEsta acción no se puede deshacer.`}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        confirmButtonClass="btn-danger"
+      />
     </div>
   );
 };
