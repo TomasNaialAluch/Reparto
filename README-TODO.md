@@ -114,6 +114,32 @@ El sistema de impresión fue completamente rediseñado usando un enfoque modular
 
 ---
 
+## 🐛 **PROBLEMA CRÍTICO EN RESOLUCIÓN**
+
+### **Error de Fechas en Repartos (Octubre 2025)**
+
+#### **Descripción del Problema:**
+Los repartos se estaban guardando con fechas incorrectas debido a problemas de zona horaria:
+- **Síntoma:** Repartos creados el 14/10/2025 se guardaban como 13/10/2025
+- **Causa:** Uso de `toISOString()` en filtros de mes que convertía fechas a UTC
+- **Impacto:** Filtros de fecha no funcionaban correctamente, datos mostrados con fechas erróneas
+
+#### **Solución Implementada:**
+- ✅ **Arreglado filtro de mes:** Reemplazado `toISOString()` por `getLocalDateString()`
+- ✅ **Optimización de logs:** Eliminados logs innecesarios que causaban problemas de rendimiento
+- ✅ **Log único de verificación:** Solo un log muestra fecha del programa vs Firebase
+- ✅ **Arquitectura mejorada:** Repartos se guardan como documentos completos
+
+#### **Archivos Modificados:**
+- `src/pages/MiReparto.jsx` - Filtro de mes corregido
+- `src/firebase/hooks.js` - Log único de verificación
+- `src/utils/date.js` - Función optimizada sin logs
+- Múltiples archivos - Limpieza de logs innecesarios
+
+#### **Estado:** ✅ **RESUELTO** - Commit f2a0b42
+
+---
+
 ## 🎯 **FUNCIONALIDADES PENDIENTES**
 
 ### **1. Sistema de Facturación**
