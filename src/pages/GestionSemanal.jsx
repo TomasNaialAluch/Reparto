@@ -29,7 +29,8 @@ const TIPOS_EMBUTIDOS = [
   'Parrilera',
   'Ochi',
   'Viena',
-  'Colorado'
+  'Colorado',
+  'Choribon'
 ];
 
 const EMPLEADOS_DEFAULT = ['Jorge', 'Nico', 'Gustavo', 'Tomy'];
@@ -142,6 +143,11 @@ export default function GestionSemanal() {
   const [editingClientes, setEditingClientes] = useState(null);
   const [tempClientesData, setTempClientesData] = useState({});
   const botonAdelantoRef = useRef(null);
+  
+  // Estados para tipos de embutidos personalizados
+  const [tiposEmbutidosPersonalizados, setTiposEmbutidosPersonalizados] = useState([]);
+  const [nuevoTipoEmbutido, setNuevoTipoEmbutido] = useState('');
+  const [mostrarInputNuevoTipo, setMostrarInputNuevoTipo] = useState(false);
 
   // Función para alternar expansión de cards de mercadería
   const toggleExpandedMercaderia = (index) => {
@@ -451,8 +457,64 @@ export default function GestionSemanal() {
     eliminarGasto,
     agregarBoletaCliente,
     eliminarBoletaCliente,
-    actualizarCliente
+    actualizarCliente,
+    getConfiguracionesUsuario,
+    guardarConfiguracionesUsuario
   } = useGestionSemanal(user?.uid);
+
+  // Cargar tipos de embutidos personalizados desde Firebase
+  useEffect(() => {
+    const cargarTiposPersonalizados = async () => {
+      if (user?.uid) {
+        try {
+          const configs = await getConfiguracionesUsuario();
+          if (configs?.tiposEmbutidosPersonalizados) {
+            setTiposEmbutidosPersonalizados(configs.tiposEmbutidosPersonalizados);
+          }
+        } catch (error) {
+          console.error('Error cargando tipos personalizados:', error);
+        }
+      }
+    };
+    cargarTiposPersonalizados();
+  }, [user?.uid]);
+
+  // Función para agregar nuevo tipo de embutido personalizado
+  const agregarTipoEmbutidoPersonalizado = async () => {
+    const tipoTrimmed = nuevoTipoEmbutido.trim();
+    if (!tipoTrimmed) {
+      addNotification('Ingrese un nombre para el nuevo tipo', 'warning');
+      return;
+    }
+
+    // Verificar que no exista ya
+    const todosLosTipos = [...TIPOS_EMBUTIDOS, ...tiposEmbutidosPersonalizados];
+    if (todosLosTipos.includes(tipoTrimmed)) {
+      addNotification('Este tipo ya existe', 'warning');
+      return;
+    }
+
+    const nuevosPersonalizados = [...tiposEmbutidosPersonalizados, tipoTrimmed];
+    setTiposEmbutidosPersonalizados(nuevosPersonalizados);
+    
+    // Guardar en Firebase
+    try {
+      await guardarConfiguracionesUsuario({
+        tiposEmbutidosPersonalizados: nuevosPersonalizados
+      });
+      addNotification(`Tipo "${tipoTrimmed}" agregado exitosamente`, 'success');
+      setNuevoTipoEmbutido('');
+      setMostrarInputNuevoTipo(false);
+    } catch (error) {
+      console.error('Error guardando tipo personalizado:', error);
+      addNotification('Error al guardar el tipo personalizado', 'error');
+    }
+  };
+
+  // Obtener lista completa de tipos de embutidos
+  const getTodosLosTiposEmbutidos = () => {
+    return [...TIPOS_EMBUTIDOS, ...tiposEmbutidosPersonalizados];
+  };
 
   // ==================== TAB MERCADERÍA ====================
   const [formMercaderia, setFormMercaderia] = useState({
@@ -1365,14 +1427,57 @@ export default function GestionSemanal() {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label fw-bold">Embutidos (kg y precio por kg):</label>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <label className="form-label fw-bold mb-0">Embutidos (kg y precio por kg):</label>
+                      <button 
+                        className="btn btn-sm btn-outline-success"
+                        onClick={() => setMostrarInputNuevoTipo(!mostrarInputNuevoTipo)}
+                      >
+                        {mostrarInputNuevoTipo ? '✕ Cancelar' : '➕ Agregar Tipo'}
+                      </button>
+                    </div>
+                    
+                    {/* Input para agregar nuevo tipo */}
+                    {mostrarInputNuevoTipo && (
+                      <div className="card mb-3 border-success">
+                        <div className="card-body p-3">
+                          <div className="input-group">
+                            <input 
+                              type="text"
+                              className="form-control"
+                              placeholder="Nombre del nuevo tipo de embutido"
+                              value={nuevoTipoEmbutido}
+                              onChange={(e) => setNuevoTipoEmbutido(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                  agregarTipoEmbutidoPersonalizado();
+                                }
+                              }}
+                            />
+                            <button 
+                              className="btn btn-success"
+                              onClick={agregarTipoEmbutidoPersonalizado}
+                            >
+                              ✅ Agregar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="row">
-                      {TIPOS_EMBUTIDOS.map(tipo => {
+                      {getTodosLosTiposEmbutidos().map(tipo => {
+                        const esPersonalizado = tiposEmbutidosPersonalizados.includes(tipo);
                         return (
                           <div key={tipo} className="col-lg-4 col-md-6 mb-3">
-                            <div className="card h-100">
+                            <div className={`card h-100 ${esPersonalizado ? 'border-success' : ''}`}>
                               <div className="card-body p-2">
-                                <label className="form-label mb-2 fw-bold" style={{ fontSize: '0.9rem' }}>{tipo}</label>
+                                <div className="d-flex justify-content-between align-items-center mb-2">
+                                  <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>{tipo}</label>
+                                  {esPersonalizado && (
+                                    <span className="badge bg-success" style={{ fontSize: '0.7rem' }}>Personalizado</span>
+                                  )}
+                                </div>
                                 <div className="d-flex flex-column gap-1">
                                   <div className="input-group input-group-sm">
                                     <span className="input-group-text">Kg</span>

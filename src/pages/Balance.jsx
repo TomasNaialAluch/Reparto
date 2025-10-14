@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { useGestionSemanal } from '../firebase/hooks';
 import { formatCurrency } from '../utils/money';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function Balance() {
   const navigate = useNavigate();
   const { user } = useFirebase();
-  const { semanaActiva, loading, getHistorialSemanas, getSemanaById, getConfiguracionesUsuario, guardarConfiguracionesUsuario } = useGestionSemanal(user?.uid);
+  const { semanaActiva, loading, getHistorialSemanas, getSemanaById, getConfiguracionesUsuario, guardarConfiguracionesUsuario, cerrarSemana: cerrarSemanaHook, crearNuevaSemana } = useGestionSemanal(user?.uid);
   const [balanceData, setBalanceData] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCerrarSemanaModal, setShowCerrarSemanaModal] = useState(false);
   const [coeficientes, setCoeficientes] = useState({
     mercaderia: 0,
     embutidos: 0
@@ -284,26 +286,36 @@ export default function Balance() {
     }, 300);
   };
 
-  const cerrarSemana = async () => {
-    if (!window.confirm('¿Está seguro que desea cerrar esta semana? Los datos quedarán guardados y se iniciará una nueva semana.')) {
-      return;
-    }
+  const handleCerrarSemanaClick = () => {
+    setShowCerrarSemanaModal(true);
+  };
 
+  const cerrarSemana = async () => {
     try {
-      // Scroll suave hacia arriba antes de cerrar
+      console.log('🔒 Cerrando semana actual...');
+      
+      // Cerrar la semana actual
+      await cerrarSemanaHook();
+      console.log('✅ Semana cerrada exitosamente');
+      
+      // Crear una nueva semana
+      console.log('📝 Creando nueva semana...');
+      await crearNuevaSemana();
+      console.log('✅ Nueva semana creada exitosamente');
+      
+      // Scroll suave hacia arriba antes de navegar
       window.scrollTo({
         top: 0,
         behavior: 'smooth'
       });
       
-      // Pequeño delay para que se vea el scroll
-      setTimeout(async () => {
-        // Aquí iría la lógica para cerrar la semana
-        // Por ahora solo navegamos de vuelta
+      // Pequeño delay para que se vea el scroll y luego navegar
+      setTimeout(() => {
         navigate('/gestion-semanal');
       }, 300);
     } catch (err) {
-      console.error('Error al cerrar semana:', err);
+      console.error('❌ Error al cerrar semana:', err);
+      alert('Error al cerrar la semana. Por favor, intenta nuevamente.');
     }
   };
 
@@ -800,12 +812,24 @@ export default function Balance() {
           <button 
             className="btn btn-danger btn-lg"
             style={{ fontSize: '1.3rem', padding: '15px 50px' }}
-            onClick={cerrarSemana}
+            onClick={handleCerrarSemanaClick}
           >
             🔒 CERRAR SEMANA Y GUARDAR
           </button>
         </div>
       </div>
+
+      {/* Modal de confirmación para cerrar semana */}
+      <ConfirmModal
+        isOpen={showCerrarSemanaModal}
+        onClose={() => setShowCerrarSemanaModal(false)}
+        onConfirm={cerrarSemana}
+        title="Cerrar Semana"
+        message="¿Está seguro que desea cerrar esta semana? Los datos quedarán guardados y se iniciará una nueva semana."
+        confirmText="Aceptar"
+        cancelText="Cancelar"
+        confirmButtonClass="btn-danger"
+      />
 
     </div>
   );
