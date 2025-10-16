@@ -774,7 +774,7 @@ export default function GestionSemanal() {
       });
 
       setFormAdelanto({
-        empleado: formAdelanto.empleado,
+        empleado: semanaActiva?.empleados && semanaActiva.empleados.length > 0 ? semanaActiva.empleados[0].nombre : 'Jorge',
         dia: 'Lunes',
         monto: '',
         descripcion: ''

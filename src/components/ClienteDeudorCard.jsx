@@ -24,12 +24,13 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
   };
 
   // Calcular total de deuda
-  const totalDeuda = cliente.saldoFinal || 0;
+  const totalDeuda = cliente.saldoFinal || cliente.finalBalance || 0;
   
   // Contar transacciones
   const totalBoletas = cliente.boletas?.length || 0;
   const totalVentas = cliente.ventas?.length || 0;
-  const totalPagos = (cliente.efectivo?.length || 0) + 
+  const totalPagos = (cliente.plataFavor?.length || 0) + 
+                    (cliente.efectivo?.length || 0) + 
                     (cliente.cheques?.length || 0) + 
                     (cliente.transferencias?.length || 0);
 

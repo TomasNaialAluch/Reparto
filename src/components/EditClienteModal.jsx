@@ -7,12 +7,14 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     clientName: '',
     boletas: [{ date: '', amount: '' }],
     ventas: [],
+    plataFavor: [],
     efectivo: [],
     cheques: [],
     transferencias: []
   });
   const [showSections, setShowSections] = useState({
     ventas: false,
+    plataFavor: false,
     efectivo: false,
     cheques: false,
     transferencias: false
@@ -25,12 +27,14 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
         clientName: cliente.nombreCliente || '',
         boletas: cliente.boletas?.length > 0 ? cliente.boletas : [{ date: '', amount: '' }],
         ventas: cliente.ventas || [],
+        plataFavor: cliente.plataFavor || [],
         efectivo: cliente.efectivo || [],
         cheques: cliente.cheques || [],
         transferencias: cliente.transferencias || []
       });
       setShowSections({
         ventas: (cliente.ventas?.length || 0) > 0,
+        plataFavor: (cliente.plataFavor?.length || 0) > 0,
         efectivo: (cliente.efectivo?.length || 0) > 0,
         cheques: (cliente.cheques?.length || 0) > 0,
         transferencias: (cliente.transferencias?.length || 0) > 0
@@ -78,6 +82,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   // Funciones específicas para cada tipo
   const addBoleta = () => addItem('boletas', { date: getLocalDateString(), amount: '' });
   const addVenta = () => addItem('ventas', { date: getLocalDateString(), amount: '' });
+  const addPlataFavor = () => addItem('plataFavor', { amount: '' });
   const addEfectivo = () => addItem('efectivo', { amount: '' });
   const addCheque = () => addItem('cheques', { id: '', amount: '' });
   const addTransferencia = () => addItem('transferencias', { amount: '' });
@@ -93,6 +98,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       clientName: formData.clientName.trim(),
       boletas: formData.boletas.filter(b => b.date && b.amount),
       ventas: showSections.ventas ? formData.ventas.filter(v => v.date && v.amount) : [],
+      plataFavor: showSections.plataFavor ? formData.plataFavor.filter(p => p.amount) : [],
       efectivo: showSections.efectivo ? formData.efectivo.filter(e => e.amount) : [],
       cheques: showSections.cheques ? formData.cheques.filter(c => c.id && c.amount) : [],
       transferencias: showSections.transferencias ? formData.transferencias.filter(t => t.amount) : []
@@ -178,6 +184,33 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                     </div>
                   ))}
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addVenta}>Agregar Venta</button>
+                </div>
+              )}
+            </div>
+
+            {/* Plata a Favor */}
+            <div className="mb-3">
+              <div className="form-check">
+                <input 
+                  type="checkbox" 
+                  className="form-check-input" 
+                  checked={showSections.plataFavor} 
+                  onChange={(e) => {
+                    setShowSections(prev => ({ ...prev, plataFavor: e.target.checked }));
+                    if (e.target.checked && formData.plataFavor.length === 0) addPlataFavor();
+                  }} 
+                />
+                <label className="form-check-label">Plata a Favor</label>
+              </div>
+              {showSections.plataFavor && (
+                <div className="mt-2">
+                  {formData.plataFavor.map((item, index) => (
+                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('plataFavor', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('plataFavor', index)}>×</button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={addPlataFavor}>Agregar Plata a Favor</button>
                 </div>
               )}
             </div>

@@ -141,8 +141,24 @@ const SaldoClientes = () => {
   // Actualizar cliente
   const updateCliente = async (clienteId, updatedData) => {
     try {
-      await updateBalance(clienteId, updatedData);
-      console.log('✅ Cliente actualizado en Firebase:', clienteId);
+      // Recalcular el saldo final
+      const totalBoletas = updatedData.boletas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
+      const totalVentas = updatedData.ventas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0);
+      const totalPlata = updatedData.plataFavor.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+      const totalEfectivo = updatedData.efectivo.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+      const totalCheque = updatedData.cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
+      const totalTransferencia = updatedData.transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
+      const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+      const finalBalance = totalIngresos - totalBoletas;
+
+      // Agregar el saldo calculado a los datos
+      const dataWithBalance = {
+        ...updatedData,
+        finalBalance: finalBalance
+      };
+
+      await updateBalance(clienteId, dataWithBalance);
+      console.log('✅ Cliente actualizado en Firebase:', clienteId, 'Saldo final:', finalBalance);
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
     }
@@ -176,9 +192,10 @@ const SaldoClientes = () => {
           fecha: getLocalDateString(),
           boletas: boletas.filter(b => b.date && b.amount),
           ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
-          efectivo: showEfectivo ? efectivo.filter(e => e.date && e.amount) : [],
-          cheques: showCheque ? cheques.filter(c => c.date && c.amount) : [],
-          transferencias: showTransferencia ? transferencias.filter(t => t.date && t.amount) : [],
+          plata: showPlata ? plata.filter(p => p.amount) : [],
+          efectivo: showEfectivo ? efectivo.filter(e => e.amount) : [],
+          cheques: showCheque ? cheques.filter(c => c.id && c.amount) : [],
+          transferencias: showTransferencia ? transferencias.filter(t => t.amount) : [],
           saldoFinal: summaryData.finalBalance || 0
         };
 
@@ -186,7 +203,7 @@ const SaldoClientes = () => {
           clientName: clienteData.nombreCliente,
           boletas: clienteData.boletas,
           ventas: clienteData.ventas,
-          plataFavor: [],
+          plataFavor: showPlata ? plata.filter(p => p.amount) : [],
           efectivo: clienteData.efectivo,
           cheques: clienteData.cheques,
           transferencias: clienteData.transferencias,
