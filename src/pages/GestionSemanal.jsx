@@ -2189,7 +2189,11 @@ export default function GestionSemanal() {
                         <tbody>
                           {semanaActiva.empleados.map((emp, index) => {
                             const deuda = calcularDeudaEmpleado(emp);
-                            const totalAdelantos = emp.sueldoSemanal - deuda;
+                            // Calcular total de adelantos correctamente
+                            const adelantos = semanaActiva?.adelantos || [];
+                            const totalAdelantos = adelantos
+                              .filter(a => a.empleado === emp.nombre)
+                              .reduce((sum, a) => sum + a.monto, 0);
                             const isEditing = editingSueldoId === emp.nombre;
                             
                             return (
