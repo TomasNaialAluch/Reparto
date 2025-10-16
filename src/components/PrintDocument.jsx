@@ -457,24 +457,68 @@ const PrintDocument = ({ data, type, onClose }) => {
           </div>
         )}
         
-        {/* Ingresos */}
+        {/* Plata a Favor */}
+        {plataFavor && plataFavor.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Plata a Favor:</div>
+            {plataFavor.map((p, i) => (
+              <div key={i} className="print-item">
+                {p.date}: {formatCurrency(parseFloat(p.amount) || 0)}
+              </div>
+            ))}
+            <div className="print-subtotal">
+              Total Plata a Favor: {formatCurrency(plataFavor.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0))}
+            </div>
+          </div>
+        )}
+
+        {/* Efectivo */}
+        {efectivo && efectivo.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Pagos en Efectivo:</div>
+            {efectivo.map((e, i) => (
+              <div key={i} className="print-item">
+                {e.date}: {formatCurrency(parseFloat(e.amount) || 0)}
+              </div>
+            ))}
+            <div className="print-subtotal">
+              Total Efectivo: {formatCurrency(efectivo.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}
+            </div>
+          </div>
+        )}
+
+        {/* Cheques */}
+        {cheques && cheques.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Pagos con Cheque:</div>
+            {cheques.map((c, i) => (
+              <div key={i} className="print-item">
+                Cheque {c.id}: {formatCurrency(parseFloat(c.amount) || 0)}
+              </div>
+            ))}
+            <div className="print-subtotal">
+              Total Cheques: {formatCurrency(cheques.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0))}
+            </div>
+          </div>
+        )}
+
+        {/* Transferencias */}
+        {transferencias && transferencias.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title">Pagos por Transferencia:</div>
+            {transferencias.map((t, i) => (
+              <div key={i} className="print-item">
+                {t.date}: {formatCurrency(parseFloat(t.amount) || 0)}
+              </div>
+            ))}
+            <div className="print-subtotal">
+              Total Transferencias: {formatCurrency(transferencias.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0))}
+            </div>
+          </div>
+        )}
+
+        {/* Resumen de Ingresos */}
         <div className="print-section">
-          <div className="print-section-title">Ingresos:</div>
-          {efectivo > 0 && (
-            <div className="print-item">
-              Efectivo: {formatCurrency(efectivo)}
-            </div>
-          )}
-          {cheques > 0 && (
-            <div className="print-item">
-              Cheques: {formatCurrency(cheques)}
-            </div>
-          )}
-          {transferencias > 0 && (
-            <div className="print-item">
-              Transferencias: {formatCurrency(transferencias)}
-            </div>
-          )}
           <div className="print-subtotal">
             Total Ingresos: {formatCurrency(totalIngresos || 0)}
           </div>
