@@ -146,6 +146,15 @@ const SaldoClientes = () => {
   // Actualizar cliente
   const updateCliente = async (clienteId, updatedData) => {
     try {
+      // Debug: Log de los datos recibidos del modal
+      console.log('🔍 updateCliente - Datos recibidos del modal:', {
+        totalBoletas: updatedData.totalBoletas,
+        totalIngresos: updatedData.totalIngresos,
+        finalBalance: updatedData.finalBalance,
+        boletasCount: updatedData.boletas?.length,
+        chequesCount: updatedData.cheques?.length
+      });
+
       // Asegurar que todos los totales calculados se guarden en Firebase
       const dataWithTotals = {
         ...updatedData,

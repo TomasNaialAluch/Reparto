@@ -111,6 +111,16 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
     const finalBalance = totalBoletas - totalIngresos;
 
+    // Debug: Log de los cálculos
+    console.log('🔍 Modal - Cálculos realizados:', {
+      boletasFiltradas: boletasFiltradas.length,
+      totalBoletas,
+      chequesFiltrados: chequesFiltrados.length,
+      totalCheque,
+      totalIngresos,
+      finalBalance
+    });
+
     const clienteData = {
       ...formData,
       clientName: formData.clientName.trim(),
