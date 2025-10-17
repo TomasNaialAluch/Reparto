@@ -27,7 +27,7 @@ const MiReparto = () => {
   });
 
   // Firebase hooks
-  const { repartos, todayRepartos, loading, error, addReparto, updatePayment, deleteReparto, updateDocument } = useRepartos();
+  const { repartos, loading, error, addReparto, updatePayment, deleteReparto, updateDocument } = useRepartos();
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
@@ -51,6 +51,9 @@ const MiReparto = () => {
   // Estado para impresión
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printData, setPrintData] = useState(null);
+  
+  // Estado para mostrar/ocultar deudores (React puro)
+  const [showDebtors, setShowDebtors] = useState(false);
 
   // Actualizar fecha del reparto actual cada vez que se carga la página
   useEffect(() => {
@@ -74,7 +77,7 @@ const MiReparto = () => {
         filtered = savedRepartos.filter(reparto => reparto.date === todayStr);
         break;
       
-      case 'semana':
+      case 'semana': {
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
         const weekStartStr = dateToLocalString(weekStart);
@@ -84,16 +87,19 @@ const MiReparto = () => {
           reparto.date >= weekStartStr && reparto.date <= weekEndStr
         );
         break;
+      }
       
-      case 'mes':
+      case 'mes': {
         const currentMonth = getLocalDateString().slice(0, 7);
         filtered = savedRepartos.filter(reparto => reparto.date.startsWith(currentMonth));
         break;
+      }
       
-      case 'año':
+      case 'año': {
         const currentYear = today.getFullYear().toString();
         filtered = savedRepartos.filter(reparto => reparto.date.startsWith(currentYear));
         break;
+      }
       
       case 'elegir_mes':
         filtered = savedRepartos.filter(reparto => reparto.date.startsWith(customMonth));
@@ -118,13 +124,14 @@ const MiReparto = () => {
     switch (dateFilter) {
       case 'hoy':
         return `Hoy (${todayStr})`;
-      case 'semana':
+      case 'semana': {
         const weekStart = new Date(today);
         weekStart.setDate(today.getDate() - today.getDay());
         const weekStartStr = dateToLocalString(weekStart);
         const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
         const weekEndStr = dateToLocalString(weekEnd);
         return `Esta Semana (${weekStartStr} - ${weekEndStr})`;
+      }
       case 'mes':
         return `Este Mes (${today.toISOString().slice(0, 7)})`;
       case 'año':
@@ -156,9 +163,15 @@ const MiReparto = () => {
 
         // Guardar TODO el reparto como un solo documento
         const repartoId = await addReparto(repartoCompleto);
+        
+        // Agregar el ID al reparto
+        const repartoConId = {
+          ...repartoCompleto,
+          id: repartoId
+        };
 
         // Actualizar estado local
-        setSavedRepartos(prev => [repartoCompleto, ...prev]);
+        setSavedRepartos(prev => [repartoConId, ...prev]);
         
         // LIMPIAR COMPLETAMENTE TODO DESPUÉS DE GUARDAR (React puro)
         // Marcar como limpiado manualmente para evitar interferencia del listener
@@ -233,6 +246,8 @@ const MiReparto = () => {
 
   // Abrir modal de edición
   const openEditModal = (reparto) => {
+    console.log('🔍 openEditModal - Reparto seleccionado:', reparto);
+    console.log('🔍 openEditModal - ID del reparto:', reparto.id);
     setRepartoToEdit(reparto);
     setIsEditModalOpen(true);
   };
@@ -426,9 +441,6 @@ const MiReparto = () => {
   const { subtotal, totalPendiente } = calcularTotales();
 
 
-  // Estado para mostrar/ocultar deudores (React puro)
-  const [showDebtors, setShowDebtors] = useState(false);
-
   // Calcular deudores con React puro
   const deudores = clientes.filter(cliente => {
     const pagado = cliente.paymentAmount || 0;
@@ -473,7 +485,7 @@ const MiReparto = () => {
         clients: []
       }));
     }
-  }, [repartos]);
+  }, [repartos, clientes.length, isManuallyCleared]);
 
   // Limpiar datos al cambiar de día
   useEffect(() => {

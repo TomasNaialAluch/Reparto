@@ -87,11 +87,31 @@ export const useFirestore = (collectionName) => {
   // Función para actualizar documento
   const updateDocument = async (docId, data) => {
     try {
-      await updateDoc(doc(db, collectionName, docId), {
+      console.log('🔍 updateDocument - Intentando actualizar:', {
+        collectionName,
+        docId,
+        data: Object.keys(data)
+      });
+      
+      // Verificar que el documento existe
+      const docRef = doc(db, collectionName, docId);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        console.error('❌ updateDocument - El documento no existe:', docId);
+        throw new Error(`Documento ${docId} no existe en la colección ${collectionName}`);
+      }
+      
+      console.log('✅ updateDocument - Documento existe, actualizando...');
+      
+      await updateDoc(docRef, {
         ...data,
         updatedAt: serverTimestamp()
       });
+      
+      console.log('✅ updateDocument - Documento actualizado exitosamente');
     } catch (error) {
+      console.error('❌ updateDocument - Error:', error);
       setError(error.message);
       throw error;
     }
