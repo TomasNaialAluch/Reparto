@@ -146,15 +146,27 @@ const SaldoClientes = () => {
   // Actualizar cliente
   const updateCliente = async (clienteId, updatedData) => {
     try {
-      // Si el modal ya calculó los totales, usarlos directamente
-      // Si no, calcularlos (para compatibilidad con otros usos)
-      const dataWithBalance = {
+      // Asegurar que todos los totales calculados se guarden en Firebase
+      const dataWithTotals = {
         ...updatedData,
+        // Incluir todos los totales calculados por el modal
+        totalBoletas: updatedData.totalBoletas || 0,
+        totalVentas: updatedData.totalVentas || 0,
+        totalPlata: updatedData.totalPlata || 0,
+        totalEfectivo: updatedData.totalEfectivo || 0,
+        totalCheque: updatedData.totalCheque || 0,
+        totalTransferencia: updatedData.totalTransferencia || 0,
+        totalIngresos: updatedData.totalIngresos || 0,
         finalBalance: updatedData.finalBalance || (updatedData.totalBoletas - updatedData.totalIngresos)
       };
 
-      await updateBalance(clienteId, dataWithBalance);
-      console.log('✅ Cliente actualizado en Firebase:', clienteId, 'Saldo final:', dataWithBalance.finalBalance);
+      await updateBalance(clienteId, dataWithTotals);
+      console.log('✅ Cliente actualizado en Firebase:', clienteId, 'Saldo final:', dataWithTotals.finalBalance);
+      console.log('📊 Totales guardados:', {
+        totalBoletas: dataWithTotals.totalBoletas,
+        totalIngresos: dataWithTotals.totalIngresos,
+        finalBalance: dataWithTotals.finalBalance
+      });
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
     }
@@ -356,25 +368,37 @@ const SaldoClientes = () => {
 
   useEffect(() => {
     if (balances && balances.length > 0) {
-      const clientesFormateados = balances.map(balance => ({
-        id: balance.id,
-        nombreCliente: balance.clientName,
-        fecha: balance.date,
-        boletas: balance.boletas || [],
-        ventas: balance.ventas || [],
-        efectivo: balance.efectivo || [],
-        cheques: balance.cheques || [],
-        transferencias: balance.transferencias || [],
-        saldoFinal: balance.finalBalance || 0,
-        // Agregar todos los totales calculados
-        totalBoletas: balance.totalBoletas || 0,
-        totalVentas: balance.totalVentas || 0,
-        totalPlata: balance.totalPlata || 0,
-        totalEfectivo: balance.totalEfectivo || 0,
-        totalCheque: balance.totalCheque || 0,
-        totalTransferencia: balance.totalTransferencia || 0,
-        totalIngresos: balance.totalIngresos || 0
-      }));
+      const clientesFormateados = balances.map(balance => {
+        // Calcular totales si no existen en la base de datos
+        const totalBoletas = balance.totalBoletas || balance.boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
+        const totalVentas = balance.totalVentas || balance.ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0;
+        const totalPlata = balance.totalPlata || balance.plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0;
+        const totalEfectivo = balance.totalEfectivo || balance.efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0;
+        const totalCheque = balance.totalCheque || balance.cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0;
+        const totalTransferencia = balance.totalTransferencia || balance.transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0;
+        const totalIngresos = balance.totalIngresos || (totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia);
+        const finalBalance = balance.finalBalance || (totalBoletas - totalIngresos);
+
+        return {
+          id: balance.id,
+          nombreCliente: balance.clientName,
+          fecha: balance.date,
+          boletas: balance.boletas || [],
+          ventas: balance.ventas || [],
+          efectivo: balance.efectivo || [],
+          cheques: balance.cheques || [],
+          transferencias: balance.transferencias || [],
+          saldoFinal: finalBalance,
+          // Agregar todos los totales calculados
+          totalBoletas,
+          totalVentas,
+          totalPlata,
+          totalEfectivo,
+          totalCheque,
+          totalTransferencia,
+          totalIngresos
+        };
+      });
       setSavedClientes(clientesFormateados);
     }
   }, [balances]);
