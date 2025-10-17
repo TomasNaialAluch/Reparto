@@ -380,13 +380,13 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Balance */}
         <div className="print-section">
           <div className="print-total">
-            Balance Final: {formatCurrency((totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0) - (totalIngresos || (
+            Balance Final: {formatCurrency((totalIngresos || (
               (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
               (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
               (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
               (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
               (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
-            )))}
+            )) - (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0))}
           </div>
         </div>
       </div>
@@ -539,13 +539,13 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Balance Final */}
         <div className="print-section">
           <div className="print-total">
-            Balance Final: {formatCurrency((totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0) - (totalIngresos || (
+            Balance Final: {formatCurrency((totalIngresos || (
               (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
               (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
               (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
               (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
               (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
-            )))}
+            )) - (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0))}
           </div>
           <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
             {(() => {
@@ -559,8 +559,8 @@ const PrintDocument = ({ data, type, onClose }) => {
                 (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
               );
               
-              // Balance correcto: totalBoletas - totalIngresos
-              const balanceCorrecto = totalBoletasCalc - totalIngresosCalc;
+              // Balance correcto: totalIngresos - totalBoletas (Tito te debe si es positivo)
+              const balanceCorrecto = totalIngresosCalc - totalBoletasCalc;
               
               if (balanceCorrecto > 0) {
                 return `${clientName} te debe ${formatCurrency(balanceCorrecto)}`;
