@@ -245,11 +245,15 @@ const MiReparto = () => {
 
   // Función para manejar impresión desde las cards
   const handlePrintReparto = (reparto) => {
+    console.log('🔍 handlePrintReparto - Reparto recibido:', reparto);
+    
     // Convertir el formato del reparto guardado al formato que espera PrintDocument
     const printData = {
       clientes: reparto.clientes || [],
       fecha: reparto.date
     };
+    
+    console.log('🔍 handlePrintReparto - Datos para impresión:', printData);
     
     setPrintData(printData);
     setShowPrintModal(true);
@@ -265,8 +269,28 @@ const MiReparto = () => {
         clients: updatedData.clients?.length
       });
       
-      await updateDocument(repartoId, updatedData);
+      // Calcular totales para el reparto actualizado
+      const totalReparto = updatedData.clientes?.reduce((sum, c) => sum + (c.billAmount || 0), 0) || 0;
+      const cantidadClientes = updatedData.clientes?.length || 0;
+      
+      const repartoCompleto = {
+        ...updatedData,
+        total: totalReparto,
+        cantidad: cantidadClientes,
+        updatedAt: new Date().toISOString()
+      };
+      
+      console.log('🔍 updateReparto - Datos completos a guardar:', repartoCompleto);
+      
+      await updateDocument(repartoId, repartoCompleto);
       console.log('✅ Reparto actualizado en Firebase:', repartoId);
+      
+      // Actualizar el estado local inmediatamente
+      setSavedRepartos(prev => prev.map(reparto => 
+        reparto.id === repartoId ? { ...reparto, ...repartoCompleto } : reparto
+      ));
+      console.log('🔄 Estado local actualizado');
+      
     } catch (error) {
       console.error('❌ Error al actualizar reparto:', error);
     }
