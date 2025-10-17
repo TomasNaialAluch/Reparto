@@ -11,9 +11,10 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
   // Cargar datos del reparto cuando se abre el modal
   useEffect(() => {
     if (isOpen && reparto) {
+      console.log('🔍 EditRepartoModal - Reparto recibido:', reparto);
       setFormData({
         date: reparto.date || getLocalDateString(),
-        clients: reparto.clients || []
+        clients: reparto.clientes || reparto.clients || []
       });
     }
   }, [isOpen, reparto]);
@@ -68,6 +69,12 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
 
     const repartoData = {
       ...formData,
+      clientes: formData.clients.map(cliente => ({
+        ...cliente,
+        clientName: cliente.clientName.trim(),
+        billAmount: parseFloat(cliente.billAmount)
+      })),
+      // Mantener compatibilidad con la estructura existente
       clients: formData.clients.map(cliente => ({
         ...cliente,
         clientName: cliente.clientName.trim(),
@@ -75,6 +82,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
       }))
     };
 
+    console.log('🔍 EditRepartoModal - Datos a guardar:', repartoData);
     onSave(reparto.id, repartoData);
     onClose();
   };

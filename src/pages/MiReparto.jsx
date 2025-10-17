@@ -258,6 +258,13 @@ const MiReparto = () => {
   // Actualizar reparto
   const updateReparto = async (repartoId, updatedData) => {
     try {
+      console.log('🔍 updateReparto - Datos recibidos:', {
+        repartoId,
+        updatedData,
+        clientes: updatedData.clientes?.length,
+        clients: updatedData.clients?.length
+      });
+      
       await updateDocument(repartoId, updatedData);
       console.log('✅ Reparto actualizado en Firebase:', repartoId);
     } catch (error) {
