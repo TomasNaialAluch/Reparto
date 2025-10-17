@@ -425,7 +425,7 @@ const PrintDocument = ({ data, type, onClose }) => {
               </div>
             ))}
             <div className="print-subtotal">
-              Total Boletas: {formatCurrency(totalBoletas || 0)}
+              Total Boletas: {formatCurrency(totalBoletas || boletas.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0))}
             </div>
           </div>
         )}
@@ -520,7 +520,13 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Resumen de Ingresos */}
         <div className="print-section">
           <div className="print-subtotal">
-            Total Ingresos: {formatCurrency(totalIngresos || 0)}
+            Total Ingresos: {formatCurrency(totalIngresos || (
+              (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
+              (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
+              (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
+              (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
+              (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
+            ))}
           </div>
         </div>
         
@@ -528,6 +534,27 @@ const PrintDocument = ({ data, type, onClose }) => {
         <div className="print-section">
           <div className="print-total">
             Balance Final: {formatCurrency(finalBalance || 0)}
+          </div>
+          <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
+            {(() => {
+              const balance = finalBalance || 0;
+              const totalBoletasCalc = totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0;
+              const totalIngresosCalc = totalIngresos || (
+                (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
+                (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
+                (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
+                (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
+                (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
+              );
+              
+              if (balance > 0) {
+                return `${clientName} te debe ${formatCurrency(balance)}`;
+              } else if (balance < 0) {
+                return `Tú le debes ${formatCurrency(Math.abs(balance))} a ${clientName}`;
+              } else {
+                return 'Las cuentas están saldadas. No hay deudas pendientes.';
+              }
+            })()}
           </div>
         </div>
       </div>

@@ -130,6 +130,11 @@ const SaldoClientes = () => {
       cheques: cliente.cheques || [],
       transferencias: cliente.transferencias || [],
       totalBoletas: cliente.totalBoletas || 0,
+      totalVentas: cliente.totalVentas || 0,
+      totalPlata: cliente.totalPlata || 0,
+      totalEfectivo: cliente.totalEfectivo || 0,
+      totalCheque: cliente.totalCheque || 0,
+      totalTransferencia: cliente.totalTransferencia || 0,
       totalIngresos: cliente.totalIngresos || 0,
       finalBalance: cliente.saldoFinal || 0
     };
@@ -141,24 +146,15 @@ const SaldoClientes = () => {
   // Actualizar cliente
   const updateCliente = async (clienteId, updatedData) => {
     try {
-      // Recalcular el saldo final
-      const totalBoletas = updatedData.boletas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
-      const totalVentas = updatedData.ventas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0);
-      const totalPlata = updatedData.plataFavor.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
-      const totalEfectivo = updatedData.efectivo.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
-      const totalCheque = updatedData.cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
-      const totalTransferencia = updatedData.transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
-      const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-      const finalBalance = totalIngresos - totalBoletas;
-
-      // Agregar el saldo calculado a los datos
+      // Si el modal ya calculó los totales, usarlos directamente
+      // Si no, calcularlos (para compatibilidad con otros usos)
       const dataWithBalance = {
         ...updatedData,
-        finalBalance: finalBalance
+        finalBalance: updatedData.finalBalance || (updatedData.totalBoletas - updatedData.totalIngresos)
       };
 
       await updateBalance(clienteId, dataWithBalance);
-      console.log('✅ Cliente actualizado en Firebase:', clienteId, 'Saldo final:', finalBalance);
+      console.log('✅ Cliente actualizado en Firebase:', clienteId, 'Saldo final:', dataWithBalance.finalBalance);
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
     }
@@ -322,7 +318,7 @@ const SaldoClientes = () => {
     const totalCheque = cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
     const totalTransferencia = transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
     const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    const finalBalance = totalIngresos - totalBoletas;
+    const finalBalance = totalBoletas - totalIngresos;
 
     setSummaryData({
       clientName,
@@ -369,7 +365,15 @@ const SaldoClientes = () => {
         efectivo: balance.efectivo || [],
         cheques: balance.cheques || [],
         transferencias: balance.transferencias || [],
-        saldoFinal: balance.finalBalance || 0
+        saldoFinal: balance.finalBalance || 0,
+        // Agregar todos los totales calculados
+        totalBoletas: balance.totalBoletas || 0,
+        totalVentas: balance.totalVentas || 0,
+        totalPlata: balance.totalPlata || 0,
+        totalEfectivo: balance.totalEfectivo || 0,
+        totalCheque: balance.totalCheque || 0,
+        totalTransferencia: balance.totalTransferencia || 0,
+        totalIngresos: balance.totalIngresos || 0
       }));
       setSavedClientes(clientesFormateados);
     }

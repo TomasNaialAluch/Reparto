@@ -36,3 +36,28 @@ export const getLocalISOString = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
+/**
+ * Formatea una fecha string (YYYY-MM-DD) a formato local sin problemas de zona horaria
+ * Evita el problema de que JavaScript interprete las fechas como UTC
+ */
+export const formatDateSafe = (dateString) => {
+  if (!dateString) return '';
+  
+  // Si ya está en formato DD/MM/YYYY, devolverlo tal como está
+  if (dateString.includes('/')) {
+    return dateString;
+  }
+  
+  // Parsear la fecha de forma segura sin problemas de zona horaria
+  const [year, month, day] = dateString.split('-').map(Number);
+  
+  // Crear fecha local directamente con los componentes
+  const date = new Date(year, month - 1, day);
+  
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+

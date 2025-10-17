@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { formatDateSafe } from '../utils/date';
+import { parseCurrencyValue } from '../utils/money';
 
 const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -13,18 +15,22 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
     }).format(value);
   };
 
-  // Función para formatear fecha
+  // Función para formatear fecha (usando la función segura)
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return formatDateSafe(dateString);
   };
 
   // Calcular total de deuda
   const totalDeuda = cliente.saldoFinal || cliente.finalBalance || 0;
+  
+  // Calcular subtotales (igual que en el componente principal)
+  const totalBoletasAmount = cliente.totalBoletas || cliente.boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
+  const totalVentasAmount = cliente.totalVentas || cliente.ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0;
+  const totalPlataAmount = cliente.totalPlata || cliente.plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0;
+  const totalEfectivoAmount = cliente.totalEfectivo || cliente.efectivo?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0;
+  const totalChequeAmount = cliente.totalCheque || cliente.cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0;
+  const totalTransferenciaAmount = cliente.totalTransferencia || cliente.transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0;
+  const totalIngresosAmount = cliente.totalIngresos || (totalVentasAmount + totalPlataAmount + totalEfectivoAmount + totalChequeAmount + totalTransferenciaAmount);
   
   // Contar transacciones
   const totalBoletas = cliente.boletas?.length || 0;
@@ -93,6 +99,35 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                 <div className={`fw-bold ${totalDeuda > 0 ? 'text-danger' : 'text-success'}`}>
                   {totalDeuda > 0 ? 'Deudor' : 'Al día'}
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Subtotales Detallados */}
+          <div className="mb-3">
+            <h6 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Subtotales:</h6>
+            <div className="row text-center">
+              <div className="col-6">
+                <small className="text-muted">Total Boletas</small>
+                <div className="fw-bold text-warning">{formatCurrency(totalBoletasAmount)}</div>
+              </div>
+              <div className="col-6">
+                <small className="text-muted">Total Ingresos</small>
+                <div className="fw-bold text-success">{formatCurrency(totalIngresosAmount)}</div>
+              </div>
+            </div>
+            <div className="row text-center mt-2">
+              <div className="col-4">
+                <small className="text-info">Cheques</small>
+                <div className="text-info fw-bold">{formatCurrency(totalChequeAmount)}</div>
+              </div>
+              <div className="col-4">
+                <small className="text-primary">Efectivo</small>
+                <div className="text-primary fw-bold">{formatCurrency(totalEfectivoAmount)}</div>
+              </div>
+              <div className="col-4">
+                <small className="text-secondary">Transferencias</small>
+                <div className="text-secondary fw-bold">{formatCurrency(totalTransferenciaAmount)}</div>
               </div>
             </div>
           </div>

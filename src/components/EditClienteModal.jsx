@@ -93,15 +93,42 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       return;
     }
 
+    // Filtrar datos válidos
+    const boletasFiltradas = formData.boletas.filter(b => b.date && b.amount);
+    const ventasFiltradas = showSections.ventas ? formData.ventas.filter(v => v.date && v.amount) : [];
+    const plataFiltrada = showSections.plataFavor ? formData.plataFavor.filter(p => p.amount) : [];
+    const efectivoFiltrado = showSections.efectivo ? formData.efectivo.filter(e => e.amount) : [];
+    const chequesFiltrados = showSections.cheques ? formData.cheques.filter(c => c.id && c.amount) : [];
+    const transferenciasFiltradas = showSections.transferencias ? formData.transferencias.filter(t => t.amount) : [];
+
+    // Calcular totales (igual que en el componente principal)
+    const totalBoletas = boletasFiltradas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
+    const totalVentas = ventasFiltradas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0);
+    const totalPlata = plataFiltrada.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+    const totalEfectivo = efectivoFiltrado.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+    const totalCheque = chequesFiltrados.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
+    const totalTransferencia = transferenciasFiltradas.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
+    const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+    const finalBalance = totalBoletas - totalIngresos;
+
     const clienteData = {
       ...formData,
       clientName: formData.clientName.trim(),
-      boletas: formData.boletas.filter(b => b.date && b.amount),
-      ventas: showSections.ventas ? formData.ventas.filter(v => v.date && v.amount) : [],
-      plataFavor: showSections.plataFavor ? formData.plataFavor.filter(p => p.amount) : [],
-      efectivo: showSections.efectivo ? formData.efectivo.filter(e => e.amount) : [],
-      cheques: showSections.cheques ? formData.cheques.filter(c => c.id && c.amount) : [],
-      transferencias: showSections.transferencias ? formData.transferencias.filter(t => t.amount) : []
+      boletas: boletasFiltradas,
+      ventas: ventasFiltradas,
+      plataFavor: plataFiltrada,
+      efectivo: efectivoFiltrado,
+      cheques: chequesFiltrados,
+      transferencias: transferenciasFiltradas,
+      // Agregar todos los totales calculados
+      totalBoletas,
+      totalVentas,
+      totalPlata,
+      totalEfectivo,
+      totalCheque,
+      totalTransferencia,
+      totalIngresos,
+      finalBalance
     };
 
     onSave(cliente.id, clienteData);

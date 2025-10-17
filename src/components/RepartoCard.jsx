@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ConfirmModal from './ConfirmModal';
+import { formatDateSafe } from '../utils/date';
 
 const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -15,14 +16,9 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
     }).format(value);
   };
 
-  // Función para formatear fecha
+  // Función para formatear fecha (usando la función segura)
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
+    return formatDateSafe(dateString);
   };
 
   // Calcular total del reparto (nueva estructura)
