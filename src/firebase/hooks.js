@@ -336,7 +336,8 @@ export const useRepartos = () => {
     addReparto,
     updatePayment,
     deleteReparto,
-    getRepartosByDate
+    getRepartosByDate,
+    updateDocument
   };
 };
 
