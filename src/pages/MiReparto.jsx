@@ -65,6 +65,7 @@ const MiReparto = () => {
 
   // Función para filtrar repartos por fecha
   const getFilteredRepartos = () => {
+    const today = new Date();
     const todayStr = getLocalDateString();
     let filtered = [];
     
