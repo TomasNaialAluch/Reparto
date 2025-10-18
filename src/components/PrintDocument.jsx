@@ -325,12 +325,12 @@ const PrintDocument = ({ data, type, onClose }) => {
 
   const renderTransferenciaContent = () => {
     const { 
-      clientName, 
+      nombreCliente, 
       transferencias, 
-      tickets, 
+      boletas, 
       totalTransferencias,
-      totalTickets,
-      balance
+      totalBoletas,
+      saldoFinal
     } = data;
     
     return (
@@ -344,7 +344,7 @@ const PrintDocument = ({ data, type, onClose }) => {
         </div>
         
         <div className="print-section">
-          <div className="print-section-title">Cliente: {clientName}</div>
+          <div className="print-section-title">Cliente: {nombreCliente}</div>
         </div>
         
         {/* Transferencias */}
@@ -353,7 +353,7 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Transferencias Recibidas:</div>
             {transferencias.map((t, i) => (
               <div key={i} className="print-item">
-                {t.descripcion}: {formatCurrency(parseFloat(t.monto) || 0)}
+                {t.descripcion || `Transferencia ${i + 1}`}: {formatCurrency(parseFloat(t.monto) || 0)}
               </div>
             ))}
             <div className="print-subtotal">
@@ -362,17 +362,17 @@ const PrintDocument = ({ data, type, onClose }) => {
           </div>
         )}
         
-        {/* Tickets */}
-        {tickets && tickets.length > 0 && (
+        {/* Boletas */}
+        {boletas && boletas.length > 0 && (
           <div className="print-section">
-            <div className="print-section-title">Tickets Vendidos:</div>
-            {tickets.map((t, i) => (
+            <div className="print-section-title">Boletas Vendidas:</div>
+            {boletas.map((b, i) => (
               <div key={i} className="print-item">
-                {t.fecha}: {formatCurrency(parseFloat(t.monto) || 0)}
+                Boleta {i + 1} ({b.fecha}): {formatCurrency(parseFloat(b.monto) || 0)}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Tickets: {formatCurrency(totalTickets || 0)}
+              Total Boletas: {formatCurrency(totalBoletas || 0)}
             </div>
           </div>
         )}
@@ -380,13 +380,19 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Balance */}
         <div className="print-section">
           <div className="print-total">
-            Balance Final: {formatCurrency((totalIngresos || (
-              (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
-              (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
-              (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
-              (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
-              (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
-            )) - (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0))}
+            Balance Final: {formatCurrency(saldoFinal || 0)}
+          </div>
+          <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
+            {(() => {
+              const saldo = saldoFinal || 0;
+              if (saldo > 0) {
+                return `Le debes ${formatCurrency(saldo)} a ${nombreCliente}`;
+              } else if (saldo < 0) {
+                return `${nombreCliente} te debe ${formatCurrency(Math.abs(saldo))}`;
+              } else {
+                return 'Las cuentas están saldadas. No hay deudas pendientes.';
+              }
+            })()}
           </div>
         </div>
       </div>
@@ -526,7 +532,7 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Resumen de Ingresos */}
         <div className="print-section">
           <div className="print-subtotal">
-            Total Ingresos: {formatCurrency(totalIngresos || (
+            Total Ingresos: {formatCurrency((
               (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
               (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
               (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
@@ -539,19 +545,19 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Balance Final */}
         <div className="print-section">
           <div className="print-total">
-            Balance Final: {formatCurrency((totalIngresos || (
+            Balance Final: {formatCurrency((
               (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
               (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
               (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
               (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
               (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
-            )) - (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0))}
+            ) - (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0))}
           </div>
           <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
             {(() => {
               const balance = finalBalance || 0;
               const totalBoletasCalc = totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0;
-              const totalIngresosCalc = totalIngresos || (
+              const totalIngresosCalc = (
                 (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
                 (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
                 (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
