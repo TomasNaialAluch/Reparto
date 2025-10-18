@@ -15,6 +15,13 @@ const TransferenciaCard = ({ transferencia, onDelete, onEdit, onPrint }) => {
 
   // Función para formatear fecha
   const formatDate = (dateString) => {
+    // Si la fecha ya está en formato YYYY-MM-DD, usarla directamente
+    if (dateString && dateString.includes('-')) {
+      const [year, month, day] = dateString.split('-');
+      return `${day}/${month}/${year}`;
+    }
+    
+    // Si no, crear la fecha normalmente
     const date = new Date(dateString);
     return date.toLocaleDateString('es-AR', {
       day: '2-digit',
