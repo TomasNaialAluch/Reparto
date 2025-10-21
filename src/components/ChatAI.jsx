@@ -72,8 +72,8 @@ const ChatAI = ({ isOpen, onToggle }) => {
         top: 0,
         height: '100vh',
         width: isOpen ? '400px' : '0px',
-        backgroundColor: '#1e1e1e',
-        borderLeft: '1px solid #333',
+        backgroundColor: '#FAFBFF',
+        borderLeft: '2px solid #A9D6E5',
         transition: 'width 0.3s ease',
         zIndex: 1001,
         display: 'flex',
@@ -86,48 +86,42 @@ const ChatAI = ({ isOpen, onToggle }) => {
         className="chat-header"
         style={{
           padding: '16px 20px',
-          borderBottom: '1px solid #333',
-          backgroundColor: '#2d2d2d',
+          borderBottom: '2px solid #A9D6E5',
+          backgroundColor: '#A9D6E5',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div 
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 'bold'
-            }}
-          >
-            AI
-          </div>
-          <div>
-            <h6 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Asistente IA</h6>
-            <small style={{ color: '#888', fontSize: '12px' }}>Mi Reparto</small>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%' }}>
+          <i className="fas fa-brain" style={{ color: '#fff', fontSize: '18px' }}></i>
+          <span style={{ color: '#fff', fontSize: '16px', fontWeight: '600' }}>AI</span>
         </div>
         <button
           onClick={onToggle}
           style={{
-            background: 'none',
+            background: 'rgba(255,255,255,0.2)',
             border: 'none',
-            color: '#888',
-            fontSize: '18px',
+            color: '#fff',
+            fontSize: '16px',
             cursor: 'pointer',
-            padding: '4px',
-            borderRadius: '4px'
+            padding: '8px',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.2s ease'
           }}
-          onMouseEnter={(e) => e.target.style.color = '#fff'}
-          onMouseLeave={(e) => e.target.style.color = '#888'}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = 'rgba(255,255,255,0.3)';
+            e.target.style.transform = 'scale(1.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = 'rgba(255,255,255,0.2)';
+            e.target.style.transform = 'scale(1)';
+          }}
         >
           ✕
         </button>
@@ -178,8 +172,8 @@ const ChatAI = ({ isOpen, onToggle }) => {
             <div
               style={{
                 maxWidth: '80%',
-                backgroundColor: message.type === 'user' ? '#007bff' : '#2d2d2d',
-                color: '#fff',
+                backgroundColor: message.type === 'user' ? '#A9D6E5' : '#fff',
+                color: message.type === 'user' ? '#333' : '#333',
                 padding: '12px 16px',
                 borderRadius: '18px',
                 fontSize: '14px',
@@ -191,7 +185,7 @@ const ChatAI = ({ isOpen, onToggle }) => {
               <div
                 style={{
                   fontSize: '11px',
-                  color: '#888',
+                  color: '#666',
                   marginTop: '4px',
                   textAlign: message.type === 'user' ? 'right' : 'left'
                 }}
@@ -230,8 +224,8 @@ const ChatAI = ({ isOpen, onToggle }) => {
             </div>
             <div
               style={{
-                backgroundColor: '#2d2d2d',
-                color: '#fff',
+                backgroundColor: '#fff',
+                color: '#333',
                 padding: '12px 16px',
                 borderRadius: '18px',
                 fontSize: '14px'
@@ -243,7 +237,7 @@ const ChatAI = ({ isOpen, onToggle }) => {
                     width: '6px',
                     height: '6px',
                     borderRadius: '50%',
-                    backgroundColor: '#888',
+                    backgroundColor: '#A9D6E5',
                     animation: 'typing 1.4s infinite ease-in-out'
                   }}
                 ></div>
@@ -252,7 +246,7 @@ const ChatAI = ({ isOpen, onToggle }) => {
                     width: '6px',
                     height: '6px',
                     borderRadius: '50%',
-                    backgroundColor: '#888',
+                    backgroundColor: '#A9D6E5',
                     animation: 'typing 1.4s infinite ease-in-out 0.2s'
                   }}
                 ></div>
@@ -261,7 +255,7 @@ const ChatAI = ({ isOpen, onToggle }) => {
                     width: '6px',
                     height: '6px',
                     borderRadius: '50%',
-                    backgroundColor: '#888',
+                    backgroundColor: '#A9D6E5',
                     animation: 'typing 1.4s infinite ease-in-out 0.4s'
                   }}
                 ></div>
@@ -278,8 +272,8 @@ const ChatAI = ({ isOpen, onToggle }) => {
         className="chat-input"
         style={{
           padding: '16px 20px',
-          borderTop: '1px solid #333',
-          backgroundColor: '#2d2d2d'
+          borderTop: '2px solid #A9D6E5',
+          backgroundColor: '#A9D6E5'
         }}
       >
         <form onSubmit={handleSendMessage}>
@@ -292,27 +286,27 @@ const ChatAI = ({ isOpen, onToggle }) => {
               placeholder="Escribe tu mensaje..."
               style={{
                 flex: 1,
-                backgroundColor: '#1e1e1e',
-                border: '1px solid #444',
+                backgroundColor: '#fff',
+                border: '2px solid #A9D6E5',
                 borderRadius: '20px',
                 padding: '12px 16px',
-                color: '#fff',
+                color: '#333',
                 fontSize: '14px',
                 outline: 'none'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#007bff'}
-              onBlur={(e) => e.target.style.borderColor = '#444'}
+              onFocus={(e) => e.target.style.borderColor = '#A9D6E5'}
+              onBlur={(e) => e.target.style.borderColor = '#A9D6E5'}
             />
             <button
               type="submit"
               disabled={!inputMessage.trim()}
               style={{
-                backgroundColor: inputMessage.trim() ? '#007bff' : '#444',
+                backgroundColor: inputMessage.trim() ? '#A9D6E5' : '#ccc',
                 border: 'none',
                 borderRadius: '50%',
                 width: '40px',
                 height: '40px',
-                color: 'white',
+                color: '#333',
                 cursor: inputMessage.trim() ? 'pointer' : 'not-allowed',
                 display: 'flex',
                 alignItems: 'center',
