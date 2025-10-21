@@ -1,4 +1,4 @@
-# 🤖 AI Assistant - Documentación Técnica
+1# 🤖 AI Assistant - Documentación Técnica
 
 ## 📋 **Resumen del Proyecto**
 

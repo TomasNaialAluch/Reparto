@@ -4,10 +4,12 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Components
 import Navbar from './components/Navbar';
+import NavbarAI from './components/NavbarAI';
 import Login from './components/Login';
 
 // Pages
 import Home from './pages/Home';
+import HomeAI from './pages/HomeAI';
 import MiReparto from './pages/MiReparto';
 import SaldoClientes from './pages/SaldoClientes';
 import Transferencias from './pages/Transferencias';
@@ -69,6 +71,13 @@ const AppContent = () => {
       <div className="App">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/home-ai" element={<HomeAI />} />
+          <Route path="/mi-reparto" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <MiReparto />
+            </div>
+          } />
           <Route path="/reparto" element={
             <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
               <Navbar />

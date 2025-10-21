@@ -39,6 +39,12 @@ const Home = () => {
     }
   ];
 
+  const homeAIButton = {
+    path: '/home-ai',
+    label: 'Home AI',
+    isSpecial: true
+  };
+
   return (
         <div style={{
           fontFamily: "'Montserrat', sans-serif",
@@ -192,6 +198,40 @@ const Home = () => {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Botón especial Home AI */}
+        <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <Link
+            to={homeAIButton.path}
+            style={{
+              textDecoration: 'none',
+              color: '#fff',
+              background: 'linear-gradient(135deg, #A9D6E5, #90C3D4)',
+              padding: '1.2rem 3rem',
+              borderRadius: '50px',
+              fontSize: '1.6rem',
+              fontWeight: '700',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 6px 20px rgba(169, 214, 229, 0.3)',
+              display: 'inline-block',
+              cursor: 'pointer',
+              border: '3px solid transparent',
+              backgroundClip: 'padding-box'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-5px) scale(1.05)';
+              e.target.style.boxShadow = '0 10px 30px rgba(169, 214, 229, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0) scale(1)';
+              e.target.style.boxShadow = '0 6px 20px rgba(169, 214, 229, 0.3)';
+            }}
+          >
+            <i className="fas fa-brain me-3"></i>
+            {homeAIButton.label}
+            <i className="fas fa-arrow-right ms-3"></i>
+          </Link>
         </div>
 
         {/* Animación CSS */}
