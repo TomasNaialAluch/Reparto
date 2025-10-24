@@ -176,6 +176,13 @@ const SaldoClientes = () => {
         totalIngresos: dataWithTotals.totalIngresos,
         finalBalance: dataWithTotals.finalBalance
       });
+
+      // Actualizar el estado local para reflejar los cambios inmediatamente
+      setSavedClientes(prev => prev.map(cliente => 
+        cliente.id === clienteId 
+          ? { ...cliente, ...dataWithTotals }
+          : cliente
+      ));
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
     }

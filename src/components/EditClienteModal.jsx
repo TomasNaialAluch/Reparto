@@ -118,7 +118,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       chequesFiltrados: chequesFiltrados.length,
       totalCheque,
       totalIngresos,
-      finalBalance
+      finalBalance,
+      plataFiltrada: plataFiltrada.length,
+      totalPlata,
+      efectivoFiltrado: efectivoFiltrado.length,
+      totalEfectivo,
+      transferenciasFiltradas: transferenciasFiltradas.length,
+      totalTransferencia
     });
 
     const clienteData = {
@@ -140,6 +146,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       totalIngresos,
       finalBalance
     };
+
+    console.log('📤 Modal - Datos enviados a onSave:', {
+      clienteId: cliente.id,
+      clienteData: clienteData,
+      plataFavor: clienteData.plataFavor,
+      totalPlata: clienteData.totalPlata
+    });
 
     onSave(cliente.id, clienteData);
     onClose();
@@ -332,6 +345,77 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addTransferencia}>Agregar Transferencia</button>
                 </div>
               )}
+            </div>
+
+            {/* Resumen del Balance */}
+            <div className="card mt-3">
+              <div className="card-header bg-info text-white">
+                <h6 className="mb-0">Resumen del Balance</h6>
+              </div>
+              <div className="card-body">
+                {(() => {
+                  // Calcular totales en tiempo real
+                  const totalBoletas = formData.boletas
+                    .filter(b => b.date && b.amount)
+                    .reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
+                  
+                  const totalVentas = showSections.ventas ? 
+                    formData.ventas
+                      .filter(v => v.date && v.amount)
+                      .reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) : 0;
+                  
+                  const totalPlata = showSections.plataFavor ? 
+                    formData.plataFavor
+                      .filter(p => p.amount)
+                      .reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) : 0;
+                  
+                  const totalEfectivo = showSections.efectivo ? 
+                    formData.efectivo
+                      .filter(e => e.amount)
+                      .reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) : 0;
+                  
+                  const totalCheque = showSections.cheques ? 
+                    formData.cheques
+                      .filter(c => c.id && c.amount)
+                      .reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) : 0;
+                  
+                  const totalTransferencia = showSections.transferencias ? 
+                    formData.transferencias
+                      .filter(t => t.amount)
+                      .reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) : 0;
+                  
+                  const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+                  const finalBalance = totalBoletas - totalIngresos;
+
+                  return (
+                    <div>
+                      <div className="row">
+                        <div className="col-6">
+                          <p><strong>Total Boletas:</strong> {formatCurrency(totalBoletas)}</p>
+                        </div>
+                        <div className="col-6">
+                          <p><strong>Total Ingresos:</strong> {formatCurrency(totalIngresos)}</p>
+                        </div>
+                      </div>
+                      <div className="row">
+                        <div className="col-12">
+                          <div className={`alert ${finalBalance > 0 ? 'alert-warning' : finalBalance < 0 ? 'alert-success' : 'alert-info'}`}>
+                            <strong>Balance Final: {formatCurrency(Math.abs(finalBalance))}</strong>
+                            <br />
+                            {finalBalance > 0 ? (
+                              <span>{formData.clientName || 'El cliente'} te debe {formatCurrency(finalBalance)}</span>
+                            ) : finalBalance < 0 ? (
+                              <span>Tú le debes {formatCurrency(Math.abs(finalBalance))} a {formData.clientName || 'el cliente'}</span>
+                            ) : (
+                              <span>Las cuentas están saldadas</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           </div>
           
