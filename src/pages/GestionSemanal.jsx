@@ -725,11 +725,24 @@ export default function GestionSemanal() {
   });
 
   const [formAdelanto, setFormAdelanto] = useState({
-    empleado: 'Jorge',
+    empleado: '',
     dia: 'Lunes',
     monto: '',
     descripcion: ''
   });
+
+  // Efecto para actualizar el empleado seleccionado cuando se cargan empleados
+  useEffect(() => {
+    if (semanaActiva?.empleados && semanaActiva.empleados.length > 0) {
+      // Si no hay empleado seleccionado o el empleado seleccionado no existe, seleccionar el primero
+      if (!formAdelanto.empleado || !semanaActiva.empleados.find(emp => emp.nombre === formAdelanto.empleado)) {
+        setFormAdelanto(prev => ({
+          ...prev,
+          empleado: semanaActiva.empleados[0].nombre
+        }));
+      }
+    }
+  }, [semanaActiva?.empleados]);
 
   const handleAgregarEmpleado = async () => {
     try {
@@ -774,7 +787,7 @@ export default function GestionSemanal() {
       });
 
       setFormAdelanto({
-        empleado: semanaActiva?.empleados && semanaActiva.empleados.length > 0 ? semanaActiva.empleados[0].nombre : 'Jorge',
+        empleado: formAdelanto.empleado, // Mantener el empleado seleccionado
         dia: 'Lunes',
         monto: '',
         descripcion: ''

@@ -8,9 +8,17 @@ const DollarAI = () => {
   useEffect(() => {
     const fetchDollar = async () => {
       try {
+        console.log('🔄 Intentando obtener datos del dólar...');
         // API gratuita del dólar argentino
         const response = await fetch('https://api.bluelytics.com.ar/v2/latest');
+        console.log('📡 Respuesta de la API:', response.status);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
+        console.log('💰 Datos recibidos:', data);
         
         if (data && data.oficial && data.mep) {
           setDollarData({
@@ -30,6 +38,7 @@ const DollarAI = () => {
             }
           });
         } else {
+          console.log('⚠️ Datos incompletos de la API, usando fallback');
           // Fallback con datos simulados si la API falla
           setDollarData({
             oficial: {
@@ -44,9 +53,10 @@ const DollarAI = () => {
             }
           });
         }
+        console.log('✅ Datos del dólar cargados exitosamente');
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching dollar data:', error);
+        console.error('❌ Error fetching dollar data:', error);
         // Fallback con datos simulados
         setDollarData({
           oficial: {
