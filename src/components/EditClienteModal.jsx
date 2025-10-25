@@ -82,10 +82,10 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   // Funciones específicas para cada tipo
   const addBoleta = () => addItem('boletas', { date: getLocalDateString(), amount: '' });
   const addVenta = () => addItem('ventas', { date: getLocalDateString(), amount: '' });
-  const addPlataFavor = () => addItem('plataFavor', { amount: '' });
-  const addEfectivo = () => addItem('efectivo', { amount: '' });
-  const addCheque = () => addItem('cheques', { id: '', amount: '' });
-  const addTransferencia = () => addItem('transferencias', { amount: '' });
+  const addPlataFavor = () => addItem('plataFavor', { date: getLocalDateString(), amount: '' });
+  const addEfectivo = () => addItem('efectivo', { date: getLocalDateString(), amount: '' });
+  const addCheque = () => addItem('cheques', { date: getLocalDateString(), id: '', amount: '' });
+  const addTransferencia = () => addItem('transferencias', { date: getLocalDateString(), amount: '' });
 
   const handleSave = () => {
     if (!formData.clientName.trim()) {
@@ -108,27 +108,11 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     const totalEfectivo = efectivoFiltrado.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
     const totalCheque = chequesFiltrados.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
     const totalTransferencia = transferenciasFiltradas.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
-    const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    const finalBalance = totalBoletas - totalIngresos;
+    const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+    const finalBalance = totalPagos - totalBoletas;
 
-    // Debug: Log de los cálculos
-    console.log('🔍 Modal - Cálculos realizados:', {
-      boletasFiltradas: boletasFiltradas.length,
-      totalBoletas,
-      chequesFiltrados: chequesFiltrados.length,
-      totalCheque,
-      totalIngresos,
-      finalBalance,
-      plataFiltrada: plataFiltrada.length,
-      totalPlata,
-      efectivoFiltrado: efectivoFiltrado.length,
-      totalEfectivo,
-      transferenciasFiltradas: transferenciasFiltradas.length,
-      totalTransferencia
-    });
 
     const clienteData = {
-      ...formData,
       clientName: formData.clientName.trim(),
       boletas: boletasFiltradas,
       ventas: ventasFiltradas,
@@ -143,16 +127,11 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       totalEfectivo,
       totalCheque,
       totalTransferencia,
-      totalIngresos,
-      finalBalance
+      totalIngresos: totalPagos,
+      finalBalance,
+      date: getLocalDateString()
     };
 
-    console.log('📤 Modal - Datos enviados a onSave:', {
-      clienteId: cliente.id,
-      clienteData: clienteData,
-      plataFavor: clienteData.plataFavor,
-      totalPlata: clienteData.totalPlata
-    });
 
     onSave(cliente.id, clienteData);
     onClose();
@@ -254,12 +233,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
               </div>
               {showSections.plataFavor && (
                 <div className="mt-2">
-                  {formData.plataFavor.map((item, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('plataFavor', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('plataFavor', index)}>×</button>
-                    </div>
-                  ))}
+              {formData.plataFavor.map((item, index) => (
+                <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                  <input type="date" className="form-control" value={item.date} onChange={(e) => updateItem('plataFavor', index, 'date', e.target.value)} />
+                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('plataFavor', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('plataFavor', index)}>×</button>
+                </div>
+              ))}
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addPlataFavor}>Agregar Plata a Favor</button>
                 </div>
               )}
@@ -281,12 +261,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
               </div>
               {showSections.efectivo && (
                 <div className="mt-2">
-                  {formData.efectivo.map((item, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('efectivo', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('efectivo', index)}>×</button>
-                    </div>
-                  ))}
+              {formData.efectivo.map((item, index) => (
+                <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                  <input type="date" className="form-control" value={item.date} onChange={(e) => updateItem('efectivo', index, 'date', e.target.value)} />
+                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('efectivo', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('efectivo', index)}>×</button>
+                </div>
+              ))}
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addEfectivo}>Agregar Efectivo</button>
                 </div>
               )}
@@ -308,13 +289,14 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
               </div>
               {showSections.cheques && (
                 <div className="mt-2">
-                  {formData.cheques.map((cheque, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateItem('cheques', index, 'id', e.target.value)} />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateItem('cheques', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('cheques', index)}>×</button>
-                    </div>
-                  ))}
+              {formData.cheques.map((cheque, index) => (
+                <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                  <input type="date" className="form-control" value={cheque.date} onChange={(e) => updateItem('cheques', index, 'date', e.target.value)} />
+                  <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateItem('cheques', index, 'id', e.target.value)} />
+                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateItem('cheques', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('cheques', index)}>×</button>
+                </div>
+              ))}
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addCheque}>Agregar Cheque</button>
                 </div>
               )}
@@ -336,12 +318,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
               </div>
               {showSections.transferencias && (
                 <div className="mt-2">
-                  {formData.transferencias.map((transfer, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateItem('transferencias', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('transferencias', index)}>×</button>
-                    </div>
-                  ))}
+              {formData.transferencias.map((transfer, index) => (
+                <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                  <input type="date" className="form-control" value={transfer.date} onChange={(e) => updateItem('transferencias', index, 'date', e.target.value)} />
+                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateItem('transferencias', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('transferencias', index)}>×</button>
+                </div>
+              ))}
                   <button type="button" className="btn btn-secondary btn-sm" onClick={addTransferencia}>Agregar Transferencia</button>
                 </div>
               )}
@@ -384,8 +367,8 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                       .filter(t => t.amount)
                       .reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) : 0;
                   
-                  const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-                  const finalBalance = totalBoletas - totalIngresos;
+                  const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+                  const finalBalance = totalPagos - totalBoletas;
 
                   return (
                     <div>
@@ -394,7 +377,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                           <p><strong>Total Boletas:</strong> {formatCurrency(totalBoletas)}</p>
                         </div>
                         <div className="col-6">
-                          <p><strong>Total Ingresos:</strong> {formatCurrency(totalIngresos)}</p>
+                          <p><strong>Total Pagos:</strong> {formatCurrency(totalPagos)}</p>
                         </div>
                       </div>
                       <div className="row">

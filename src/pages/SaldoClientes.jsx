@@ -98,7 +98,6 @@ const SaldoClientes = () => {
     try {
       if (clienteId) {
         await deleteBalance(clienteId);
-        console.log('✅ Cliente eliminado de Firebase:', clienteId);
       }
       // El estado local se actualizará automáticamente por el listener de Firebase
     } catch (error) {
@@ -146,18 +145,16 @@ const SaldoClientes = () => {
   // Actualizar cliente
   const updateCliente = async (clienteId, updatedData) => {
     try {
-      // Debug: Log de los datos recibidos del modal
-      console.log('🔍 updateCliente - Datos recibidos del modal:', {
-        totalBoletas: updatedData.totalBoletas,
-        totalIngresos: updatedData.totalIngresos,
-        finalBalance: updatedData.finalBalance,
-        boletasCount: updatedData.boletas?.length,
-        chequesCount: updatedData.cheques?.length
-      });
 
-      // Asegurar que todos los totales calculados se guarden en Firebase
+      // Mapear datos del modal al formato de Firebase
       const dataWithTotals = {
-        ...updatedData,
+        clientName: updatedData.clientName,
+        boletas: updatedData.boletas || [],
+        ventas: updatedData.ventas || [],
+        plataFavor: updatedData.plataFavor || [],
+        efectivo: updatedData.efectivo || [],
+        cheques: updatedData.cheques || [],
+        transferencias: updatedData.transferencias || [],
         // Incluir todos los totales calculados por el modal
         totalBoletas: updatedData.totalBoletas || 0,
         totalVentas: updatedData.totalVentas || 0,
@@ -166,16 +163,14 @@ const SaldoClientes = () => {
         totalCheque: updatedData.totalCheque || 0,
         totalTransferencia: updatedData.totalTransferencia || 0,
         totalIngresos: updatedData.totalIngresos || 0,
-        finalBalance: updatedData.finalBalance || (updatedData.totalBoletas - updatedData.totalIngresos)
+        finalBalance: updatedData.finalBalance || (updatedData.totalIngresos - updatedData.totalBoletas),
+        date: updatedData.date || getLocalDateString()
       };
 
       await updateBalance(clienteId, dataWithTotals);
-      console.log('✅ Cliente actualizado en Firebase:', clienteId, 'Saldo final:', dataWithTotals.finalBalance);
-      console.log('📊 Totales guardados:', {
-        totalBoletas: dataWithTotals.totalBoletas,
-        totalIngresos: dataWithTotals.totalIngresos,
-        finalBalance: dataWithTotals.finalBalance
-      });
+
+      // Mostrar notificación de éxito
+      showSuccess('✓ Cliente actualizado exitosamente');
 
       // Actualizar el estado local para reflejar los cambios inmediatamente
       setSavedClientes(prev => prev.map(cliente => 
@@ -185,6 +180,7 @@ const SaldoClientes = () => {
       ));
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
+      showError('Error al actualizar el cliente: ' + error.message);
     }
   };
 
@@ -345,8 +341,8 @@ const SaldoClientes = () => {
     const totalEfectivo = efectivo.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
     const totalCheque = cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
     const totalTransferencia = transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
-    const totalIngresos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    const finalBalance = totalBoletas - totalIngresos;
+    const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+    const finalBalance = totalPagos - totalBoletas;
 
     setSummaryData({
       clientName,
@@ -362,7 +358,7 @@ const SaldoClientes = () => {
       totalEfectivo,
       totalCheque,
       totalTransferencia,
-      totalIngresos,
+      totalIngresos: totalPagos,
       finalBalance,
     });
     setShowSummary(true);
@@ -393,7 +389,7 @@ const SaldoClientes = () => {
         const totalCheque = balance.totalCheque || balance.cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0;
         const totalTransferencia = balance.totalTransferencia || balance.transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0;
         const totalIngresos = balance.totalIngresos || (totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia);
-        const finalBalance = balance.finalBalance || (totalBoletas - totalIngresos);
+        const finalBalance = balance.finalBalance || (totalIngresos - totalBoletas);
 
         return {
           id: balance.id,
@@ -401,18 +397,19 @@ const SaldoClientes = () => {
           fecha: balance.date,
           boletas: balance.boletas || [],
           ventas: balance.ventas || [],
+          plataFavor: balance.plataFavor || [],
           efectivo: balance.efectivo || [],
           cheques: balance.cheques || [],
           transferencias: balance.transferencias || [],
-          saldoFinal: finalBalance,
+          saldoFinal: balance.finalBalance || finalBalance,
           // Agregar todos los totales calculados
-          totalBoletas,
-          totalVentas,
-          totalPlata,
-          totalEfectivo,
-          totalCheque,
-          totalTransferencia,
-          totalIngresos
+          totalBoletas: balance.totalBoletas || totalBoletas,
+          totalVentas: balance.totalVentas || totalVentas,
+          totalPlata: balance.totalPlata || totalPlata,
+          totalEfectivo: balance.totalEfectivo || totalEfectivo,
+          totalCheque: balance.totalCheque || totalCheque,
+          totalTransferencia: balance.totalTransferencia || totalTransferencia,
+          totalIngresos: balance.totalIngresos || totalIngresos
         };
       });
       setSavedClientes(clientesFormateados);
@@ -633,7 +630,7 @@ const SaldoClientes = () => {
               )}
 
               <div className="print-subtotal">
-                <p><strong>Total de Ingresos del Usuario:</strong> {formatCurrency(summaryData?.totalIngresos || 0)}</p>
+                <p><strong>Total de Pagos del Usuario:</strong> {formatCurrency(summaryData?.totalIngresos || 0)}</p>
               </div>
 
               {summaryData && (

@@ -24,7 +24,6 @@ export const useFirestore = (collectionName) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  console.log(`🔄 useFirestore inicializado para colección: ${collectionName}`);
 
   // Función para generar ID basado en fecha
   const generateDateBasedId = async (date) => {
@@ -61,21 +60,14 @@ export const useFirestore = (collectionName) => {
   // Función para agregar documento (usa ID automático por defecto)
   const addDocument = async (data, customId = null) => {
     try {
-      console.log(`📝 Intentando agregar documento a colección: ${collectionName}`, data);
-      console.log('🔥 ===== FIREBASE addDocument =====');
-      console.log('📅 Fecha específica que se guarda:', data.date);
-      console.log('📅 Tipo de fecha:', typeof data.date);
-      console.log('📅 Fecha actual del sistema:', new Date().toLocaleDateString('es-AR'));
       
       if (customId) {
         const customRef = doc(db, collectionName, customId);
         await setDoc(customRef, { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-        console.log(`✅ Documento agregado con ID personalizado: ${customId}`);
         return customId;
       }
 
       const ref = await addDoc(collection(db, collectionName), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      console.log(`✅ Documento agregado exitosamente con ID: ${ref.id}`);
       return ref.id;
     } catch (error) {
       console.error(`❌ Error al agregar documento a ${collectionName}:`, error);
@@ -87,11 +79,6 @@ export const useFirestore = (collectionName) => {
   // Función para actualizar documento
   const updateDocument = async (docId, data) => {
     try {
-      console.log('🔍 updateDocument - Intentando actualizar:', {
-        collectionName,
-        docId,
-        data: Object.keys(data)
-      });
       
       // Verificar que el documento existe
       const docRef = doc(db, collectionName, docId);
@@ -102,14 +89,10 @@ export const useFirestore = (collectionName) => {
         throw new Error(`Documento ${docId} no existe en la colección ${collectionName}`);
       }
       
-      console.log('✅ updateDocument - Documento existe, actualizando...');
-      
       await updateDoc(docRef, {
         ...data,
         updatedAt: serverTimestamp()
       });
-      
-      console.log('✅ updateDocument - Documento actualizado exitosamente');
     } catch (error) {
       console.error('❌ updateDocument - Error:', error);
       setError(error.message);
@@ -201,7 +184,6 @@ export const useFirestoreRealtime = (collectionName) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    console.log(`🔄 Iniciando listener para colección: ${collectionName}`);
     
     try {
       // Consulta simple sin orderBy para evitar necesidad de índices
@@ -209,7 +191,6 @@ export const useFirestoreRealtime = (collectionName) => {
       
       const unsubscribe = onSnapshot(collectionRef, 
         (querySnapshot) => {
-          console.log(`📦 Snapshot recibido para ${collectionName}:`, querySnapshot.docs.length, 'documentos');
           const docs = [];
           querySnapshot.forEach((doc) => {
             docs.push({
@@ -238,7 +219,6 @@ export const useFirestoreRealtime = (collectionName) => {
       );
 
       return () => {
-        console.log(`🛑 Desconectando listener de ${collectionName}`);
         unsubscribe();
       };
     } catch (error) {
@@ -286,8 +266,6 @@ export const useRepartos = () => {
         createdAt: new Date().toISOString()
       });
 
-      // Log único para verificar la fecha
-      console.log('📅 REPARTO GUARDADO - Fecha del programa:', repartoCompleto.date, '| Fecha guardada en Firebase:', repartoCompleto.date);
       
       return repartoId;
     } catch (error) {
@@ -484,7 +462,6 @@ export const useAsistentePreferences = () => {
           ...preferences,
           lastUpdated: new Date().toISOString()
         });
-        console.log('✅ Preferencias actualizadas');
       } else {
         // Crear nuevo documento
         await addDocument({
@@ -493,7 +470,6 @@ export const useAsistentePreferences = () => {
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString()
         });
-        console.log('✅ Preferencias creadas');
       }
     } catch (error) {
       console.error('Error guardando preferencias:', error);
@@ -519,7 +495,6 @@ export const useAsistenteMessages = () => {
   const { addDocument, updateDocument, deleteDocument, getDocumentsByField } = useFirestore('asistente_mensajes');
 
   const addMessage = async (data) => {
-    console.log('💾 Guardando mensaje en Firebase:', data);
     const result = await addDocument({
       userId: 'shared', // Todos los usuarios comparten los mensajes
       userInput: data.userInput,
@@ -533,12 +508,10 @@ export const useAsistenteMessages = () => {
       isEdited: false,
       editedMessage: null
     });
-    console.log('✅ Mensaje guardado con ID:', result);
     return result;
   };
 
   const updateMessage = async (messageId, data) => {
-    console.log('📝 Actualizando mensaje:', messageId, data);
     return await updateDocument(messageId, {
       ...data,
       lastEdited: new Date().toISOString()
@@ -553,7 +526,6 @@ export const useAsistenteMessages = () => {
   const userMessages = documents
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-  console.log('📨 Mensajes cargados:', userMessages.length, userMessages);
 
   return {
     messages: userMessages,
@@ -587,7 +559,6 @@ export const useAsistenteUsage = () => {
       if (userUsage) {
         // Actualizar límite si es el viejo (50) al nuevo (1500)
         if (userUsage.maxMessages === 50) {
-          console.log('🔄 Actualizando límite de 50 a 1,500 mensajes');
           await updateDocument(userUsage.id, {
             maxMessages: 1500
           });
@@ -1111,7 +1082,6 @@ export const useGestionSemanal = (userId) => {
           ...configuraciones,
           lastUpdated: new Date().toISOString()
         });
-        console.log('✅ Configuraciones actualizadas');
       } else {
         // Crear nuevo documento
         await addDoc(collection(db, 'user_configs'), {
@@ -1120,7 +1090,6 @@ export const useGestionSemanal = (userId) => {
           createdAt: new Date().toISOString(),
           lastUpdated: new Date().toISOString()
         });
-        console.log('✅ Configuraciones creadas');
       }
     } catch (error) {
       console.error('Error guardando configuraciones:', error);

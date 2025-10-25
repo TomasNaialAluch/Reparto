@@ -1,8 +1,35 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/money';
 
 const PrintDocument = ({ data, type, onClose }) => {
   const printRef = useRef();
+  const modalBodyRef = useRef();
+  const [showTopIndicator, setShowTopIndicator] = useState(false);
+  const [showBottomIndicator, setShowBottomIndicator] = useState(true);
+
+  useEffect(() => {
+    const modalBody = modalBodyRef.current;
+    if (!modalBody) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = modalBody;
+      
+      // Mostrar indicador superior solo si no está en la parte superior
+      setShowTopIndicator(scrollTop > 10);
+      
+      // Mostrar indicador inferior solo si no está en la parte inferior
+      setShowBottomIndicator(scrollTop < scrollHeight - clientHeight - 10);
+    };
+
+    modalBody.addEventListener('scroll', handleScroll);
+    
+    // Verificar estado inicial
+    handleScroll();
+
+    return () => {
+      modalBody.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const getStylesForType = (printType) => {
     // Estilos por defecto para todas las impresiones
@@ -529,10 +556,10 @@ const PrintDocument = ({ data, type, onClose }) => {
           </div>
         )}
 
-        {/* Resumen de Ingresos */}
+        {/* Resumen de Pagos */}
         <div className="print-section">
           <div className="print-subtotal">
-            Total Ingresos: {formatCurrency((
+            Total Pagos: {formatCurrency((
               (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
               (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
               (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
@@ -546,12 +573,12 @@ const PrintDocument = ({ data, type, onClose }) => {
         <div className="print-section">
           <div className="print-total">
             Balance Final: {formatCurrency((
-              (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0) -
               ((ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
                (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
                (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
                (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
-               (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0))
+               (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)) -
+              (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0)
             ))}
           </div>
           <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
@@ -566,8 +593,8 @@ const PrintDocument = ({ data, type, onClose }) => {
                 (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
               );
               
-              // Balance correcto: totalBoletas - totalIngresos (Cliente debe si es positivo)
-              const balanceCorrecto = totalBoletasCalc - totalIngresosCalc;
+              // Balance correcto: totalIngresos - totalBoletas (Tito debe si es positivo)
+              const balanceCorrecto = totalIngresosCalc - totalBoletasCalc;
               
               if (balanceCorrecto > 0) {
                 return `${clientName} te debe ${formatCurrency(balanceCorrecto)}`;
@@ -579,6 +606,7 @@ const PrintDocument = ({ data, type, onClose }) => {
             })()}
           </div>
         </div>
+        
       </div>
     );
   };
@@ -773,19 +801,53 @@ const PrintDocument = ({ data, type, onClose }) => {
   };
 
   return (
-    <div className="modal fade show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
+    <div 
+      className="modal fade show" 
+      style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+      onClick={onClose}
+    >
+      <div 
+        className="modal-dialog modal-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-content">
           <div className="modal-header">
             <h5 className="modal-title">Vista Previa de Impresión</h5>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
-          <div className="modal-body" style={{ maxHeight: '60vh', overflow: 'auto' }}>
+          <div ref={modalBodyRef} className="modal-body position-relative" style={{ maxHeight: '60vh', overflow: 'auto', borderBottom: showBottomIndicator ? '3px solid #007bff' : 'none' }}>
+            {/* Indicador de scroll superior */}
+            {showTopIndicator && (
+              <div className="scroll-indicator-top position-absolute top-0 start-50 translate-middle-x bg-primary text-white px-3 py-1 rounded-pill" style={{ fontSize: '0.8rem', zIndex: 10 }}>
+                <i className="fas fa-chevron-up me-1"></i>
+                Scroll hacia arriba
+              </div>
+            )}
+            
+            {/* Indicador de scroll inferior */}
+            {showBottomIndicator && (
+              <div className="scroll-indicator-bottom position-absolute bottom-0 start-50 translate-middle-x bg-primary text-white px-3 py-1 rounded-pill" style={{ fontSize: '0.8rem', zIndex: 10 }}>
+                <i className="fas fa-chevron-down me-1"></i>
+                Scroll hacia abajo para ver más
+              </div>
+            )}
+            
             {type === 'reparto' ? renderRepartoContent() : 
              type === 'transferencia' ? renderTransferenciaContent() : 
              type === 'empleados' ? renderEmpleadosContent() :
              type === 'empleado' ? renderEmpleadoContent() :
              renderSaldoContent()}
+          </div>
+          
+          {/* Mensaje de advertencia solo para la vista previa, no se imprime */}
+          <div className="alert alert-info mt-3" style={{ textAlign: 'center', margin: '10px 15px' }}>
+            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
+              <i className="fas fa-info-circle me-2"></i>
+              IMPORTANTE: Asegúrate de ver todo el resumen completo
+            </div>
+            <div style={{ fontSize: '12px', marginTop: '5px' }}>
+              Si no ves todas las secciones, haz scroll hacia arriba para ver el detalle completo
+            </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>

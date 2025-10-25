@@ -20,8 +20,13 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
     return formatDateSafe(dateString);
   };
 
-  // Calcular total de deuda
+  // Calcular total de deuda (balance final)
   const totalDeuda = cliente.saldoFinal || cliente.finalBalance || 0;
+  
+  // Determinar si es a favor o en contra
+  // Si totalDeuda > 0: Tito te debe (a tu favor) = Verde
+  // Si totalDeuda < 0: Tú le debes a Tito (en contra) = Rojo
+  const esAFavor = totalDeuda > 0;
   
   // Calcular subtotales (igual que en el componente principal)
   const totalBoletasAmount = cliente.totalBoletas || cliente.boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
@@ -60,9 +65,14 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
             </small>
           </div>
           <div className="d-flex align-items-center">
-            <span className={`badge ${totalDeuda > 0 ? 'bg-danger' : 'bg-success'} me-2`}>
-              {formatCurrency(totalDeuda)}
-            </span>
+            <div className="text-end me-2">
+              <div className={`badge ${esAFavor ? 'bg-success' : 'bg-danger'} mb-1`}>
+                {formatCurrency(Math.abs(totalDeuda))}
+              </div>
+              <div className="small text-muted">
+                {esAFavor ? 'A tu favor' : 'Te debe'}
+              </div>
+            </div>
             <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: '0.8rem' }}></i>
           </div>
         </div>
@@ -75,9 +85,9 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
           <div className="mb-3">
             <div className="row text-center">
               <div className="col-6">
-                <small className="text-muted">Total Deuda</small>
-                <div className={`fw-bold ${totalDeuda > 0 ? 'text-danger' : 'text-success'}`}>
-                  {formatCurrency(totalDeuda)}
+                <small className="text-muted">Balance Final</small>
+                <div className={`fw-bold ${esAFavor ? 'text-success' : 'text-danger'}`}>
+                  {formatCurrency(Math.abs(totalDeuda))}
                 </div>
               </div>
               <div className="col-6">
@@ -96,8 +106,8 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
               </div>
               <div className="col-4">
                 <small className="text-muted">Estado</small>
-                <div className={`fw-bold ${totalDeuda > 0 ? 'text-danger' : 'text-success'}`}>
-                  {totalDeuda > 0 ? 'Deudor' : 'Al día'}
+                <div className={`fw-bold ${esAFavor ? 'text-success' : 'text-danger'}`}>
+                  {esAFavor ? 'A tu favor' : 'Te debe'}
                 </div>
               </div>
             </div>
@@ -159,6 +169,17 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                 </div>
               ))}
 
+              {/* Plata a Favor */}
+              {cliente.plataFavor?.map((pago, index) => (
+                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
+                  <div>
+                    <small className="fw-bold text-success">💰 Plata a Favor</small>
+                    <br />
+                    <small className="text-muted">{pago.date} - {formatCurrency(pago.amount)}</small>
+                  </div>
+                </div>
+              ))}
+
               {/* Efectivo */}
               {cliente.efectivo?.map((pago, index) => (
                 <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
@@ -192,7 +213,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                 </div>
               ))}
 
-              {(!cliente.boletas?.length && !cliente.ventas?.length && !cliente.efectivo?.length && !cliente.cheques?.length && !cliente.transferencias?.length) && (
+              {(!cliente.boletas?.length && !cliente.ventas?.length && !cliente.plataFavor?.length && !cliente.efectivo?.length && !cliente.cheques?.length && !cliente.transferencias?.length) && (
                 <div className="text-center text-muted py-2">
                   <small>No hay transacciones registradas</small>
                 </div>

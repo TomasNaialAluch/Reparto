@@ -61,6 +61,13 @@ const MiddleNavbarAI = ({ onToggleChat, isChatOpen }) => {
       }}>
         <button
           onClick={onToggleChat}
+          onTouchStart={(e) => {
+            // Solo prevenir si no es un evento pasivo
+            if (e.cancelable) {
+              e.preventDefault();
+            }
+            onToggleChat();
+          }}
           style={{
             background: isChatOpen ? '#fff' : 'transparent',
             border: 'none',
@@ -74,7 +81,15 @@ const MiddleNavbarAI = ({ onToggleChat, isChatOpen }) => {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            boxShadow: isChatOpen ? 'inset 0 2px 4px rgba(0,0,0,0.1)' : 'none'
+            boxShadow: isChatOpen ? 'inset 0 2px 4px rgba(0,0,0,0.1)' : 'none',
+            // Mejorar la accesibilidad táctil
+            minHeight: '44px',
+            minWidth: '44px',
+            position: 'relative',
+            zIndex: 10,
+            // Asegurar que el botón sea clickeable
+            touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isChatOpen) {

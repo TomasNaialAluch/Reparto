@@ -33,9 +33,7 @@ if (window.location.hostname === 'localhost') {
 export const initAuth = async () => {
   try {
     // Temporalmente deshabilitado para debug
-    console.log('✅ Firebase configurado (sin autenticación)');
     // await signInAnonymously(auth);
-    // console.log('✅ Usuario autenticado anónimamente');
   } catch (error) {
     console.warn('⚠️ Error en autenticación (continuando sin auth):', error.message);
     // Continuar sin autenticación para desarrollo
@@ -46,7 +44,6 @@ export const initAuth = async () => {
 export const initializeFirebase = async () => {
   try {
     await initAuth();
-    console.log('✅ Firebase inicializado correctamente');
     return true;
   } catch (error) {
     console.error('❌ Error al inicializar Firebase:', error);

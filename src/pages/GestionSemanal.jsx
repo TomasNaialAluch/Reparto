@@ -400,7 +400,7 @@ export default function GestionSemanal() {
   const agregarBoletaEnEdicion = () => {
     setTempClientesData(prev => ({
       ...prev,
-      boletas: [...prev.boletas, { dia: 'Lunes', monto: 0 }]
+      boletas: [...prev.boletas, { dia: getDiaActual(), monto: 0 }]
     }));
   };
 
@@ -554,8 +554,19 @@ export default function GestionSemanal() {
   };
 
   // ==================== TAB MERCADERÍA ====================
+  
+  // Función para obtener el día actual de la semana
+  const getDiaActual = () => {
+    const hoy = new Date();
+    const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diaActual = dias[hoy.getDay()];
+    
+    // Si es domingo, usar lunes como día por defecto (primer día laboral)
+    return diaActual === 'Domingo' ? 'Lunes' : diaActual;
+  };
+
   const [formMercaderia, setFormMercaderia] = useState({
-    dia: 'Lunes',
+    dia: getDiaActual(),
     proveedor: 'Catriel',
     proveedorOtro: '',
     cortes: {}
@@ -666,7 +677,7 @@ export default function GestionSemanal() {
 
   // ==================== TAB EMBUTIDOS ====================
   const [formEmbutidos, setFormEmbutidos] = useState({
-    dia: 'Lunes',
+    dia: getDiaActual(),
     embutidos: {}
   });
 
@@ -726,7 +737,7 @@ export default function GestionSemanal() {
 
   const [formAdelanto, setFormAdelanto] = useState({
     empleado: '',
-    dia: 'Lunes',
+    dia: getDiaActual(),
     monto: '',
     descripcion: ''
   });
@@ -788,7 +799,7 @@ export default function GestionSemanal() {
 
       setFormAdelanto({
         empleado: formAdelanto.empleado, // Mantener el empleado seleccionado
-        dia: 'Lunes',
+        dia: getDiaActual(),
         monto: '',
         descripcion: ''
       });
@@ -909,7 +920,7 @@ export default function GestionSemanal() {
   // ==================== TAB CLIENTES ====================
   const [formCliente, setFormCliente] = useState({
     nombre: '',
-    dia: 'Lunes',
+    dia: getDiaActual(),
     monto: ''
   });
 
@@ -952,7 +963,7 @@ export default function GestionSemanal() {
 
       setFormCliente({
         nombre: formCliente.nombre,
-        dia: 'Lunes',
+        dia: getDiaActual(),
         monto: ''
       });
 

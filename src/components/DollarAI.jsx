@@ -8,52 +8,111 @@ const DollarAI = () => {
   useEffect(() => {
     const fetchDollar = async () => {
       try {
-        console.log('🔄 Intentando obtener datos del dólar...');
-        // API gratuita del dólar argentino
-        const response = await fetch('https://api.bluelytics.com.ar/v2/latest');
-        console.log('📡 Respuesta de la API:', response.status);
+        // Intentar con API alternativa más confiable
+        let data = null;
+        let apiUsed = '';
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // Primero intentar con dolarapi.com (más confiable)
+        try {
+          const response = await fetch('https://dolarapi.com/v1/dolares', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+            mode: 'cors'
+          });
+          
+          if (response.ok) {
+            const dolarApiData = await response.json();
+            // Buscar dólar oficial y MEP en el array
+            const oficial = dolarApiData.find(d => d.casa === 'oficial');
+            const mep = dolarApiData.find(d => d.casa === 'mep');
+            
+            if (oficial && mep) {
+              data = {
+                oficial: {
+                  value_buy: oficial.compra,
+                  value_sell: oficial.venta
+                },
+                mep: {
+                  value_buy: mep.compra,
+                  value_sell: mep.venta
+                }
+              };
+              apiUsed = 'DolarAPI';
+            }
+          }
+        } catch (e) {
+          // DolarAPI falló, continuar con Bluelytics
         }
         
-        const data = await response.json();
-        console.log('💰 Datos recibidos:', data);
-        
-        if (data && data.oficial && data.mep) {
-          setDollarData({
-            oficial: {
-              compra: data.oficial.value_buy,
-              venta: data.oficial.value_sell,
-              variacion: data.oficial.value_sell > data.oficial.value_buy ? 
-                `+${((data.oficial.value_sell - data.oficial.value_buy) / data.oficial.value_buy * 100).toFixed(1)}%` : 
-                `${((data.oficial.value_sell - data.oficial.value_buy) / data.oficial.value_buy * 100).toFixed(1)}%`
-            },
-            mep: {
-              compra: data.mep.value_buy,
-              venta: data.mep.value_sell,
-              variacion: data.mep.value_sell > data.mep.value_buy ? 
-                `+${((data.mep.value_sell - data.mep.value_buy) / data.mep.value_buy * 100).toFixed(1)}%` : 
-                `${((data.mep.value_sell - data.mep.value_buy) / data.mep.value_buy * 100).toFixed(1)}%`
+        // Si DolarAPI falla, intentar con Bluelytics
+        if (!data) {
+          try {
+            const response = await fetch('https://api.bluelytics.com.ar/v2/latest', {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+              },
+              mode: 'cors'
+            });
+            
+            if (response.ok) {
+              const bluelyticsData = await response.json();
+              
+              // Bluelytics usa 'blue' en lugar de 'mep'
+              if (bluelyticsData.oficial && bluelyticsData.blue) {
+                data = {
+                  oficial: {
+                    value_buy: bluelyticsData.oficial.value_buy,
+                    value_sell: bluelyticsData.oficial.value_sell
+                  },
+                  mep: {
+                    value_buy: bluelyticsData.blue.value_buy,
+                    value_sell: bluelyticsData.blue.value_sell
+                  }
+                };
+                apiUsed = 'Bluelytics';
+              }
             }
-          });
-        } else {
-          console.log('⚠️ Datos incompletos de la API, usando fallback');
-          // Fallback con datos simulados si la API falla
-          setDollarData({
-            oficial: {
-              compra: 850.50,
-              venta: 870.25,
-              variacion: '+2.5%'
-            },
-            mep: {
-              compra: 920.00,
-              venta: 940.00,
-              variacion: '+0.9%'
-            }
-          });
+          } catch (e) {
+            // Bluelytics también falló
+          }
         }
-        console.log('✅ Datos del dólar cargados exitosamente');
+        
+        // Verificar que los datos estén completos
+        if (!data || !data.oficial || !data.mep) {
+          throw new Error('No se pudieron obtener datos de ninguna API');
+        }
+        
+        // Procesar datos del dólar
+        const oficialCompra = parseFloat(data.oficial.value_buy);
+        const oficialVenta = parseFloat(data.oficial.value_sell);
+        const mepCompra = parseFloat(data.mep.value_buy);
+        const mepVenta = parseFloat(data.mep.value_sell);
+        
+        // Calcular variaciones
+        const variacionOficial = oficialVenta > oficialCompra ? 
+          `+${((oficialVenta - oficialCompra) / oficialCompra * 100).toFixed(1)}%` : 
+          `${((oficialVenta - oficialCompra) / oficialCompra * 100).toFixed(1)}%`;
+          
+        const variacionMep = mepVenta > mepCompra ? 
+          `+${((mepVenta - mepCompra) / mepCompra * 100).toFixed(1)}%` : 
+          `${((mepVenta - mepCompra) / mepCompra * 100).toFixed(1)}%`;
+        
+        setDollarData({
+          oficial: {
+            compra: oficialCompra,
+            venta: oficialVenta,
+            variacion: variacionOficial
+          },
+          mep: {
+            compra: mepCompra,
+            venta: mepVenta,
+            variacion: variacionMep
+          }
+        });
+        
         setLoading(false);
       } catch (error) {
         console.error('❌ Error fetching dollar data:', error);
@@ -80,6 +139,7 @@ const DollarAI = () => {
     const interval = setInterval(fetchDollar, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
+
 
   if (loading) {
     return (
@@ -139,7 +199,7 @@ const DollarAI = () => {
         </div>
       </div>
 
-      {/* Estilos CSS para animación */}
+      {/* Estilos CSS para animaciones */}
       <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
