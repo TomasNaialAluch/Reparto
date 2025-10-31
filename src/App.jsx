@@ -17,6 +17,7 @@ import Asistente from './pages/Asistente';
 import GestionSemanal from './pages/GestionSemanal';
 import Balance from './pages/Balance';
 import Contador from './pages/Contador';
+import ListaPrecios from './pages/ListaPrecios';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -124,6 +125,12 @@ const AppContent = () => {
             <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
               <Navbar />
               <Contador />
+            </div>
+          } />
+          <Route path="/lista-precios" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <ListaPrecios />
             </div>
           } />
         </Routes>

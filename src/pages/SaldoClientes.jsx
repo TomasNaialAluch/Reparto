@@ -276,7 +276,7 @@ const SaldoClientes = () => {
     setVentas([...ventas, { date: getLocalDateString(), amount: '' }]);
   };
   const addPlata = () => {
-    setPlata([...plata, { amount: '' }]);
+    setPlata([...plata, { date: getLocalDateString(), amount: '' }]);
   };
   const addEfectivo = () => {
     setEfectivo([...efectivo, { amount: '' }]);
@@ -307,9 +307,9 @@ const SaldoClientes = () => {
     newVentas[index][field] = value;
     setVentas(newVentas);
   };
-  const updatePlata = (index, value) => {
+  const updatePlata = (index, field, value) => {
     const newPlata = [...plata];
-    newPlata[index].amount = value;
+    newPlata[index][field] = value;
     setPlata(newPlata);
   };
   const updateEfectivo = (index, value) => {
@@ -348,7 +348,7 @@ const SaldoClientes = () => {
       clientName,
       boletas,
       ventas,
-      plata,
+      plataFavor: plata,
       efectivo,
       cheques,
       transferencias,
@@ -496,7 +496,8 @@ const SaldoClientes = () => {
                 <div className="mb-3">
                   {plata.map((item, index) => (
                     <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updatePlata(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                      <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updatePlata(index, 'date', e.target.value)} required />
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updatePlata(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
                       <button type="button" className="btn btn-link text-danger p-0" onClick={() => removePlata(index)} style={{ fontSize: '1.2rem' }}>×</button>
                     </div>
                   ))}
@@ -596,7 +597,7 @@ const SaldoClientes = () => {
               {summaryData && summaryData.totalPlata > 0 && (
                 <>
                   <p className="print-small" style={{ marginTop: '1rem' }}><strong>Plata a Favor:</strong></p>
-                  {summaryData.plata.map((p, i) => (
+                  {summaryData.plataFavor && summaryData.plataFavor.map((p, i) => (
                     <p key={`pf-${i}`} className="print-small">Plata {i+1}: {formatCurrency(parseCurrencyValue(p.amount))}</p>
                   ))}
                 </>
@@ -657,7 +658,20 @@ const SaldoClientes = () => {
                   showError('No hay datos para imprimir');
                   return;
                 }
-                setPrintData(summaryData);
+                // Mapear summaryData al formato que espera PrintDocument
+                const printData = {
+                  clientName: summaryData.clientName,
+                  boletas: summaryData.boletas || [],
+                  ventas: summaryData.ventas || [],
+                  plataFavor: summaryData.plataFavor || [],
+                  efectivo: summaryData.efectivo || [],
+                  cheques: summaryData.cheques || [],
+                  transferencias: summaryData.transferencias || [],
+                  totalBoletas: summaryData.totalBoletas || 0,
+                  totalIngresos: summaryData.totalIngresos || 0,
+                  finalBalance: summaryData.finalBalance || 0
+                };
+                setPrintData(printData);
                 setShowPrintModal(true);
               }}>
                 <i className="fas fa-print me-2"></i>

@@ -443,7 +443,7 @@ const PrintDocument = ({ data, type, onClose }) => {
     return (
       <div ref={printRef}>
         <div className="print-header">
-          Resumen de Cuenta
+          Resumen de Cuenta con {clientName}
         </div>
         
         <div className="print-date">
@@ -490,19 +490,7 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Plata a Favor:</div>
             {plataFavor.map((p, i) => (
               <div key={i} className="print-item">
-                {p.date}: {formatCurrency(parseFloat(p.amount) || 0)}
-              </div>
-            ))}
-          </div>
-        )}
-        
-        {/* Plata a Favor */}
-        {plataFavor && plataFavor.length > 0 && (
-          <div className="print-section">
-            <div className="print-section-title">Plata a Favor:</div>
-            {plataFavor.map((p, i) => (
-              <div key={i} className="print-item">
-                {p.date}: {formatCurrency(parseFloat(p.amount) || 0)}
+                Plata {i + 1}{p.date ? `: ${p.date}` : ''} - {formatCurrency(parseFloat(p.amount) || 0)}
               </div>
             ))}
             <div className="print-subtotal">
@@ -800,6 +788,188 @@ const PrintDocument = ({ data, type, onClose }) => {
     );
   };
 
+  const renderListaPreciosContent = () => {
+    const { tipo, proveedor, fecha, productos = [], notas, total, contacto, nombrePronelis } = data || {};
+    
+    // Formulario vacío para que el proveedor llene a mano
+    if (tipo === 'formularioVacio') {
+      return (
+        <div ref={printRef}>
+          <div className="print-header">
+            Formulario de Cotización
+          </div>
+          
+          <div className="print-date">
+            Fecha: {new Date(fecha).toLocaleDateString('es-AR')}
+          </div>
+          
+          <div className="print-section">
+            <div className="print-section-title">Datos del Proveedor</div>
+            <div className="print-item">
+              <strong>Nombre:</strong> _______________________________________
+            </div>
+            <div className="print-item">
+              <strong>Contacto:</strong> _______________________________________
+            </div>
+          </div>
+          
+          <div className="print-section">
+            <div className="print-section-title">Lista de Precios</div>
+            <div className="print-table">
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th style={{ width: '5%' }}>#</th>
+                    <th style={{ width: '65%' }}>Producto</th>
+                    <th style={{ width: '30%', textAlign: 'center' }}>Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 20 }).map((_, index) => (
+                    <tr key={index}>
+                      <td className="text-center">{index + 1}</td>
+                      <td style={{ border: '1px solid #000', minHeight: '30px' }}>___________________________</td>
+                      <td style={{ border: '1px solid #000', textAlign: 'center' }}>$__________</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div className="print-message">
+            <p><strong>Por favor completar y devolver este formulario</strong></p>
+            <p>Gracias por su colaboración</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Formulario con datos del proveedor específico
+    if (tipo === 'formularioManual') {
+      return (
+        <div ref={printRef}>
+          <div className="print-header">
+            Formulario de Cotización para {proveedor}
+          </div>
+          
+          <div className="print-date">
+            Fecha: {new Date(fecha).toLocaleDateString('es-AR')}
+          </div>
+          
+          <div className="print-section">
+            <div className="print-section-title">Datos del Proveedor</div>
+            <div className="print-item">
+              <strong>Nombre:</strong> {proveedor}
+            </div>
+            {contacto && (
+              <div className="print-item">
+                <strong>Contacto:</strong> {contacto}
+              </div>
+            )}
+          </div>
+          
+          <div className="print-section">
+            <div className="print-section-title">Lista de Precios</div>
+            <div className="print-table">
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th style={{ width: '5%' }}>#</th>
+                    <th style={{ width: '65%' }}>Producto</th>
+                    <th style={{ width: '30%', textAlign: 'center' }}>Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 20 }).map((_, index) => (
+                    <tr key={index}>
+                      <td className="text-center">{index + 1}</td>
+                      <td style={{ border: '1px solid #000', minHeight: '30px' }}>___________________________</td>
+                      <td style={{ border: '1px solid #000', textAlign: 'center' }}>$__________</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div className="print-message">
+            <p><strong>Por favor completar y devolver este formulario</strong></p>
+            <p>Gracias por su colaboración</p>
+          </div>
+        </div>
+      );
+    }
+    
+    // Comprobante de lista guardada
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          Lista de Precios - {proveedor}
+        </div>
+        
+        <div className="print-date">
+          Fecha: {new Date(fecha).toLocaleDateString('es-AR')}
+        </div>
+        
+        <div className="print-section">
+          <div className="print-section-title">Proveedor: {proveedor}</div>
+          {nombrePronelis && (
+            <div className="print-item">
+              <strong>Paquete/Prónelis:</strong> {nombrePronelis}
+            </div>
+          )}
+        </div>
+        
+        {/* Productos */}
+        {productos && productos.length > 0 && (
+          <div className="print-section">
+            <div className="print-table">
+              <table className="table table-bordered">
+                <thead>
+                  <tr>
+                    <th style={{ width: '60%' }}>Producto</th>
+                    <th style={{ width: '40%', textAlign: 'right' }}>Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productos.map((producto, index) => (
+                    <tr key={index}>
+                      <td>{producto.nombre}</td>
+                      <td style={{ textAlign: 'right' }}>{formatCurrency(producto.precio)}</td>
+                    </tr>
+                  ))}
+                  <tr className="table-success">
+                    <td><strong>TOTAL</strong></td>
+                    <td style={{ textAlign: 'right' }}>
+                      <strong>{formatCurrency(total || productos.reduce((sum, p) => sum + p.precio, 0))}</strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+        
+        {/* Notas */}
+        {notas && (
+          <div className="print-section">
+            <div className="print-section-title">Notas</div>
+            <div className="print-item">
+              {notas}
+            </div>
+          </div>
+        )}
+        
+        {/* Mensaje final */}
+        <div className="print-message">
+          <p><strong>Comprobante generado automáticamente</strong></p>
+          <p>Lista de precios proporcionada por {proveedor}</p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div 
       className="modal fade show" 
@@ -836,6 +1006,7 @@ const PrintDocument = ({ data, type, onClose }) => {
              type === 'transferencia' ? renderTransferenciaContent() : 
              type === 'empleados' ? renderEmpleadosContent() :
              type === 'empleado' ? renderEmpleadoContent() :
+             type === 'listaPrecios' ? renderListaPreciosContent() :
              renderSaldoContent()}
           </div>
           

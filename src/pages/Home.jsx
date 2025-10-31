@@ -2,7 +2,14 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Home = () => {
-  const [expandedGestion, setExpandedGestion] = useState(false);
+  const [expandedMenus, setExpandedMenus] = useState({});
+
+  const toggleMenu = (menuKey) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuKey]: !prev[menuKey]
+    }));
+  };
 
   const menuItems = [
     { 
@@ -14,28 +21,29 @@ const Home = () => {
       label: 'Saldo Clientes'
     },
     { 
-      path: '/dolar', 
-      label: 'DolarHoy'
-    },
-    { 
       path: '/transferencias', 
       label: 'Transferencias'
-    },
-    { 
-      path: '/asistente', 
-      label: 'Asistente'
     },
     { 
       path: '/gestion-semanal', 
       label: 'Gestión Semanal',
       hasSubmenu: true,
+      menuKey: 'gestion',
       submenuItems: [
         { path: '/balance', label: 'Balance' }
       ]
     },
     { 
-      path: '/contador', 
-      label: 'Contador'
+      path: '#', 
+      label: 'Herramientas',
+      hasSubmenu: true,
+      menuKey: 'herramientas',
+      submenuItems: [
+        { path: '/dolar', label: 'DolarHoy' },
+        { path: '/asistente', label: 'Asistente' },
+        { path: '/contador', label: 'Contador' },
+        { path: '/lista-precios', label: 'Lista de Precios' }
+      ]
     }
   ];
 
@@ -84,39 +92,70 @@ const Home = () => {
                 verticalAlign: 'top'
               }}
             >
-              {/* Botón principal - siempre navega */}
-              <Link
-                to={item.path}
-                style={{
-                  textDecoration: 'none',
-                  color: '#fff',
-                  backgroundColor: '#A9D6E5',
-                  padding: '1rem 2rem',
-                  borderRadius: '8px',
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-                  display: 'inline-block',
-                  cursor: 'pointer'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = '#90C3D4';
-                  e.target.style.transform = 'translateY(-3px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = '#A9D6E5';
-                  e.target.style.transform = 'translateY(0)';
-                }}
-              >
-                {item.label}
-              </Link>
+              {/* Botón principal - navega solo si no es un menú con submenú o si no tiene path '#' */}
+              {item.hasSubmenu && item.path === '#' ? (
+                <button
+                  onClick={() => toggleMenu(item.menuKey)}
+                  style={{
+                    textDecoration: 'none',
+                    color: '#fff',
+                    backgroundColor: '#A9D6E5',
+                    padding: '1rem 2rem',
+                    borderRadius: '8px',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                    display: 'inline-block',
+                    cursor: 'pointer',
+                    border: 'none',
+                    fontFamily: "'Montserrat', sans-serif"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#90C3D4';
+                    e.target.style.transform = 'translateY(-3px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#A9D6E5';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {item.label}
+                </button>
+              ) : (
+                <Link
+                  to={item.path}
+                  style={{
+                    textDecoration: 'none',
+                    color: '#fff',
+                    backgroundColor: '#A9D6E5',
+                    padding: '1rem 2rem',
+                    borderRadius: '8px',
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                    display: 'inline-block',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#90C3D4';
+                    e.target.style.transform = 'translateY(-3px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#A9D6E5';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  {item.label}
+                </Link>
+              )}
 
-              {/* Botón separado para ver opciones */}
-              {item.hasSubmenu && (
+              {/* Botón separado para ver opciones (solo para Gestión Semanal) */}
+              {item.hasSubmenu && item.path !== '#' && (
                 <div style={{ marginTop: '10px', textAlign: 'center' }}>
                   <button
-                    onClick={() => setExpandedGestion(!expandedGestion)}
+                    onClick={() => toggleMenu(item.menuKey)}
                     style={{
                       background: 'transparent',
                       border: '2px solid #A9D6E5',
@@ -141,9 +180,9 @@ const Home = () => {
                       e.target.style.color = '#A9D6E5';
                     }}
                   >
-                    <span>{expandedGestion ? 'Ocultar opciones' : 'Ver opciones'}</span>
+                    <span>{expandedMenus[item.menuKey] ? 'Ocultar opciones' : 'Ver opciones'}</span>
                     <span style={{
-                      transform: expandedGestion ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transform: expandedMenus[item.menuKey] ? 'rotate(180deg)' : 'rotate(0deg)',
                       transition: 'transform 0.3s ease'
                     }}>
                       ▼
@@ -153,7 +192,7 @@ const Home = () => {
               )}
 
               {/* Submenú */}
-              {item.hasSubmenu && expandedGestion && (
+              {item.hasSubmenu && expandedMenus[item.menuKey] && (
                 <div style={{
                   position: 'absolute',
                   top: '100%',
