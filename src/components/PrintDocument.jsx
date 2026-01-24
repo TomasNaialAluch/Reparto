@@ -729,8 +729,13 @@ const PrintDocument = ({ data, type, onClose }) => {
       return <div>Error: No se encontraron datos del empleado</div>;
     }
     
-    // Calcular totales para este empleado específico
-    const totalSueldo = empleado.sueldoSemanal || 0;
+    // Calcular con descuentos por faltas
+    const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const diasTrabajados = empleado.diasTrabajados || DIAS_SEMANA;
+    const diasFaltados = DIAS_SEMANA.filter(dia => !diasTrabajados.includes(dia));
+    const sueldoPorDia = empleado.sueldoSemanal / DIAS_SEMANA.length;
+    const descuentoPorFaltas = diasFaltados.length * sueldoPorDia;
+    const totalSueldo = empleado.sueldoSemanal - descuentoPorFaltas; // Sueldo con descuentos
     const totalAdelantos = adelantos.reduce((sum, adel) => sum + adel.monto, 0);
     const saldoPendiente = totalAdelantos - totalSueldo;
     const estaPagado = totalAdelantos >= totalSueldo;
@@ -748,7 +753,28 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Información del empleado */}
         <div className="print-section">
           <div className="print-item">
-            <strong>Sueldo Semanal:</strong> {formatCurrency(totalSueldo)}
+            <strong>Sueldo Semanal:</strong> {formatCurrency(empleado.sueldoSemanal)}
+            {descuentoPorFaltas > 0 && (
+              <span style={{ color: '#dc3545' }}>
+                {' '}(Descuento: -{formatCurrency(descuentoPorFaltas)})
+              </span>
+            )}
+          </div>
+          {diasFaltados.length > 0 && (
+            <div className="print-section">
+              <div className="print-section-title">Descuentos por Inasistencias</div>
+              {diasFaltados.map((dia, index) => (
+                <div key={index} className="print-item" style={{ color: '#dc3545' }}>
+                  Falta {dia}: -{formatCurrency(sueldoPorDia)}
+                </div>
+              ))}
+              <div className="print-subtotal" style={{ color: '#dc3545' }}>
+                Total Descuento: -{formatCurrency(descuentoPorFaltas)}
+              </div>
+            </div>
+          )}
+          <div className="print-item">
+            <strong>Sueldo a Pagar:</strong> {formatCurrency(totalSueldo)}
           </div>
           {!estaPagado && (
             <div className="print-item" style={{ color: '#d63384', fontWeight: 'bold' }}>

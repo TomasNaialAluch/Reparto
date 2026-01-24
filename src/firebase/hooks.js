@@ -1006,6 +1006,63 @@ export const useGestionSemanal = (userId) => {
     }
   };
 
+  // Agregar pago a proveedor
+  const agregarPagoProveedor = async (pago) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        pagosProveedores: [{ ...pago, timestamp: new Date().toISOString() }]
+      });
+      return;
+    }
+
+    try {
+      const pagosActual = semanaActiva.pagosProveedores || [];
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        pagosProveedores: [...pagosActual, { ...pago, timestamp: new Date().toISOString() }]
+      });
+    } catch (err) {
+      console.error('Error al agregar pago a proveedor:', err);
+      throw err;
+    }
+  };
+
+  // Eliminar pago a proveedor
+  const eliminarPagoProveedor = async (index) => {
+    if (!semanaActiva) return;
+
+    try {
+      const pagosActual = semanaActiva.pagosProveedores || [];
+      const nuevosPagos = pagosActual.filter((_, i) => i !== index);
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        pagosProveedores: nuevosPagos
+      });
+    } catch (err) {
+      console.error('Error al eliminar pago a proveedor:', err);
+      throw err;
+    }
+  };
+
+  // Guardar estado de pagos a proveedores (dinero disponible y pagos de boletas)
+  const guardarEstadoPagosProveedores = async (estado) => {
+    if (!semanaActiva) {
+      const id = await crearNuevaSemana();
+      await updateDoc(doc(db, 'gestion_semanal', id), {
+        pagosProveedoresEstado: estado
+      });
+      return;
+    }
+
+    try {
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        pagosProveedoresEstado: estado
+      });
+    } catch (err) {
+      console.error('Error al guardar estado de pagos a proveedores:', err);
+      throw err;
+    }
+  };
+
   // Obtener historial de semanas cerradas
   const getHistorialSemanas = async () => {
     try {
@@ -1117,6 +1174,9 @@ export const useGestionSemanal = (userId) => {
     agregarBoletaCliente,
     eliminarBoletaCliente,
     actualizarCliente,
+    agregarPagoProveedor,
+    eliminarPagoProveedor,
+    guardarEstadoPagosProveedores,
     getHistorialSemanas,
     getSemanaById,
     getConfiguracionesUsuario,
