@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { formatCurrency } from '../utils/money';
+import { formatCurrency, parseCurrencyValue } from '../utils/money';
 
 const PrintDocument = ({ data, type, onClose }) => {
   const printRef = useRef();
@@ -460,11 +460,11 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Boletas Vendidas por {clientName}:</div>
             {boletas.map((b, i) => (
               <div key={i} className="print-item">
-                Boleta {i + 1}: {b.date} - {formatCurrency(parseFloat(b.amount) || 0)}
+                Boleta {i + 1}: {b.date} - {formatCurrency(parseCurrencyValue(b.amount))}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Boletas: {formatCurrency(totalBoletas || boletas.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0))}
+              Total Boletas: {formatCurrency(boletas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0))}
             </div>
           </div>
         )}
@@ -475,11 +475,11 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Ventas a {clientName}:</div>
             {ventas.map((v, i) => (
               <div key={i} className="print-item">
-                {v.date}: {formatCurrency(parseFloat(v.amount) || 0)}
+                {v.date}: {formatCurrency(parseCurrencyValue(v.amount))}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Ventas: {formatCurrency(ventas.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0))}
+              Total Ventas: {formatCurrency(ventas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0))}
             </div>
           </div>
         )}
@@ -490,11 +490,11 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Plata a Favor:</div>
             {plataFavor.map((p, i) => (
               <div key={i} className="print-item">
-                Plata {i + 1}{p.date ? `: ${p.date}` : ''} - {formatCurrency(parseFloat(p.amount) || 0)}
+                Plata {i + 1}{p.date ? `: ${p.date}` : ''} - {formatCurrency(parseCurrencyValue(p.amount))}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Plata a Favor: {formatCurrency(plataFavor.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0))}
+              Total Plata a Favor: {formatCurrency(plataFavor.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0))}
             </div>
           </div>
         )}
@@ -505,11 +505,11 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Pagos en Efectivo:</div>
             {efectivo.map((e, i) => (
               <div key={i} className="print-item">
-                {e.date}: {formatCurrency(parseFloat(e.amount) || 0)}
+                {e.date}: {formatCurrency(parseCurrencyValue(e.amount))}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Efectivo: {formatCurrency(efectivo.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0))}
+              Total Efectivo: {formatCurrency(efectivo.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0))}
             </div>
           </div>
         )}
@@ -520,11 +520,11 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Pagos con Cheque:</div>
             {cheques.map((c, i) => (
               <div key={i} className="print-item">
-                Cheque {c.id}: {formatCurrency(parseFloat(c.amount) || 0)}
+                Cheque {c.id}: {formatCurrency(parseCurrencyValue(c.amount))}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Cheques: {formatCurrency(cheques.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0))}
+              Total Cheques: {formatCurrency(cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0))}
             </div>
           </div>
         )}
@@ -535,11 +535,11 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Pagos por Transferencia:</div>
             {transferencias.map((t, i) => (
               <div key={i} className="print-item">
-                {t.date}: {formatCurrency(parseFloat(t.amount) || 0)}
+                {t.date}: {formatCurrency(parseCurrencyValue(t.amount))}
               </div>
             ))}
             <div className="print-subtotal">
-              Total Transferencias: {formatCurrency(transferencias.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0))}
+              Total Transferencias: {formatCurrency(transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0))}
             </div>
           </div>
         )}
@@ -548,11 +548,11 @@ const PrintDocument = ({ data, type, onClose }) => {
         <div className="print-section">
           <div className="print-subtotal">
             Total Pagos: {formatCurrency((
-              (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
-              (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
-              (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
-              (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
-              (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
+              (ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0) +
+              (plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0) +
+              (efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0) +
+              (cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0) +
+              (transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0)
             ))}
           </div>
         </div>
@@ -561,24 +561,23 @@ const PrintDocument = ({ data, type, onClose }) => {
         <div className="print-section">
           <div className="print-total">
             Balance Final: {formatCurrency((
-              ((ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
-               (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
-               (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
-               (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
-               (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)) -
-              (totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0)
+              ((ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0) +
+               (plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0) +
+               (efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0) +
+               (cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0) +
+               (transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0)) -
+              (boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0)
             ))}
           </div>
           <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
             {(() => {
-              const balance = finalBalance || 0;
-              const totalBoletasCalc = totalBoletas || boletas?.reduce((sum, b) => sum + (parseFloat(b.amount) || 0), 0) || 0;
+              const totalBoletasCalc = boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
               const totalIngresosCalc = (
-                (ventas?.reduce((sum, v) => sum + (parseFloat(v.amount) || 0), 0) || 0) +
-                (plataFavor?.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) || 0) +
-                (efectivo?.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0) || 0) +
-                (cheques?.reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0) || 0) +
-                (transferencias?.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 0)
+                (ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0) +
+                (plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0) +
+                (efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0) +
+                (cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0) +
+                (transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0)
               );
               
               // Balance correcto: totalIngresos - totalBoletas (Tito debe si es positivo)
