@@ -348,3 +348,4 @@ const descuentoPorFaltas = diasFaltados.length * sueldoPorDia;
 **Estado:** Propuesta lista para implementar  
 **Prioridad:** Media-Alta (afecta cálculo de sueldos)
 
+

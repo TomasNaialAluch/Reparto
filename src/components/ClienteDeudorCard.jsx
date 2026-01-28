@@ -70,7 +70,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                 {formatCurrency(Math.abs(totalDeuda))}
               </div>
               <div className="small text-muted">
-                {esAFavor ? 'A tu favor' : 'Te debe'}
+                {esAFavor ? 'A tu favor' : 'Debo'}
               </div>
             </div>
             <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: '0.8rem' }}></i>
@@ -107,7 +107,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
               <div className="col-4">
                 <small className="text-muted">Estado</small>
                 <div className={`fw-bold ${esAFavor ? 'text-success' : 'text-danger'}`}>
-                  {esAFavor ? 'A tu favor' : 'Te debe'}
+                  {esAFavor ? 'A tu favor' : 'Debo'}
                 </div>
               </div>
             </div>
@@ -151,9 +151,14 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
               {cliente.boletas?.map((boleta, index) => (
                 <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
                   <div>
-                    <small className="fw-bold text-warning">📄 Boleta</small>
+                    <div className="d-flex align-items-center gap-2">
+                      <small className="fw-bold text-warning">📄 Boleta</small>
+                      {boleta.esDeMercaderia && (
+                        <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
+                      )}
+                    </div>
                     <br />
-                    <small className="text-muted">{boleta.date} - {formatCurrency(boleta.amount)}</small>
+                    <small className="text-muted">{boleta.date || 'Sin fecha'} - {formatCurrency(parseCurrencyValue(boleta.amount))}</small>
                   </div>
                 </div>
               ))}
@@ -164,7 +169,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                   <div>
                     <small className="fw-bold text-warning">💰 Venta</small>
                     <br />
-                    <small className="text-muted">{venta.date} - {formatCurrency(venta.amount)}</small>
+                    <small className="text-muted">{venta.date || 'Sin fecha'} - {formatCurrency(parseCurrencyValue(venta.amount))}</small>
                   </div>
                 </div>
               ))}
@@ -175,7 +180,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                   <div>
                     <small className="fw-bold text-success">💰 Plata a Favor</small>
                     <br />
-                    <small className="text-muted">{pago.date} - {formatCurrency(pago.amount)}</small>
+                    <small className="text-muted">{pago.date || 'Sin fecha'} - {formatCurrency(parseCurrencyValue(pago.amount))}</small>
                   </div>
                 </div>
               ))}
@@ -186,7 +191,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                   <div>
                     <small className="fw-bold text-success">💵 Efectivo</small>
                     <br />
-                    <small className="text-muted">{pago.date} - {formatCurrency(pago.amount)}</small>
+                    <small className="text-muted">{formatCurrency(parseCurrencyValue(pago.amount))}</small>
                   </div>
                 </div>
               ))}
@@ -197,7 +202,9 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                   <div>
                     <small className="fw-bold text-info">📋 Cheque</small>
                     <br />
-                    <small className="text-muted">{cheque.date} - {formatCurrency(cheque.amount)}</small>
+                    <small className="text-muted">
+                      {cheque.id ? `ID: ${cheque.id} - ` : ''}{formatCurrency(parseCurrencyValue(cheque.amount))}
+                    </small>
                   </div>
                 </div>
               ))}
@@ -208,7 +215,7 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                   <div>
                     <small className="fw-bold text-primary">🏦 Transferencia</small>
                     <br />
-                    <small className="text-muted">{transfer.date} - {formatCurrency(transfer.amount)}</small>
+                    <small className="text-muted">{formatCurrency(parseCurrencyValue(transfer.amount))}</small>
                   </div>
                 </div>
               ))}

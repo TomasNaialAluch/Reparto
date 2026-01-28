@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { formatCurrency } from '../../utils/money';
+import { formatCurrency, parseCurrencyValue } from '../../utils/money';
 import { getLocalDateString } from '../../utils/date';
 
 export default function PagosProveedoresTab({ 
@@ -16,12 +16,23 @@ export default function PagosProveedoresTab({
     cheques: ''
   });
 
-  // Estado de pagos para cada boleta
-  const [pagosBoletas, setPagosBoletas] = useState({});
+  // Valores mostrados en los inputs (sin formato mientras se escribe)
+  const [valoresInput, setValoresInput] = useState({
+    efectivo: '',
+    transferencia: '',
+    cheques: ''
+  });
 
-  // Refs para debounce
-  const saveTimeoutRef = useRef(null);
+  // Estado LOCAL: selecciones y configuración de pagos (NO se guarda en Firebase)
+  const [pagosBoletasLocal, setPagosBoletasLocal] = useState({});
+  
+  // Estado COMPARTIDO: solo boletas pagadas (SÍ se guarda en Firebase para que otros usuarios lo vean)
+  const [boletasPagadas, setBoletasPagadas] = useState({});
+
+  // Refs para sincronización periódica
+  const syncIntervalRef = useRef(null);
   const isInitialLoad = useRef(true);
+  const isSyncingRef = useRef(false); // Evitar sincronizaciones simultáneas
 
   // Obtener todas las entradas de mercadería (boletas)
   const obtenerBoletas = () => {
@@ -46,37 +57,62 @@ export default function PagosProveedoresTab({
 
   const boletas = obtenerBoletas();
 
-  // Cargar estado desde Firebase
+  // Cargar estado COMPARTIDO desde Firebase (solo boletas pagadas y dinero disponible)
   useEffect(() => {
-    if (semanaActiva?.pagosProveedoresEstado) {
-      const estado = semanaActiva.pagosProveedoresEstado;
-      
+    if (!semanaActiva?.pagosProveedoresEstado) {
+      isInitialLoad.current = false;
+      return;
+    }
+
+    const estado = semanaActiva.pagosProveedoresEstado;
+    
+    // Solo cargar en la carga inicial o si realmente cambió el estado desde Firebase
+    if (isInitialLoad.current) {
+      // Cargar dinero disponible
       if (estado.dineroDisponible) {
-        setDineroDisponible({
+        const nuevoDinero = {
           efectivo: estado.dineroDisponible.efectivo?.toString() || '',
           transferencia: estado.dineroDisponible.transferencia?.toString() || '',
           cheques: estado.dineroDisponible.cheques?.toString() || ''
+        };
+        setDineroDisponible(nuevoDinero);
+        // Mostrar formato al cargar
+        setValoresInput({
+          efectivo: nuevoDinero.efectivo ? formatearNumeroInput(nuevoDinero.efectivo) : '',
+          transferencia: nuevoDinero.transferencia ? formatearNumeroInput(nuevoDinero.transferencia) : '',
+          cheques: nuevoDinero.cheques ? formatearNumeroInput(nuevoDinero.cheques) : ''
         });
       }
       
-      if (estado.pagosBoletas) {
-        setPagosBoletas(estado.pagosBoletas);
+      // Cargar solo las boletas pagadas (estado compartido)
+      if (estado.boletasPagadas) {
+        setBoletasPagadas(estado.boletasPagadas);
       }
       
       isInitialLoad.current = false;
     } else {
-      // Si no hay estado guardado, inicializar
-      isInitialLoad.current = false;
+      // En cargas posteriores, solo actualizar si viene de otro usuario (comparar timestamps)
+      // Por ahora, solo actualizar boletas pagadas si cambió
+      if (estado.boletasPagadas) {
+        setBoletasPagadas(prev => {
+          const nuevoEstado = estado.boletasPagadas;
+          // Solo actualizar si realmente cambió
+          if (JSON.stringify(prev) !== JSON.stringify(nuevoEstado)) {
+            return nuevoEstado;
+          }
+          return prev;
+        });
+      }
     }
   }, [semanaActiva?.pagosProveedoresEstado]);
 
-  // Inicializar pagos si no existen
+  // Inicializar estado LOCAL si no existen (solo para nuevas boletas)
   useEffect(() => {
     if (isInitialLoad.current) return;
     
     const nuevasBoletas = obtenerBoletas();
     if (nuevasBoletas.length > 0) {
-      setPagosBoletas(prev => {
+      setPagosBoletasLocal(prev => {
         const nuevosPagos = { ...prev };
         let hayCambios = false;
         
@@ -87,8 +123,7 @@ export default function PagosProveedoresTab({
               efectivo: '',
               transferencia: '',
               cheques: '',
-              montoPersonalizado: '', // Monto personalizado para ajustes
-              pagada: false
+              montoPersonalizado: '' // Monto personalizado para ajustes
             };
             hayCambios = true;
           }
@@ -99,62 +134,217 @@ export default function PagosProveedoresTab({
     }
   }, [semanaActiva?.mercaderia]);
 
-  // Función para guardar estado en Firebase con debounce
-  const guardarEstado = useCallback(async (dinero, pagos) => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
+  // Ref para rastrear el último estado sincronizado
+  const lastSyncedStateRef = useRef(null);
+
+  // Función para sincronizar estado COMPARTIDO a Firebase (solo boletas pagadas y dinero disponible)
+  const sincronizarEstadoCompartido = useCallback(async () => {
+    // Evitar sincronizaciones simultáneas
+    if (isSyncingRef.current) {
+      return;
     }
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        await guardarEstadoPagosProveedores({
-          dineroDisponible: {
-            efectivo: parseFloat(dinero.efectivo) || 0,
-            transferencia: parseFloat(dinero.transferencia) || 0,
-            cheques: parseFloat(dinero.cheques) || 0
-          },
-          pagosBoletas: pagos,
-          lastUpdated: new Date().toISOString()
-        });
-      } catch (err) {
-        console.error('Error al guardar estado:', err);
-        addNotification('Error al guardar estado', 'error');
-      }
-    }, 1000); // Debounce de 1 segundo
-  }, [guardarEstadoPagosProveedores, addNotification]);
+    const estadoActual = JSON.stringify({
+      dinero: dineroDisponible,
+      pagadas: boletasPagadas
+    });
 
-  // Ref para rastrear el último estado guardado
-  const lastSavedStateRef = useRef(null);
+    // Solo sincronizar si el estado realmente cambió
+    if (lastSyncedStateRef.current === estadoActual) {
+      return;
+    }
 
-  // Guardar cuando cambie el dinero disponible o los pagos de boletas
+    isSyncingRef.current = true;
+    try {
+      await guardarEstadoPagosProveedores({
+        dineroDisponible: {
+          efectivo: parseFloat(dineroDisponible.efectivo) || 0,
+          transferencia: parseFloat(dineroDisponible.transferencia) || 0,
+          cheques: parseFloat(dineroDisponible.cheques) || 0
+        },
+        boletasPagadas: boletasPagadas, // Solo guardar las pagadas
+        lastUpdated: new Date().toISOString()
+      });
+      
+      lastSyncedStateRef.current = estadoActual;
+    } catch (err) {
+      console.error('Error al sincronizar estado:', err);
+      addNotification('Error al sincronizar estado', 'error');
+    } finally {
+      isSyncingRef.current = false;
+    }
+  }, [dineroDisponible, boletasPagadas, guardarEstadoPagosProveedores, addNotification]);
+
+  // Sincronización periódica cada 10 segundos (solo estado compartido)
   useEffect(() => {
     if (isInitialLoad.current) return;
-    
-    const currentState = JSON.stringify({
-      dinero: dineroDisponible,
-      pagos: pagosBoletas
-    });
-    
-    // Solo guardar si el estado realmente cambió
-    if (lastSavedStateRef.current !== currentState) {
-      lastSavedStateRef.current = currentState;
-      guardarEstado(dineroDisponible, pagosBoletas);
+
+    // Limpiar intervalo anterior si existe
+    if (syncIntervalRef.current) {
+      clearInterval(syncIntervalRef.current);
     }
-    
+
+    // Sincronizar inmediatamente cuando cambia el dinero disponible o boletas pagadas (con debounce)
+    const timeoutId = setTimeout(() => {
+      sincronizarEstadoCompartido();
+    }, 500); // Debounce de 500ms
+
+    // Configurar sincronización periódica cada 10 segundos
+    syncIntervalRef.current = setInterval(() => {
+      sincronizarEstadoCompartido();
+    }, 10000); // Cada 10 segundos
+
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      clearTimeout(timeoutId);
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
       }
     };
-  }, [dineroDisponible.efectivo, dineroDisponible.transferencia, dineroDisponible.cheques, pagosBoletas, guardarEstado]);
+  }, [dineroDisponible.efectivo, dineroDisponible.transferencia, dineroDisponible.cheques, boletasPagadas, sincronizarEstadoCompartido]);
 
   // Obtener monto a pagar de una boleta (personalizado o costo total)
   const obtenerMontoAPagar = (boleta) => {
-    const montoPersonalizado = pagosBoletas[boleta.id]?.montoPersonalizado;
+    const montoPersonalizado = pagosBoletasLocal[boleta.id]?.montoPersonalizado;
     if (montoPersonalizado && montoPersonalizado !== '') {
       return parseFloat(montoPersonalizado) || boleta.costoTotal;
     }
     return boleta.costoTotal;
+  };
+
+  // Formatear número con separadores de miles para mostrar
+  const formatearNumeroInput = (valor) => {
+    if (!valor || valor === '') return '';
+    const numero = parseCurrencyValue(valor);
+    if (numero === 0) return '';
+    // Formatear con separadores de miles (puntos) sin decimales para inputs
+    return numero.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  };
+
+  // Convertir número a palabras en español
+  const numeroAPalabras = (valor) => {
+    if (!valor || valor === '' || valor === '0') return '';
+    
+    const numero = parseCurrencyValue(valor);
+    if (numero === 0) return '';
+    
+    const unidades = ['', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+    const decenas = ['', '', 'veinte', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+    const especiales = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+    const centenas = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+    
+    const convertirGrupo = (num) => {
+      if (num === 0) return '';
+      if (num === 100) return 'cien';
+      
+      let resultado = '';
+      const c = Math.floor(num / 100);
+      const d = Math.floor((num % 100) / 10);
+      const u = num % 10;
+      
+      if (c > 0) {
+        resultado += centenas[c] + ' ';
+      }
+      
+      if (d === 1) {
+        resultado += especiales[u] + ' ';
+      } else if (d > 1) {
+        resultado += decenas[d];
+        if (u > 0) {
+          resultado += ' y ' + unidades[u];
+        }
+        resultado += ' ';
+      } else if (u > 0) {
+        resultado += unidades[u] + ' ';
+      }
+      
+      return resultado.trim();
+    };
+    
+    if (numero >= 1000000) {
+      const millones = Math.floor(numero / 1000000);
+      const resto = numero % 1000000;
+      let resultado = '';
+      
+      if (millones === 1) {
+        resultado = 'un millón ';
+      } else {
+        resultado = convertirGrupo(millones) + 'millones ';
+      }
+      
+      if (resto > 0) {
+        resultado += convertirGrupo(Math.floor(resto / 1000)) + (Math.floor(resto / 1000) === 1 ? 'mil ' : Math.floor(resto / 1000) > 0 ? 'mil ' : '');
+        resultado += convertirGrupo(resto % 1000);
+      }
+      
+      return resultado.trim() + ' pesos';
+    } else if (numero >= 1000) {
+      const miles = Math.floor(numero / 1000);
+      const resto = numero % 1000;
+      let resultado = '';
+      
+      if (miles === 1) {
+        resultado = 'mil ';
+      } else {
+        resultado = convertirGrupo(miles) + 'mil ';
+      }
+      
+      if (resto > 0) {
+        resultado += convertirGrupo(resto);
+      }
+      
+      return resultado.trim() + ' pesos';
+    } else {
+      return convertirGrupo(numero) + 'pesos';
+    }
+  };
+
+  // Manejar cambio en campos de dinero disponible - solo números, sin formato mientras escribe
+  const manejarCambioDinero = (campo, valor) => {
+    // Solo permitir números (0-9)
+    const soloNumeros = valor.replace(/[^\d]/g, '');
+    
+    // Actualizar ambos estados
+    setDineroDisponible(prev => ({
+      ...prev,
+      [campo]: soloNumeros
+    }));
+    
+    setValoresInput(prev => ({
+      ...prev,
+      [campo]: soloNumeros
+    }));
+  };
+
+  // Manejar cuando el input pierde el foco - mostrar formato
+  const manejarBlurDinero = (campo) => {
+    const valor = dineroDisponible[campo] || '';
+    // Mostrar formato cuando pierde el foco
+    if (valor) {
+      setValoresInput(prev => ({
+        ...prev,
+        [campo]: formatearNumeroInput(valor)
+      }));
+    }
+  };
+
+  // Manejar cuando el input recibe el foco - mostrar solo números sin formato
+  const manejarFocusDinero = (campo) => {
+    const valor = dineroDisponible[campo] || '';
+    // Mostrar solo números cuando está enfocado para escribir fácilmente
+    setValoresInput(prev => ({
+      ...prev,
+      [campo]: valor
+    }));
+  };
+
+  // Función helper para obtener el estado completo de una boleta (local + compartido)
+  const obtenerEstadoBoleta = (boletaId) => {
+    const estadoLocal = pagosBoletasLocal[boletaId] || {};
+    const estaPagada = boletasPagadas[boletaId] || false;
+    return {
+      ...estadoLocal,
+      pagada: estaPagada
+    };
   };
 
   // Calcular totales
@@ -167,19 +357,23 @@ export default function PagosProveedoresTab({
     // Total de TODAS las boletas (seleccionadas y no seleccionadas)
     const totalTodasLasBoletas = boletas.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
 
-    const boletasSeleccionadas = boletas.filter(b => pagosBoletas[b.id]?.seleccionada);
+    const boletasSeleccionadas = boletas.filter(b => {
+      const estadoLocal = pagosBoletasLocal[b.id] || {};
+      const estaPagada = boletasPagadas[b.id] || false;
+      return estadoLocal.seleccionada && !estaPagada; // Excluir las que están marcadas como pagadas
+    });
     const totalAPagar = boletasSeleccionadas.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
 
     const totalEfectivoUsado = boletasSeleccionadas.reduce((sum, b) => {
-      return sum + (parseFloat(pagosBoletas[b.id]?.efectivo) || 0);
+      return sum + (parseFloat(pagosBoletasLocal[b.id]?.efectivo) || 0);
     }, 0);
 
     const totalTransferenciaUsada = boletasSeleccionadas.reduce((sum, b) => {
-      return sum + (parseFloat(pagosBoletas[b.id]?.transferencia) || 0);
+      return sum + (parseFloat(pagosBoletasLocal[b.id]?.transferencia) || 0);
     }, 0);
 
     const totalChequesUsados = boletasSeleccionadas.reduce((sum, b) => {
-      return sum + (parseFloat(pagosBoletas[b.id]?.cheques) || 0);
+      return sum + (parseFloat(pagosBoletasLocal[b.id]?.cheques) || 0);
     }, 0);
 
     const totalUsado = totalEfectivoUsado + totalTransferenciaUsada + totalChequesUsados;
@@ -205,9 +399,9 @@ export default function PagosProveedoresTab({
 
   const totales = calcularTotales();
 
-  // Actualizar pago de boleta
+  // Actualizar pago de boleta (estado LOCAL)
   const actualizarPagoBoleta = (boletaId, campo, valor) => {
-    setPagosBoletas(prev => ({
+    setPagosBoletasLocal(prev => ({
       ...prev,
       [boletaId]: {
         ...prev[boletaId],
@@ -216,16 +410,94 @@ export default function PagosProveedoresTab({
     }));
   };
 
-  // Toggle selección de boleta
+  // Toggle selección de boleta (estado LOCAL - no se guarda en Firebase)
   const toggleSeleccionBoleta = (boletaId) => {
-    setPagosBoletas(prev => ({
+    setPagosBoletasLocal(prev => ({
       ...prev,
       [boletaId]: {
         ...prev[boletaId],
-        seleccionada: !prev[boletaId]?.seleccionada,
-        pagada: false
+        seleccionada: !prev[boletaId]?.seleccionada
       }
     }));
+  };
+
+  // Toggle estado pagada de boleta (estado COMPARTIDO - se guarda en Firebase)
+  const togglePagadaBoleta = (boletaId) => {
+    const nuevoEstadoPagada = !boletasPagadas[boletaId];
+    
+    // Actualizar estado compartido (se sincronizará automáticamente)
+    setBoletasPagadas(prev => ({
+      ...prev,
+      [boletaId]: nuevoEstadoPagada
+    }));
+    
+    // Si se marca como pagada, deseleccionar automáticamente (estado local)
+    if (nuevoEstadoPagada) {
+      setPagosBoletasLocal(prev => ({
+        ...prev,
+        [boletaId]: {
+          ...prev[boletaId],
+          seleccionada: false
+        }
+      }));
+    }
+  };
+
+  // Marcar todas las boletas de un proveedor como pagadas
+  const marcarTodasPagadasProveedor = (proveedor) => {
+    const boletasProveedor = boletas.filter(b => b.proveedor === proveedor);
+    const nuevasPagadas = { ...boletasPagadas };
+    const nuevosPagosLocal = { ...pagosBoletasLocal };
+    
+    boletasProveedor.forEach(boleta => {
+      nuevasPagadas[boleta.id] = true;
+      // Deseleccionar todas al marcarlas como pagadas
+      if (nuevosPagosLocal[boleta.id]) {
+        nuevosPagosLocal[boleta.id] = {
+          ...nuevosPagosLocal[boleta.id],
+          seleccionada: false
+        };
+      } else {
+        nuevosPagosLocal[boleta.id] = {
+          seleccionada: false,
+          efectivo: '',
+          transferencia: '',
+          cheques: '',
+          montoPersonalizado: ''
+        };
+      }
+    });
+    
+    setBoletasPagadas(nuevasPagadas);
+    setPagosBoletasLocal(nuevosPagosLocal);
+  };
+
+  // Seleccionar todas las boletas de un proveedor (solo las que no están pagadas)
+  const seleccionarTodasProveedor = (proveedor) => {
+    const boletasProveedor = boletas.filter(b => {
+      return b.proveedor === proveedor && !boletasPagadas[b.id];
+    });
+    
+    setPagosBoletasLocal(prev => {
+      const nuevosPagos = { ...prev };
+      boletasProveedor.forEach(boleta => {
+        if (nuevosPagos[boleta.id]) {
+          nuevosPagos[boleta.id] = {
+            ...nuevosPagos[boleta.id],
+            seleccionada: true
+          };
+        } else {
+          nuevosPagos[boleta.id] = {
+            seleccionada: true,
+            efectivo: '',
+            transferencia: '',
+            cheques: '',
+            montoPersonalizado: ''
+          };
+        }
+      });
+      return nuevosPagos;
+    });
   };
 
   // Marcar/desmarcar medio de pago disponible para una boleta
@@ -234,15 +506,14 @@ export default function PagosProveedoresTab({
     if (!boleta) return;
 
     const montoAPagar = obtenerMontoAPagar(boleta);
-    const pago = pagosBoletas[boletaId] || {};
+    const pago = pagosBoletasLocal[boletaId] || {};
     const medioActivo = pago[`${metodoPago}Disponible`] || false;
     
-    setPagosBoletas(prev => {
+    setPagosBoletasLocal(prev => {
       const nuevoEstado = {
         ...prev[boletaId],
         seleccionada: true,
-        [`${metodoPago}Disponible`]: !medioActivo,
-        pagada: false
+        [`${metodoPago}Disponible`]: !medioActivo
       };
 
       // Si se desactiva un medio, limpiar su monto
@@ -274,14 +545,19 @@ export default function PagosProveedoresTab({
     });
   };
 
-  // Calcular cuánto falta para pagar todas las boletas
+  // Calcular cuánto falta para pagar las boletas seleccionadas
   const calcularFaltante = () => {
-    const totalTodasLasBoletas = boletas.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
+    const boletasSeleccionadas = boletas.filter(b => {
+      const estadoLocal = pagosBoletasLocal[b.id] || {};
+      const estaPagada = boletasPagadas[b.id] || false;
+      return estadoLocal.seleccionada && !estaPagada; // Excluir las que están marcadas como pagadas
+    });
+    const totalBoletasSeleccionadas = boletasSeleccionadas.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
     const totalDisponible = totales.totalDisponible;
-    const faltante = totalTodasLasBoletas - totalDisponible;
+    const faltante = totalBoletasSeleccionadas - totalDisponible;
     
     return {
-      totalBoletas: totalTodasLasBoletas,
+      totalBoletas: totalBoletasSeleccionadas,
       totalDisponible,
       faltante,
       tieneFaltante: faltante > 0
@@ -324,7 +600,11 @@ export default function PagosProveedoresTab({
 
   // Validar y procesar pagos
   const procesarPagos = async () => {
-    const boletasSeleccionadas = boletas.filter(b => pagosBoletas[b.id]?.seleccionada);
+    const boletasSeleccionadas = boletas.filter(b => {
+      const estadoLocal = pagosBoletasLocal[b.id] || {};
+      const estaPagada = boletasPagadas[b.id] || false;
+      return estadoLocal.seleccionada && !estaPagada;
+    });
     
     if (boletasSeleccionadas.length === 0) {
       addNotification('Seleccione al menos una boleta para pagar', 'warning');
@@ -339,7 +619,7 @@ export default function PagosProveedoresTab({
 
     // Validar que cada boleta tenga pago completo o parcial válido
     for (const boleta of boletasSeleccionadas) {
-      const pago = pagosBoletas[boleta.id];
+      const pago = pagosBoletasLocal[boleta.id] || {};
       const efectivo = parseFloat(pago.efectivo) || 0;
       const transferencia = parseFloat(pago.transferencia) || 0;
       const cheques = parseFloat(pago.cheques) || 0;
@@ -355,7 +635,7 @@ export default function PagosProveedoresTab({
     // Procesar cada pago
     try {
       for (const boleta of boletasSeleccionadas) {
-        const pago = pagosBoletas[boleta.id];
+        const pago = pagosBoletasLocal[boleta.id] || {};
         const efectivo = parseFloat(pago.efectivo) || 0;
         const transferencia = parseFloat(pago.transferencia) || 0;
         const cheques = parseFloat(pago.cheques) || 0;
@@ -407,31 +687,24 @@ export default function PagosProveedoresTab({
       };
       setDineroDisponible(nuevoDinero);
 
-      // Resetear estado de boletas pagadas
-      const nuevosPagos = { ...pagosBoletas };
+      // Resetear estado LOCAL de boletas procesadas (preservar montoPersonalizado si existe)
+      const nuevosPagosLocal = { ...pagosBoletasLocal };
       boletasSeleccionadas.forEach(boleta => {
-        if (nuevosPagos[boleta.id]) {
-          nuevosPagos[boleta.id] = {
+        if (nuevosPagosLocal[boleta.id]) {
+          const montoPersonalizado = nuevosPagosLocal[boleta.id].montoPersonalizado;
+          nuevosPagosLocal[boleta.id] = {
             seleccionada: false,
             efectivo: '',
             transferencia: '',
             cheques: '',
-            pagada: false
+            montoPersonalizado: montoPersonalizado || '' // Preservar monto personalizado si existe
           };
         }
       });
-      setPagosBoletas(nuevosPagos);
+      setPagosBoletasLocal(nuevosPagosLocal);
 
-      // Guardar estado final
-      await guardarEstadoPagosProveedores({
-        dineroDisponible: {
-          efectivo: parseFloat(nuevoDinero.efectivo) || 0,
-          transferencia: parseFloat(nuevoDinero.transferencia) || 0,
-          cheques: parseFloat(nuevoDinero.cheques) || 0
-        },
-        pagosBoletas: nuevosPagos,
-        lastUpdated: new Date().toISOString()
-      });
+      // Sincronizar estado compartido (dinero disponible se sincroniza automáticamente)
+      // Las boletas pagadas se sincronizan automáticamente cuando se marcan
 
       addNotification('Pagos procesados correctamente', 'success');
     } catch (err) {
@@ -464,40 +737,58 @@ export default function PagosProveedoresTab({
             <div className="mb-3">
               <label className="form-label fw-bold">Efectivo:</label>
               <input 
-                type="number"
+                type="text"
                 className="form-control form-control-lg"
                 placeholder="0"
-                value={dineroDisponible.efectivo}
-                onChange={(e) => setDineroDisponible({...dineroDisponible, efectivo: e.target.value})}
-                step="0.01"
-                min="0"
+                value={valoresInput.efectivo || ''}
+                onChange={(e) => manejarCambioDinero('efectivo', e.target.value)}
+                onFocus={() => manejarFocusDinero('efectivo')}
+                onBlur={() => manejarBlurDinero('efectivo')}
+                inputMode="numeric"
               />
+              {dineroDisponible.efectivo && parseCurrencyValue(dineroDisponible.efectivo) > 0 && (
+                <small className="text-muted" style={{ fontSize: '0.75rem', fontStyle: 'italic' }}>
+                  {numeroAPalabras(dineroDisponible.efectivo)}
+                </small>
+              )}
             </div>
 
             <div className="mb-3">
               <label className="form-label fw-bold">Transferencia:</label>
               <input 
-                type="number"
+                type="text"
                 className="form-control form-control-lg"
                 placeholder="0"
-                value={dineroDisponible.transferencia}
-                onChange={(e) => setDineroDisponible({...dineroDisponible, transferencia: e.target.value})}
-                step="0.01"
-                min="0"
+                value={valoresInput.transferencia || ''}
+                onChange={(e) => manejarCambioDinero('transferencia', e.target.value)}
+                onFocus={() => manejarFocusDinero('transferencia')}
+                onBlur={() => manejarBlurDinero('transferencia')}
+                inputMode="numeric"
               />
+              {dineroDisponible.transferencia && parseCurrencyValue(dineroDisponible.transferencia) > 0 && (
+                <small className="text-muted" style={{ fontSize: '0.75rem', fontStyle: 'italic' }}>
+                  {numeroAPalabras(dineroDisponible.transferencia)}
+                </small>
+              )}
             </div>
 
             <div className="mb-3">
               <label className="form-label fw-bold">Cheques:</label>
               <input 
-                type="number"
+                type="text"
                 className="form-control form-control-lg"
                 placeholder="0"
-                value={dineroDisponible.cheques}
-                onChange={(e) => setDineroDisponible({...dineroDisponible, cheques: e.target.value})}
-                step="0.01"
-                min="0"
+                value={valoresInput.cheques || ''}
+                onChange={(e) => manejarCambioDinero('cheques', e.target.value)}
+                onFocus={() => manejarFocusDinero('cheques')}
+                onBlur={() => manejarBlurDinero('cheques')}
+                inputMode="numeric"
               />
+              {dineroDisponible.cheques && parseCurrencyValue(dineroDisponible.cheques) > 0 && (
+                <small className="text-muted" style={{ fontSize: '0.75rem', fontStyle: 'italic' }}>
+                  {numeroAPalabras(dineroDisponible.cheques)}
+                </small>
+              )}
             </div>
 
             <div className="alert alert-info mb-0">
@@ -513,8 +804,8 @@ export default function PagosProveedoresTab({
           </div>
           <div className="card-body">
             <div className="mb-3 pb-2 border-bottom">
-              <strong className="text-muted">Total de todas las boletas:</strong>
-              <div className="text-primary fs-3 fw-bold">{formatCurrency(faltante.totalBoletas)}</div>
+              <strong className="text-muted">Total de boletas seleccionadas:</strong>
+              <div className="text-primary fs-3 fw-bold">{formatCurrency(totales.totalAPagar)}</div>
             </div>
             
             <div className="mb-3 pb-2 border-bottom">
@@ -526,12 +817,12 @@ export default function PagosProveedoresTab({
               <div className="alert alert-danger mb-2">
                 <strong>⚠️ FALTA:</strong>
                 <div className="fs-3 fw-bold">{formatCurrency(faltante.faltante)}</div>
-                <small>No tienes suficiente dinero para pagar todas las boletas</small>
+                <small>No tienes suficiente dinero para pagar las boletas seleccionadas</small>
               </div>
             ) : (
               <div className="alert alert-success mb-2">
                 <strong>✓ Suficiente:</strong>
-                <div className="fs-5">Tienes dinero suficiente para pagar todas las boletas</div>
+                <div className="fs-5">Tienes dinero suficiente para pagar las boletas seleccionadas</div>
                 {faltante.faltante < 0 && (
                   <small className="text-muted">
                     Sobra: {formatCurrency(Math.abs(faltante.faltante))}
@@ -611,48 +902,95 @@ export default function PagosProveedoresTab({
                 <h5 className="mb-0">📋 Seleccionar boletas a pagar</h5>
               </div>
               <div className="card-body">
-                {Object.entries(boletasPorProveedor).map(([proveedor, boletasProv]) => (
+                {Object.entries(boletasPorProveedor).map(([proveedor, boletasProv]) => {
+                  const totalBoletas = totalPorProveedor(proveedor);
+                  
+                  return (
                   <div key={proveedor} className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <strong>{proveedor}</strong>
-                      <span className="badge bg-secondary">
-                        {formatCurrency(totalPorProveedor(proveedor))}
-                      </span>
+                    <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                      <div className="d-flex align-items-center gap-2 flex-wrap">
+                        <strong>{proveedor}</strong>
+                        <span className="badge bg-secondary" title={`Total de boletas: ${formatCurrency(totalBoletas)}`}>
+                          {formatCurrency(totalBoletas)}
+                        </span>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <button
+                          className="btn btn-sm btn-outline-primary"
+                          onClick={() => seleccionarTodasProveedor(proveedor)}
+                          title="Seleccionar todas las boletas de este proveedor"
+                        >
+                          ✓ Seleccionar todas
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-success"
+                          onClick={() => marcarTodasPagadasProveedor(proveedor)}
+                          title="Marcar todas las boletas como pagadas"
+                        >
+                          💰 Marcar todas pagadas
+                        </button>
+                      </div>
                     </div>
                     <div className="row g-2">
                       {boletasProv.map(boleta => {
-                        const pago = pagosBoletas[boleta.id] || {};
+                        const estadoLocal = pagosBoletasLocal[boleta.id] || {};
                         const montoAPagar = obtenerMontoAPagar(boleta);
-                        const totalPago = (parseFloat(pago.efectivo) || 0) + 
-                                         (parseFloat(pago.transferencia) || 0) + 
-                                         (parseFloat(pago.cheques) || 0);
-                        const estaPagada = totalPago >= montoAPagar && totalPago > 0;
+                        const estaPagada = boletasPagadas[boleta.id] || false;
 
                         return (
                           <div key={boleta.id} className="col-md-4 col-sm-6">
-                            <div className={`card h-100 ${pago.seleccionada ? 'border-success' : 'border-secondary'} ${estaPagada ? 'bg-light' : ''}`} style={{ fontSize: '0.85rem' }}>
+                            <div 
+                              className={`card h-100 ${estadoLocal.seleccionada ? 'border-success' : 'border-secondary'} ${estaPagada ? 'bg-light' : ''}`} 
+                              style={{ fontSize: '0.85rem', opacity: estaPagada ? 0.5 : 1, cursor: estaPagada ? 'pointer' : 'default' }}
+                              onClick={estaPagada ? (e) => {
+                                // Si el clic fue en un checkbox, input o label, no desmarcar
+                                if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' || e.target.closest('.form-check')) {
+                                  return;
+                                }
+                                togglePagadaBoleta(boleta.id);
+                              } : undefined}
+                              title={estaPagada ? 'Clic para desmarcar como pagada' : ''}
+                            >
                               <div className="card-body p-2">
                                 <div className="d-flex justify-content-between align-items-start mb-1">
                                   <div className="flex-grow-1">
                                     <div className="d-flex align-items-center gap-1 mb-1">
-                                      <span className="badge bg-primary" style={{ fontSize: '0.7rem' }}>{boleta.dia}</span>
-                                      <strong style={{ fontSize: '0.85rem' }}>{boleta.proveedor}</strong>
+                                      <span className="badge bg-primary" style={{ fontSize: '0.7rem', opacity: estaPagada ? 0.6 : 1 }}>{boleta.dia}</span>
+                                      <strong style={{ fontSize: '0.85rem', opacity: estaPagada ? 0.5 : 1, color: estaPagada ? '#6c757d' : 'inherit' }}>{boleta.proveedor}</strong>
                                     </div>
-                                    <div className="text-success fw-bold" style={{ fontSize: '0.9rem' }}>
+                                    <div className="fw-bold text-success" style={{ fontSize: '0.9rem', opacity: estaPagada ? 0.5 : 1 }}>
                                       {formatCurrency(montoAPagar)}
                                     </div>
-                                    {estaPagada && (
-                                      <small className="text-success">✓ Pagada</small>
-                                    )}
                                   </div>
-                                  <div className="form-check">
-                                    <input
-                                      className="form-check-input"
-                                      type="checkbox"
-                                      checked={pago.seleccionada || false}
-                                      onChange={() => toggleSeleccionBoleta(boleta.id)}
-                                      disabled={estaPagada}
-                                    />
+                                  <div className="d-flex flex-column gap-2 align-items-end" style={{ opacity: estaPagada ? 0.7 : 1 }}>
+                                    <div className="form-check d-flex align-items-center gap-1">
+                                      <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        checked={estadoLocal.seleccionada || false}
+                                        onChange={() => toggleSeleccionBoleta(boleta.id)}
+                                        disabled={estaPagada}
+                                        id={`select-${boleta.id}`}
+                                        title="Seleccionar para pagar"
+                                        style={{ opacity: estaPagada ? 0.5 : 1 }}
+                                      />
+                                      <label className="form-check-label" htmlFor={`select-${boleta.id}`} style={{ fontSize: '0.7rem', cursor: estaPagada ? 'not-allowed' : 'pointer', opacity: estaPagada ? 0.6 : 1 }}>
+                                        Seleccionar
+                                      </label>
+                                    </div>
+                                    <div className="form-check d-flex align-items-center gap-1">
+                                      <input
+                                        className="form-check-input"
+                                        type="checkbox"
+                                        checked={estaPagada}
+                                        onChange={() => togglePagadaBoleta(boleta.id)}
+                                        id={`paid-${boleta.id}`}
+                                        title="Marcar como pagada"
+                                      />
+                                      <label className="form-check-label" htmlFor={`paid-${boleta.id}`} style={{ fontSize: '0.7rem', cursor: 'pointer' }}>
+                                        {estaPagada ? <span className="text-success">✓ Pagada</span> : 'Marcar pagada'}
+                                      </label>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -662,12 +1000,17 @@ export default function PagosProveedoresTab({
                       })}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             {/* Sección inferior: Boletas seleccionadas en detalle */}
-            {boletas.filter(b => pagosBoletas[b.id]?.seleccionada).length > 0 && (
+            {boletas.filter(b => {
+              const estadoLocal = pagosBoletasLocal[b.id] || {};
+              const estaPagada = boletasPagadas[b.id] || false;
+              return estadoLocal.seleccionada && !estaPagada; // Solo mostrar las seleccionadas que no están pagadas
+            }).length > 0 && (
               <div className="card">
                 <div className="card-header bg-success text-white">
                   <h5 className="mb-0">💳 Configurar pagos de boletas seleccionadas</h5>
@@ -675,20 +1018,26 @@ export default function PagosProveedoresTab({
                 <div className="card-body">
                   <>
                     {Object.entries(boletasPorProveedor).map(([proveedor, boletasProv]) => {
-                      const boletasSeleccionadas = boletasProv.filter(b => pagosBoletas[b.id]?.seleccionada);
+                      const boletasSeleccionadas = boletasProv.filter(b => {
+                        const estadoLocal = pagosBoletasLocal[b.id] || {};
+                        const estaPagada = boletasPagadas[b.id] || false;
+                        return estadoLocal.seleccionada && !estaPagada; // Solo mostrar las seleccionadas que no están pagadas
+                      });
                       if (boletasSeleccionadas.length === 0) return null;
-
+                      
                       return (
                         <div key={proveedor} className="mb-4">
-                        <h6 className="mb-3">
-                          <strong>{proveedor}</strong>
-                          <span className="badge bg-secondary ms-2">
-                            {boletasSeleccionadas.length} boleta{boletasSeleccionadas.length > 1 ? 's' : ''}
-                          </span>
-                        </h6>
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                          <h6 className="mb-0">
+                            <strong>{proveedor}</strong>
+                            <span className="badge bg-secondary ms-2">
+                              {boletasSeleccionadas.length} boleta{boletasSeleccionadas.length > 1 ? 's' : ''}
+                            </span>
+                          </h6>
+                        </div>
                         <div className="row">
                           {boletasSeleccionadas.map(boleta => {
-                            const pago = pagosBoletas[boleta.id] || {};
+                            const pago = pagosBoletasLocal[boleta.id] || {};
                             const montoAPagar = obtenerMontoAPagar(boleta);
                             const totalPago = (parseFloat(pago.efectivo) || 0) + 
                                              (parseFloat(pago.transferencia) || 0) + 
@@ -741,7 +1090,7 @@ export default function PagosProveedoresTab({
                                           )}
                                         </small>
                                       </div>
-                                      <div className={`fs-4 fw-bold mt-2 ${tieneMontoPersonalizado ? 'text-info' : 'text-success'}`}>
+                                      <div className="fs-4 fw-bold mt-2 text-success">
                                         {formatCurrency(montoAPagar)}
                                       </div>
                                     </div>

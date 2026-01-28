@@ -81,10 +81,11 @@ const Home = () => {
         }}>
           ¿Qué necesitas hacer hoy?
         </p>
-        <div style={{ padding: '0 2rem' }}>
+        <div className="home-menu-container" style={{ padding: '0 2rem' }}>
           {menuItems.map((item) => (
             <div 
               key={item.path} 
+              className="home-menu-item"
               style={{ 
                 display: 'inline-block',
                 margin: '1rem',
@@ -92,10 +93,9 @@ const Home = () => {
                 verticalAlign: 'top'
               }}
             >
-              {/* Botón principal - navega solo si no es un menú con submenú o si no tiene path '#' */}
+              {/* Botón principal - siempre igual, sin cambios de estilo al expandir */}
               {item.hasSubmenu && item.path === '#' ? (
-                <button
-                  onClick={() => toggleMenu(item.menuKey)}
+                <div
                   style={{
                     textDecoration: 'none',
                     color: '#fff',
@@ -104,24 +104,13 @@ const Home = () => {
                     borderRadius: '8px',
                     fontSize: '1.5rem',
                     fontWeight: '700',
-                    transition: 'all 0.3s ease',
                     boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
                     display: 'inline-block',
-                    cursor: 'pointer',
-                    border: 'none',
                     fontFamily: "'Montserrat', sans-serif"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#90C3D4';
-                    e.target.style.transform = 'translateY(-3px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#A9D6E5';
-                    e.target.style.transform = 'translateY(0)';
                   }}
                 >
                   {item.label}
-                </button>
+                </div>
               ) : (
                 <Link
                   to={item.path}
@@ -151,9 +140,9 @@ const Home = () => {
                 </Link>
               )}
 
-              {/* Botón separado para ver opciones (solo para Gestión Semanal) */}
-              {item.hasSubmenu && item.path !== '#' && (
-                <div style={{ marginTop: '10px', textAlign: 'center' }}>
+              {/* Botón separado para ver opciones (para todos los menús con submenú) */}
+              {item.hasSubmenu && (
+                <div className="home-ver-opciones-button" style={{ marginTop: '10px', textAlign: 'center' }}>
                   <button
                     onClick={() => toggleMenu(item.menuKey)}
                     style={{
@@ -193,7 +182,7 @@ const Home = () => {
 
               {/* Submenú */}
               {item.hasSubmenu && expandedMenus[item.menuKey] && (
-                <div style={{
+                <div className="home-submenu" style={{
                   position: 'absolute',
                   top: '100%',
                   left: '50%',
@@ -202,7 +191,8 @@ const Home = () => {
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px',
-                  animation: 'slideDown 0.3s ease'
+                  animation: 'slideDown 0.3s ease',
+                  zIndex: 10
                 }}>
                   {item.submenuItems.map((subItem) => (
                     <Link
@@ -283,6 +273,47 @@ const Home = () => {
             to {
               opacity: 1;
               transform: translateX(-50%) translateY(0);
+            }
+          }
+          
+          /* Estilos responsive para mobile */
+          @media (max-width: 768px) {
+            .home-menu-container {
+              display: flex !important;
+              flex-direction: column !important;
+              align-items: center !important;
+              padding: 0 1rem !important;
+            }
+            
+            .home-menu-item {
+              display: block !important;
+              width: 100% !important;
+              max-width: 300px !important;
+              margin: 0.75rem 0 !important;
+              margin-bottom: 1.5rem !important;
+            }
+            
+            .home-menu-item:last-child {
+              margin-bottom: 1rem !important;
+            }
+            
+            .home-ver-opciones-button {
+              margin-top: 12px !important;
+              margin-bottom: 8px !important;
+            }
+            
+            .home-submenu {
+              position: relative !important;
+              top: auto !important;
+              left: auto !important;
+              transform: none !important;
+              margin-top: 8px !important;
+              width: 100% !important;
+            }
+            
+            .home-submenu a {
+              width: 100% !important;
+              text-align: center !important;
             }
           }
         `}</style>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 const TransferenciaCard = ({ transferencia, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Función para formatear montos a moneda argentina
   const formatCurrency = (value) => {
@@ -54,7 +55,32 @@ const TransferenciaCard = ({ transferencia, onDelete, onEdit, onPrint }) => {
             </small>
           </div>
           <div className="d-flex align-items-center">
-            <span className={`badge ${saldo > 0 ? 'bg-success' : saldo < 0 ? 'bg-danger' : 'bg-secondary'} me-2`}>
+            <span 
+              className={`badge ${saldo > 0 ? 'bg-success' : saldo < 0 ? 'bg-danger' : 'bg-secondary'} me-2`}
+              draggable={true}
+              onDragStart={(e) => {
+                e.stopPropagation();
+                setIsDragging(true);
+                // Guardar el valor numérico del saldo en el evento de drag
+                e.dataTransfer.setData('text/plain', Math.abs(saldo).toString());
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
+              onDragEnd={(e) => {
+                e.stopPropagation();
+                setIsDragging(false);
+              }}
+              onMouseDown={(e) => {
+                // Prevenir que el click del header expanda/contraiga cuando se arrastra el badge
+                e.stopPropagation();
+              }}
+              style={{ 
+                cursor: isDragging ? 'grabbing' : 'grab',
+                opacity: isDragging ? 0.5 : 1,
+                transition: 'opacity 0.2s',
+                userSelect: 'none'
+              }}
+              title="Arrastra este monto al campo de transferencia"
+            >
               {formatCurrency(Math.abs(saldo))}
             </span>
             <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: '0.8rem' }}></i>

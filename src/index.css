@@ -163,8 +163,17 @@ body {
   }
 }
 
+/* Estilos del navbar para desktop */
+.main-navbar {
+  position: relative;
+}
+
+.main-navbar .mobile-nav-button {
+  display: none;
+}
+
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 991.98px) {
   .container {
     padding: 0 15px;
   }
@@ -175,6 +184,47 @@ body {
   
   .table-responsive {
     font-size: 0.9rem;
+  }
+  
+  /* Navbar sticky para mobile */
+  .main-navbar {
+    position: sticky !important;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-height: 56px;
+    padding: 0.5rem 0;
+  }
+  
+  /* Ocultar el collapse en mobile, mostrar solo el botón siempre visible */
+  .main-navbar .navbar-collapse {
+    display: none !important;
+  }
+  
+  /* Asegurar que el botón mobile siempre esté visible */
+  .main-navbar .mobile-nav-button {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+  }
+  
+  /* Estilos para el botón de inicio en mobile */
+  .main-navbar .mobile-nav-button .nav-link {
+    transition: all 0.2s ease;
+    border-radius: 8px;
+  }
+  
+  .main-navbar .mobile-nav-button .nav-link:active {
+    background-color: rgba(255,255,255,0.2);
+    transform: scale(0.95);
+  }
+  
+  /* Asegurar que el contenedor del navbar tenga flexbox correcto */
+  .main-navbar .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 }
 

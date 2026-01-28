@@ -39,6 +39,8 @@ const Transferencias = () => {
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [transferenciaToEdit, setTransferenciaToEdit] = useState(null);
+  const [draggedOverIndex, setDraggedOverIndex] = useState(null);
+  const [draggedOverType, setDraggedOverType] = useState(null); // 'transferencia' o 'boleta'
 
   useEffect(() => {
     const today = getLocalDateString();
@@ -248,6 +250,43 @@ const Transferencias = () => {
                     placeholder="Monto (AR$)"
                     value={t.monto}
                     onChange={(e) => updateTransferenciaRow(index, 'monto', e.target.value)}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setDraggedOverIndex(index);
+                      setDraggedOverType('transferencia');
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setDraggedOverIndex(null);
+                      setDraggedOverType(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDraggedOverIndex(null);
+                      setDraggedOverType(null);
+                      const montoValue = e.dataTransfer.getData('text/plain');
+                      if (montoValue) {
+                        // Formatear el valor para mostrarlo en el input
+                        const montoNumerico = parseFloat(montoValue);
+                        if (!isNaN(montoNumerico)) {
+                          // Usar formatCurrencyNoSymbol para mantener consistencia con el formato
+                          const montoFormateado = formatCurrencyNoSymbol(montoNumerico);
+                          updateTransferenciaRow(index, 'monto', montoFormateado);
+                        }
+                      }
+                    }}
+                    style={{ 
+                      cursor: 'copy',
+                      backgroundColor: draggedOverIndex === index && draggedOverType === 'transferencia' ? '#e7f3ff' : '',
+                      borderColor: draggedOverIndex === index && draggedOverType === 'transferencia' ? '#0d6efd' : ''
+                    }}
+                    title="Arrastra un monto aquí"
                   />
                 </div>
                 <div className="col-1">
@@ -293,6 +332,43 @@ const Transferencias = () => {
                     placeholder="Monto (AR$)"
                     value={b.monto}
                     onChange={(e) => updateBoleta(index, 'monto', e.target.value)}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setDraggedOverIndex(index);
+                      setDraggedOverType('boleta');
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.dataTransfer.dropEffect = 'copy';
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setDraggedOverIndex(null);
+                      setDraggedOverType(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDraggedOverIndex(null);
+                      setDraggedOverType(null);
+                      const montoValue = e.dataTransfer.getData('text/plain');
+                      if (montoValue) {
+                        // Formatear el valor para mostrarlo en el input
+                        const montoNumerico = parseFloat(montoValue);
+                        if (!isNaN(montoNumerico)) {
+                          // Usar formatCurrencyNoSymbol para mantener consistencia con el formato
+                          const montoFormateado = formatCurrencyNoSymbol(montoNumerico);
+                          updateBoleta(index, 'monto', montoFormateado);
+                        }
+                      }
+                    }}
+                    style={{ 
+                      cursor: 'copy',
+                      backgroundColor: draggedOverIndex === index && draggedOverType === 'boleta' ? '#e7f3ff' : '',
+                      borderColor: draggedOverIndex === index && draggedOverType === 'boleta' ? '#0d6efd' : ''
+                    }}
+                    title="Arrastra un monto aquí"
                   />
                 </div>
                 <div className="col-1">

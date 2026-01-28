@@ -37,3 +37,4 @@ export const getDiaActual = () => {
   return diaActual === 'Domingo' ? 'Lunes' : diaActual;
 };
 
+

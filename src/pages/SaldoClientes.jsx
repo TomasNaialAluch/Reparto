@@ -47,6 +47,9 @@ const SaldoClientes = () => {
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printData, setPrintData] = useState(null);
   const [clienteToEdit, setClienteToEdit] = useState(null);
+  
+  // Estado para modal de vincular boletas de mercadería
+  const [showMercaderiaModal, setShowMercaderiaModal] = useState(false);
 
   // Función para filtrar clientes por fecha
   const getFilteredClientes = () => {
@@ -206,29 +209,47 @@ const SaldoClientes = () => {
   const saveCurrentCliente = async () => {
     if (clientName.trim() && summaryData) {
       try {
+        const plataFavorData = showPlata ? plata.filter(p => p.amount) : [];
+        
         const clienteData = {
           id: `cliente_${Date.now()}`,
           nombreCliente: clientName.trim(),
           fecha: getLocalDateString(),
           boletas: boletas.filter(b => b.date && b.amount),
           ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
-          plata: showPlata ? plata.filter(p => p.amount) : [],
+          plataFavor: plataFavorData,
           efectivo: showEfectivo ? efectivo.filter(e => e.amount) : [],
           cheques: showCheque ? cheques.filter(c => c.id && c.amount) : [],
           transferencias: showTransferencia ? transferencias.filter(t => t.amount) : [],
-          saldoFinal: summaryData.finalBalance || 0
+          saldoFinal: summaryData.finalBalance || 0,
+          // Incluir todos los totales del summaryData para consistencia
+          totalBoletas: summaryData.totalBoletas || 0,
+          totalVentas: summaryData.totalVentas || 0,
+          totalPlata: summaryData.totalPlata || 0,
+          totalEfectivo: summaryData.totalEfectivo || 0,
+          totalCheque: summaryData.totalCheque || 0,
+          totalTransferencia: summaryData.totalTransferencia || 0,
+          totalIngresos: summaryData.totalIngresos || 0
         };
 
         const firebaseData = {
           clientName: clienteData.nombreCliente,
           boletas: clienteData.boletas,
           ventas: clienteData.ventas,
-          plataFavor: showPlata ? plata.filter(p => p.amount) : [],
+          plataFavor: plataFavorData,
           efectivo: clienteData.efectivo,
           cheques: clienteData.cheques,
           transferencias: clienteData.transferencias,
           finalBalance: clienteData.saldoFinal,
-          date: clienteData.fecha
+          date: clienteData.fecha,
+          // Incluir todos los totales calculados
+          totalBoletas: clienteData.totalBoletas,
+          totalVentas: clienteData.totalVentas,
+          totalPlata: clienteData.totalPlata,
+          totalEfectivo: clienteData.totalEfectivo,
+          totalCheque: clienteData.totalCheque,
+          totalTransferencia: clienteData.totalTransferencia,
+          totalIngresos: clienteData.totalIngresos
         };
         
         await addClientBalance(firebaseData);
@@ -240,6 +261,8 @@ const SaldoClientes = () => {
         setBoletas([{ date: '', amount: '' }]);
         setShowVentas(false);
         setVentas([]);
+        setShowPlata(false);
+        setPlata([]);
         setShowEfectivo(false);
         setEfectivo([]);
         setShowCheque(false);
@@ -286,6 +309,54 @@ const SaldoClientes = () => {
   };
   const addTransferencia = () => {
     setTransferencias([...transferencias, { amount: '' }]);
+  };
+
+  // Obtener boletas de mercadería disponibles para vincular
+  const obtenerBoletasMercaderia = () => {
+    if (!semanaActiva?.mercaderia || !clientName.trim()) return [];
+    
+    return semanaActiva.mercaderia
+      .filter(entrada => entrada.proveedor === clientName.trim())
+      .map((entrada, index) => {
+        const costoTotal = entrada.cortes.reduce((sum, c) => 
+          sum + (c.kg * (c.precioKg || 0)), 0
+        );
+        
+        return {
+          id: `mercaderia-${index}`,
+          index,
+          dia: entrada.dia,
+          proveedor: entrada.proveedor,
+          costoTotal,
+          cortes: entrada.cortes,
+          timestamp: entrada.timestamp || new Date().toISOString()
+        };
+      });
+  };
+
+  // Vincular una boleta de mercadería
+  const vincularBoletaMercaderia = (boletaMercaderia) => {
+    // Verificar si ya existe esta boleta vinculada
+    const yaExiste = boletas.some(b => 
+      b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boletaMercaderia.index
+    );
+    
+    if (yaExiste) {
+      showError('Esta boleta de mercadería ya está vinculada');
+      return;
+    }
+
+    // Agregar la boleta vinculada
+    const nuevaBoleta = {
+      date: boletaMercaderia.timestamp ? boletaMercaderia.timestamp.split('T')[0] : getLocalDateString(),
+      amount: formatCurrencyNoSymbol(boletaMercaderia.costoTotal),
+      mercaderiaIndex: boletaMercaderia.index,
+      esDeMercaderia: true
+    };
+    
+    setBoletas([...boletas, nuevaBoleta]);
+    setShowMercaderiaModal(false);
+    showSuccess(`Boleta de mercadería del ${boletaMercaderia.dia} vinculada correctamente`);
   };
 
   // Remove rows
@@ -447,6 +518,7 @@ const SaldoClientes = () => {
                       value={boleta.date}
                       onChange={(e) => updateBoleta(index, 'date', e.target.value)}
                       required 
+                      disabled={boleta.esDeMercaderia}
                     />
                     <input 
                       type="text" 
@@ -457,12 +529,27 @@ const SaldoClientes = () => {
                       onBlur={handleCurrencyBlur}
                       onFocus={handleCurrencyFocus}
                       required 
+                      disabled={boleta.esDeMercaderia}
                     />
+                    {boleta.esDeMercaderia && (
+                      <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
+                    )}
                     <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeBoleta(index)} style={{ fontSize: '1.2rem' }}>×</button>
                   </div>
                 ))}
               </div>
-              <button type="button" className="btn btn-secondary mb-3" onClick={addBoleta}>Agregar Boleta</button>
+              <div className="d-flex gap-2 mb-3">
+                <button type="button" className="btn btn-secondary" onClick={addBoleta}>Agregar Boleta Manual</button>
+                {clientName.trim() && semanaActiva?.mercaderia && (
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-primary" 
+                    onClick={() => setShowMercaderiaModal(true)}
+                  >
+                    📦 Vincular Boleta de Mercadería
+                  </button>
+                )}
+              </div>
 
               <h4>Ajustes</h4>
               <div className="mb-3">
@@ -810,6 +897,87 @@ const SaldoClientes = () => {
             setPrintData(null);
           }}
         />
+      )}
+
+      {/* Modal para vincular boletas de mercadería */}
+      {showMercaderiaModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">📦 Vincular Boletas de Mercadería</h5>
+                <button type="button" className="btn-close" onClick={() => setShowMercaderiaModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {!clientName.trim() ? (
+                  <div className="alert alert-warning">
+                    Por favor ingrese el nombre del cliente/proveedor primero
+                  </div>
+                ) : obtenerBoletasMercaderia().length === 0 ? (
+                  <div className="alert alert-info">
+                    No hay boletas de mercadería disponibles para <strong>{clientName}</strong>
+                  </div>
+                ) : (
+                  <>
+                    <p className="mb-3">
+                      Seleccione las boletas de mercadería que desea vincular para <strong>{clientName}</strong>:
+                    </p>
+                    <div className="list-group" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      {obtenerBoletasMercaderia().map((boleta) => {
+                        const yaVinculada = boletas.some(b => 
+                          b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
+                        );
+                        
+                        return (
+                          <div 
+                            key={boleta.id} 
+                            className={`list-group-item ${yaVinculada ? 'bg-light' : ''}`}
+                          >
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <div className="d-flex align-items-center gap-2 mb-1">
+                                  <span className="badge bg-primary">{boleta.dia}</span>
+                                  <strong>{boleta.proveedor}</strong>
+                                  {yaVinculada && (
+                                    <span className="badge bg-success">✓ Ya vinculada</span>
+                                  )}
+                                </div>
+                                <div className="text-muted small">
+                                  {boleta.cortes.length} corte{boleta.cortes.length > 1 ? 's' : ''}
+                                </div>
+                              </div>
+                              <div className="text-end">
+                                <div className="fw-bold text-success fs-5">
+                                  {formatCurrency(boleta.costoTotal)}
+                                </div>
+                                <small className="text-muted">
+                                  {formatCurrencyNoSymbol(boleta.costoTotal)} AR$
+                                </small>
+                                {!yaVinculada && (
+                                  <button
+                                    className="btn btn-sm btn-primary mt-2"
+                                    onClick={() => vincularBoletaMercaderia(boleta)}
+                                  >
+                                    Vincular
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowMercaderiaModal(false)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Contenedor de notificaciones */}

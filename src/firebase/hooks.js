@@ -327,14 +327,22 @@ export const useClientBalances = () => {
   const addClientBalance = async (clientData) => {
     return await addDocument({
       clientName: clientData.clientName,
-      boletas: clientData.boletas || [],
+      boletas: clientData.boletas || [], // Preserva campos adicionales como mercaderiaIndex y esDeMercaderia
       ventas: clientData.ventas || [],
       plataFavor: clientData.plataFavor || [],
       efectivo: clientData.efectivo || [],
       cheques: clientData.cheques || [],
       transferencias: clientData.transferencias || [],
       finalBalance: clientData.finalBalance,
-      date: getLocalDateString()
+      date: clientData.date || getLocalDateString(),
+      // Incluir todos los totales calculados si existen
+      totalBoletas: clientData.totalBoletas,
+      totalVentas: clientData.totalVentas,
+      totalPlata: clientData.totalPlata,
+      totalEfectivo: clientData.totalEfectivo,
+      totalCheque: clientData.totalCheque,
+      totalTransferencia: clientData.totalTransferencia,
+      totalIngresos: clientData.totalIngresos
     });
   };
 

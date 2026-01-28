@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
+import { useGestionSemanal } from '../firebase/hooks';
 
 const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
+  const { semanaActiva } = useGestionSemanal('shared');
   const [formData, setFormData] = useState({
     clientName: '',
     boletas: [{ date: '', amount: '' }],
@@ -19,6 +21,9 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     cheques: false,
     transferencias: false
   });
+  
+  // Estado para modal de vincular boletas de mercadería
+  const [showMercaderiaModal, setShowMercaderiaModal] = useState(false);
 
   // Cargar datos del cliente cuando se abre el modal
   useEffect(() => {
@@ -86,6 +91,57 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   const addEfectivo = () => addItem('efectivo', { date: getLocalDateString(), amount: '' });
   const addCheque = () => addItem('cheques', { date: getLocalDateString(), id: '', amount: '' });
   const addTransferencia = () => addItem('transferencias', { date: getLocalDateString(), amount: '' });
+
+  // Obtener boletas de mercadería disponibles para vincular
+  const obtenerBoletasMercaderia = () => {
+    if (!semanaActiva?.mercaderia || !formData.clientName.trim()) return [];
+    
+    return semanaActiva.mercaderia
+      .filter(entrada => entrada.proveedor === formData.clientName.trim())
+      .map((entrada, index) => {
+        const costoTotal = entrada.cortes.reduce((sum, c) => 
+          sum + (c.kg * (c.precioKg || 0)), 0
+        );
+        
+        return {
+          id: `mercaderia-${index}`,
+          index,
+          dia: entrada.dia,
+          proveedor: entrada.proveedor,
+          costoTotal,
+          cortes: entrada.cortes,
+          timestamp: entrada.timestamp || new Date().toISOString()
+        };
+      });
+  };
+
+  // Vincular una boleta de mercadería
+  const vincularBoletaMercaderia = (boletaMercaderia) => {
+    // Verificar si ya existe esta boleta vinculada
+    const yaExiste = formData.boletas.some(b => 
+      b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boletaMercaderia.index
+    );
+    
+    if (yaExiste) {
+      alert('Esta boleta de mercadería ya está vinculada');
+      return;
+    }
+
+    // Agregar la boleta vinculada
+    const nuevaBoleta = {
+      date: boletaMercaderia.timestamp ? boletaMercaderia.timestamp.split('T')[0] : getLocalDateString(),
+      amount: formatCurrencyNoSymbol(boletaMercaderia.costoTotal),
+      mercaderiaIndex: boletaMercaderia.index,
+      esDeMercaderia: true
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      boletas: [...prev.boletas, nuevaBoleta]
+    }));
+    
+    setShowMercaderiaModal(false);
+  };
 
   const handleSave = () => {
     if (!formData.clientName.trim()) {
@@ -172,6 +228,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                     value={boleta.date}
                     onChange={(e) => updateItem('boletas', index, 'date', e.target.value)}
                     required 
+                    disabled={boleta.esDeMercaderia}
                   />
                   <input 
                     type="text" 
@@ -182,11 +239,26 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                     onBlur={handleCurrencyBlur}
                     onFocus={handleCurrencyFocus}
                     required 
+                    disabled={boleta.esDeMercaderia}
                   />
+                  {boleta.esDeMercaderia && (
+                    <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
+                  )}
                   <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('boletas', index)}>×</button>
                 </div>
               ))}
-              <button type="button" className="btn btn-secondary btn-sm" onClick={addBoleta}>Agregar Boleta</button>
+              <div className="d-flex gap-2">
+                <button type="button" className="btn btn-secondary btn-sm" onClick={addBoleta}>Agregar Boleta Manual</button>
+                {formData.clientName.trim() && semanaActiva?.mercaderia && (
+                  <button 
+                    type="button" 
+                    className="btn btn-outline-primary btn-sm" 
+                    onClick={() => setShowMercaderiaModal(true)}
+                  >
+                    📦 Vincular Boleta de Mercadería
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Ventas */}
@@ -408,6 +480,87 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
           </div>
         </div>
       </div>
+
+      {/* Modal para vincular boletas de mercadería */}
+      {showMercaderiaModal && (
+        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">📦 Vincular Boletas de Mercadería</h5>
+                <button type="button" className="btn-close" onClick={() => setShowMercaderiaModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {!formData.clientName.trim() ? (
+                  <div className="alert alert-warning">
+                    Por favor ingrese el nombre del cliente/proveedor primero
+                  </div>
+                ) : obtenerBoletasMercaderia().length === 0 ? (
+                  <div className="alert alert-info">
+                    No hay boletas de mercadería disponibles para <strong>{formData.clientName}</strong>
+                  </div>
+                ) : (
+                  <>
+                    <p className="mb-3">
+                      Seleccione las boletas de mercadería que desea vincular para <strong>{formData.clientName}</strong>:
+                    </p>
+                    <div className="list-group" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                      {obtenerBoletasMercaderia().map((boleta) => {
+                        const yaVinculada = formData.boletas.some(b => 
+                          b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
+                        );
+                        
+                        return (
+                          <div 
+                            key={boleta.id} 
+                            className={`list-group-item ${yaVinculada ? 'bg-light' : ''}`}
+                          >
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <div className="d-flex align-items-center gap-2 mb-1">
+                                  <span className="badge bg-primary">{boleta.dia}</span>
+                                  <strong>{boleta.proveedor}</strong>
+                                  {yaVinculada && (
+                                    <span className="badge bg-success">✓ Ya vinculada</span>
+                                  )}
+                                </div>
+                                <div className="text-muted small">
+                                  {boleta.cortes.length} corte{boleta.cortes.length > 1 ? 's' : ''}
+                                </div>
+                              </div>
+                              <div className="text-end">
+                                <div className="fw-bold text-success fs-5">
+                                  {formatCurrency(boleta.costoTotal)}
+                                </div>
+                                <small className="text-muted">
+                                  {formatCurrencyNoSymbol(boleta.costoTotal)} AR$
+                                </small>
+                                {!yaVinculada && (
+                                  <button
+                                    className="btn btn-sm btn-primary mt-2"
+                                    onClick={() => vincularBoletaMercaderia(boleta)}
+                                  >
+                                    Vincular
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowMercaderiaModal(false)}>
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
