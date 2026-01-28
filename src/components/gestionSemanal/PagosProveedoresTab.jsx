@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatCurrency, parseCurrencyValue } from '../../utils/money';
 import { getLocalDateString } from '../../utils/date';
+import { useSaldoProveedor, DescuentoSaldoProveedor } from '../saldoProveedor';
 
 export default function PagosProveedoresTab({ 
   semanaActiva, 
@@ -28,6 +29,18 @@ export default function PagosProveedoresTab({
   
   // Estado COMPARTIDO: solo boletas pagadas (SÍ se guarda en Firebase para que otros usuarios lo vean)
   const [boletasPagadas, setBoletasPagadas] = useState({});
+
+  // Hook para manejar saldos a favor de proveedores
+  const {
+    obtenerSaldoAFavor,
+    obtenerInfoSaldo,
+    aplicarDescuento,
+    quitarDescuento,
+    obtenerDescuentoAplicado,
+    calcularTotalConDescuento,
+    calcularTotalGeneralConDescuentos,
+    limpiarTodosLosDescuentos
+  } = useSaldoProveedor();
 
   // Refs para sincronización periódica
   const syncIntervalRef = useRef(null);
@@ -362,7 +375,20 @@ export default function PagosProveedoresTab({
       const estaPagada = boletasPagadas[b.id] || false;
       return estadoLocal.seleccionada && !estaPagada; // Excluir las que están marcadas como pagadas
     });
-    const totalAPagar = boletasSeleccionadas.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
+    
+    // Calcular totales por proveedor (para aplicar descuentos)
+    const totalesPorProveedor = {};
+    boletasSeleccionadas.forEach(b => {
+      if (!totalesPorProveedor[b.proveedor]) {
+        totalesPorProveedor[b.proveedor] = 0;
+      }
+      totalesPorProveedor[b.proveedor] += obtenerMontoAPagar(b);
+    });
+    
+    // Calcular totales con descuentos aplicados
+    const { totalOriginal, totalDescuentos, totalFinal } = calcularTotalGeneralConDescuentos(totalesPorProveedor);
+    const totalAPagar = totalFinal; // Total después de descuentos
+    const totalAPagarSinDescuentos = totalOriginal; // Total original sin descuentos
 
     const totalEfectivoUsado = boletasSeleccionadas.reduce((sum, b) => {
       return sum + (parseFloat(pagosBoletasLocal[b.id]?.efectivo) || 0);
@@ -381,7 +407,9 @@ export default function PagosProveedoresTab({
     return {
       totalDisponible,
       totalTodasLasBoletas,
-      totalAPagar,
+      totalAPagar, // Con descuentos aplicados
+      totalAPagarSinDescuentos, // Sin descuentos
+      totalDescuentos, // Total de descuentos aplicados
       totalUsado,
       totalEfectivo,
       totalTransferencia,
@@ -446,25 +474,35 @@ export default function PagosProveedoresTab({
   // Marcar todas las boletas de un proveedor como pagadas
   const marcarTodasPagadasProveedor = (proveedor) => {
     const boletasProveedor = boletas.filter(b => b.proveedor === proveedor);
+    
+    // Verificar si todas las boletas ya están marcadas como pagadas
+    const todasPagadas = boletasProveedor.every(boleta => boletasPagadas[boleta.id]);
+    
     const nuevasPagadas = { ...boletasPagadas };
     const nuevosPagosLocal = { ...pagosBoletasLocal };
     
     boletasProveedor.forEach(boleta => {
-      nuevasPagadas[boleta.id] = true;
-      // Deseleccionar todas al marcarlas como pagadas
-      if (nuevosPagosLocal[boleta.id]) {
-        nuevosPagosLocal[boleta.id] = {
-          ...nuevosPagosLocal[boleta.id],
-          seleccionada: false
-        };
+      if (todasPagadas) {
+        // Si todas están pagadas, desmarcarlas
+        nuevasPagadas[boleta.id] = false;
       } else {
-        nuevosPagosLocal[boleta.id] = {
-          seleccionada: false,
-          efectivo: '',
-          transferencia: '',
-          cheques: '',
-          montoPersonalizado: ''
-        };
+        // Si no todas están pagadas, marcarlas todas como pagadas
+        nuevasPagadas[boleta.id] = true;
+        // Deseleccionar todas al marcarlas como pagadas
+        if (nuevosPagosLocal[boleta.id]) {
+          nuevosPagosLocal[boleta.id] = {
+            ...nuevosPagosLocal[boleta.id],
+            seleccionada: false
+          };
+        } else {
+          nuevosPagosLocal[boleta.id] = {
+            seleccionada: false,
+            efectivo: '',
+            transferencia: '',
+            cheques: '',
+            montoPersonalizado: ''
+          };
+        }
       }
     });
     
@@ -473,27 +511,53 @@ export default function PagosProveedoresTab({
   };
 
   // Seleccionar todas las boletas de un proveedor (solo las que no están pagadas)
+  // Funciona como toggle: si todas están seleccionadas, las deselecciona
   const seleccionarTodasProveedor = (proveedor) => {
     const boletasProveedor = boletas.filter(b => {
       return b.proveedor === proveedor && !boletasPagadas[b.id];
     });
     
+    // Verificar si todas las boletas ya están seleccionadas
+    const todasSeleccionadas = boletasProveedor.every(boleta => {
+      const estadoLocal = pagosBoletasLocal[boleta.id];
+      return estadoLocal?.seleccionada === true;
+    });
+    
     setPagosBoletasLocal(prev => {
       const nuevosPagos = { ...prev };
       boletasProveedor.forEach(boleta => {
-        if (nuevosPagos[boleta.id]) {
-          nuevosPagos[boleta.id] = {
-            ...nuevosPagos[boleta.id],
-            seleccionada: true
-          };
+        if (todasSeleccionadas) {
+          // Si todas están seleccionadas, deseleccionarlas
+          if (nuevosPagos[boleta.id]) {
+            nuevosPagos[boleta.id] = {
+              ...nuevosPagos[boleta.id],
+              seleccionada: false
+            };
+          } else {
+            nuevosPagos[boleta.id] = {
+              seleccionada: false,
+              efectivo: '',
+              transferencia: '',
+              cheques: '',
+              montoPersonalizado: ''
+            };
+          }
         } else {
-          nuevosPagos[boleta.id] = {
-            seleccionada: true,
-            efectivo: '',
-            transferencia: '',
-            cheques: '',
-            montoPersonalizado: ''
-          };
+          // Si no todas están seleccionadas, seleccionarlas todas
+          if (nuevosPagos[boleta.id]) {
+            nuevosPagos[boleta.id] = {
+              ...nuevosPagos[boleta.id],
+              seleccionada: true
+            };
+          } else {
+            nuevosPagos[boleta.id] = {
+              seleccionada: true,
+              efectivo: '',
+              transferencia: '',
+              cheques: '',
+              montoPersonalizado: ''
+            };
+          }
         }
       });
       return nuevosPagos;
@@ -552,12 +616,16 @@ export default function PagosProveedoresTab({
       const estaPagada = boletasPagadas[b.id] || false;
       return estadoLocal.seleccionada && !estaPagada; // Excluir las que están marcadas como pagadas
     });
-    const totalBoletasSeleccionadas = boletasSeleccionadas.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
+    
+    // Usar el total con descuentos aplicados (ya calculado en calcularTotales)
+    const totalBoletasSeleccionadas = totales.totalAPagar; // Ya incluye descuentos
     const totalDisponible = totales.totalDisponible;
     const faltante = totalBoletasSeleccionadas - totalDisponible;
     
     return {
-      totalBoletas: totalBoletasSeleccionadas,
+      totalBoletas: totalBoletasSeleccionadas, // Con descuentos aplicados
+      totalBoletasSinDescuentos: totales.totalAPagarSinDescuentos, // Sin descuentos
+      totalDescuentos: totales.totalDescuentos, // Total de descuentos
       totalDisponible,
       faltante,
       tieneFaltante: faltante > 0
@@ -611,13 +679,15 @@ export default function PagosProveedoresTab({
       return;
     }
 
-    // Validar que los pagos no excedan el disponible
+    // Validar que los pagos no excedan el disponible (considerando descuentos)
+    // El totalAPagar ya incluye los descuentos aplicados
     if (totales.totalUsado > totales.totalDisponible) {
       addNotification('El total usado excede el dinero disponible', 'error');
       return;
     }
 
     // Validar que cada boleta tenga pago completo o parcial válido
+    // Considerar descuentos por proveedor al validar
     for (const boleta of boletasSeleccionadas) {
       const pago = pagosBoletasLocal[boleta.id] || {};
       const efectivo = parseFloat(pago.efectivo) || 0;
@@ -625,9 +695,13 @@ export default function PagosProveedoresTab({
       const cheques = parseFloat(pago.cheques) || 0;
       const totalPago = efectivo + transferencia + cheques;
       const montoAPagar = obtenerMontoAPagar(boleta);
+      
+      // Obtener el descuento aplicado para este proveedor
+      const descuento = obtenerDescuentoAplicado(boleta.proveedor);
+      const montoAPagarConDescuento = Math.max(0, montoAPagar - descuento);
 
-      if (totalPago > montoAPagar) {
-        addNotification(`El pago de ${boleta.proveedor} excede el monto de la boleta`, 'error');
+      if (totalPago > montoAPagarConDescuento) {
+        addNotification(`El pago de ${boleta.proveedor} excede el monto de la boleta (considerando descuentos)`, 'error');
         return;
       }
     }
@@ -706,6 +780,9 @@ export default function PagosProveedoresTab({
       // Sincronizar estado compartido (dinero disponible se sincroniza automáticamente)
       // Las boletas pagadas se sincronizan automáticamente cuando se marcan
 
+      // Limpiar descuentos aplicados después de procesar
+      limpiarTodosLosDescuentos();
+
       addNotification('Pagos procesados correctamente', 'success');
     } catch (err) {
       addNotification('Error al procesar los pagos', 'error');
@@ -723,6 +800,18 @@ export default function PagosProveedoresTab({
 
   const totalPorProveedor = (proveedor) => {
     return boletasPorProveedor[proveedor]?.reduce((sum, b) => sum + obtenerMontoAPagar(b), 0) || 0;
+  };
+
+  // Calcular total de boletas seleccionadas por proveedor
+  const totalSeleccionadasPorProveedor = (proveedor) => {
+    const boletasProv = boletasPorProveedor[proveedor] || [];
+    return boletasProv
+      .filter(b => {
+        const estadoLocal = pagosBoletasLocal[b.id] || {};
+        const estaPagada = boletasPagadas[b.id] || false;
+        return estadoLocal.seleccionada && !estaPagada;
+      })
+      .reduce((sum, b) => sum + obtenerMontoAPagar(b), 0);
   };
 
   return (
@@ -805,7 +894,15 @@ export default function PagosProveedoresTab({
           <div className="card-body">
             <div className="mb-3 pb-2 border-bottom">
               <strong className="text-muted">Total de boletas seleccionadas:</strong>
-              <div className="text-primary fs-3 fw-bold">{formatCurrency(totales.totalAPagar)}</div>
+              <div className="text-primary fs-3 fw-bold">{formatCurrency(totales.totalAPagarSinDescuentos || totales.totalAPagar)}</div>
+              {totales.totalDescuentos > 0 && (
+                <>
+                  <small className="text-muted d-block mt-1">Descuentos aplicados:</small>
+                  <div className="text-success fs-4 fw-bold">- {formatCurrency(totales.totalDescuentos)}</div>
+                  <small className="text-muted d-block mt-2">Total final a pagar:</small>
+                  <div className="text-primary fs-3 fw-bold">{formatCurrency(totales.totalAPagar)}</div>
+                </>
+              )}
             </div>
             
             <div className="mb-3 pb-2 border-bottom">
@@ -834,8 +931,24 @@ export default function PagosProveedoresTab({
             <hr />
             <div className="mb-2">
               <strong>Total a Pagar (seleccionadas):</strong>
-              <div className="text-danger fs-4">{formatCurrency(totales.totalAPagar)}</div>
-              <small className="text-muted">Solo boletas marcadas para pagar</small>
+              {totales.totalDescuentos > 0 ? (
+                <>
+                  <div className="text-muted fs-5 text-decoration-line-through">
+                    {formatCurrency(totales.totalAPagarSinDescuentos)}
+                  </div>
+                  <div className="text-danger fs-4">
+                    {formatCurrency(totales.totalAPagar)}
+                  </div>
+                  <small className="text-success">
+                    Descuento aplicado: -{formatCurrency(totales.totalDescuentos)}
+                  </small>
+                </>
+              ) : (
+                <>
+                  <div className="text-danger fs-4">{formatCurrency(totales.totalAPagar)}</div>
+                  <small className="text-muted">Solo boletas marcadas para pagar</small>
+                </>
+              )}
             </div>
             <div className="mb-2">
               <strong>Total Usado:</strong>
@@ -904,6 +1017,25 @@ export default function PagosProveedoresTab({
               <div className="card-body">
                 {Object.entries(boletasPorProveedor).map(([proveedor, boletasProv]) => {
                   const totalBoletas = totalPorProveedor(proveedor);
+                  const totalSeleccionadas = totalSeleccionadasPorProveedor(proveedor);
+                  const saldoAFavor = obtenerSaldoAFavor(proveedor);
+                  const descuentoAplicado = obtenerDescuentoAplicado(proveedor);
+                  const tieneDescuento = descuentoAplicado > 0;
+                  
+                  // Verificar si todas las boletas (no pagadas) están seleccionadas
+                  const boletasNoPagadas = boletasProv.filter(b => !boletasPagadas[b.id]);
+                  const todasSeleccionadas = boletasNoPagadas.length > 0 && boletasNoPagadas.every(boleta => {
+                    const estadoLocal = pagosBoletasLocal[boleta.id];
+                    return estadoLocal?.seleccionada === true;
+                  });
+                  
+                  // Verificar si todas las boletas están marcadas como pagadas
+                  const todasPagadas = boletasProv.length > 0 && boletasProv.every(boleta => boletasPagadas[boleta.id]);
+                  
+                  // Debug temporal
+                  if (totalSeleccionadas > 0) {
+                    console.log(`📦 Proveedor: ${proveedor}, Total seleccionadas: ${totalSeleccionadas}, Saldo a favor: ${saldoAFavor}`);
+                  }
                   
                   return (
                   <div key={proveedor} className="mb-3">
@@ -918,19 +1050,33 @@ export default function PagosProveedoresTab({
                         <button
                           className="btn btn-sm btn-outline-primary"
                           onClick={() => seleccionarTodasProveedor(proveedor)}
-                          title="Seleccionar todas las boletas de este proveedor"
+                          title={todasSeleccionadas ? "Deseleccionar todas las boletas" : "Seleccionar todas las boletas de este proveedor"}
                         >
-                          ✓ Seleccionar todas
+                          {todasSeleccionadas ? '✗ Deseleccionar todas' : '✓ Seleccionar todas'}
                         </button>
                         <button
                           className="btn btn-sm btn-outline-success"
                           onClick={() => marcarTodasPagadasProveedor(proveedor)}
-                          title="Marcar todas las boletas como pagadas"
+                          title={todasPagadas ? "Desmarcar todas las boletas como pagadas" : "Marcar todas las boletas como pagadas"}
                         >
-                          💰 Marcar todas pagadas
+                          {todasPagadas ? '✗ Desmarcar todas pagadas' : '💰 Marcar todas pagadas'}
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Componente de descuento por saldo a favor */}
+                    {totalSeleccionadas > 0 && (
+                      <DescuentoSaldoProveedor
+                        nombreProveedor={proveedor}
+                        saldoAFavor={saldoAFavor}
+                        descuentoAplicado={descuentoAplicado}
+                        tieneDescuento={tieneDescuento}
+                        onAplicarDescuento={aplicarDescuento}
+                        onQuitarDescuento={quitarDescuento}
+                        totalBoletasSeleccionadas={totalSeleccionadas}
+                      />
+                    )}
+                    
                     <div className="row g-2">
                       {boletasProv.map(boleta => {
                         const estadoLocal = pagosBoletasLocal[boleta.id] || {};
