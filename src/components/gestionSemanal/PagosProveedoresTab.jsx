@@ -33,6 +33,7 @@ export default function PagosProveedoresTab({
   // Hook para manejar saldos a favor de proveedores
   const {
     obtenerSaldoAFavor,
+    obtenerSaldoAFavorPorBoletas,
     obtenerInfoSaldo,
     aplicarDescuento,
     quitarDescuento,
@@ -1018,7 +1019,18 @@ export default function PagosProveedoresTab({
                 {Object.entries(boletasPorProveedor).map(([proveedor, boletasProv]) => {
                   const totalBoletas = totalPorProveedor(proveedor);
                   const totalSeleccionadas = totalSeleccionadasPorProveedor(proveedor);
-                  const saldoAFavor = obtenerSaldoAFavor(proveedor);
+                  
+                  // Obtener las boletas seleccionadas del proveedor (solo las no pagadas)
+                  const boletasSeleccionadas = boletasProv.filter(boleta => {
+                    const estadoLocal = pagosBoletasLocal[boleta.id];
+                    return estadoLocal?.seleccionada === true && !boletasPagadas[boleta.id];
+                  });
+                  
+                  // Obtener saldo a favor SOLO si hay boletas seleccionadas vinculadas
+                  const saldoAFavor = boletasSeleccionadas.length > 0 
+                    ? obtenerSaldoAFavorPorBoletas(proveedor, boletasSeleccionadas)
+                    : 0;
+                  
                   const descuentoAplicado = obtenerDescuentoAplicado(proveedor);
                   const tieneDescuento = descuentoAplicado > 0;
                   
@@ -1031,11 +1043,6 @@ export default function PagosProveedoresTab({
                   
                   // Verificar si todas las boletas están marcadas como pagadas
                   const todasPagadas = boletasProv.length > 0 && boletasProv.every(boleta => boletasPagadas[boleta.id]);
-                  
-                  // Debug temporal
-                  if (totalSeleccionadas > 0) {
-                    console.log(`📦 Proveedor: ${proveedor}, Total seleccionadas: ${totalSeleccionadas}, Saldo a favor: ${saldoAFavor}`);
-                  }
                   
                   return (
                   <div key={proveedor} className="mb-3">

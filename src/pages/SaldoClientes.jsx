@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import { useFirebase } from '../contexts/FirebaseContext';
+import { useSaldoProveedor } from '../components/saldoProveedor';
 import ClienteDeudorCard from '../components/ClienteDeudorCard';
 import EditClienteModal from '../components/EditClienteModal';
 import PrintDocument from '../components/PrintDocument';
@@ -29,6 +30,9 @@ const SaldoClientes = () => {
   // Firebase hooks
   const { balances, loading, error, addClientBalance, deleteBalance, updateBalance } = useClientBalances();
   const { semanaActiva } = useGestionSemanal('shared');
+
+  // Hook para manejar vinculaciones de saldo proveedor
+  const { guardarVinculacionSaldoCliente } = useSaldoProveedor();
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
@@ -172,6 +176,30 @@ const SaldoClientes = () => {
 
       await updateBalance(clienteId, dataWithTotals);
 
+      // Guardar vinculación si hay boletas vinculadas de mercadería y saldo a favor positivo
+      if (dataWithTotals.finalBalance > 0) {
+        try {
+          await guardarVinculacionSaldoCliente({
+            saldoClienteId: clienteId,
+            proveedor: dataWithTotals.clientName,
+            boletasVinculadas: dataWithTotals.boletas || [],
+            saldoAFavor: dataWithTotals.finalBalance,
+            detalleSaldo: {
+              totalVentas: dataWithTotals.totalVentas || 0,
+              totalPlata: dataWithTotals.totalPlata || 0,
+              totalEfectivo: dataWithTotals.totalEfectivo || 0,
+              totalCheque: dataWithTotals.totalCheque || 0,
+              totalTransferencia: dataWithTotals.totalTransferencia || 0,
+              totalIngresos: dataWithTotals.totalIngresos || 0,
+              totalBoletas: dataWithTotals.totalBoletas || 0
+            },
+            fechaSaldoCliente: dataWithTotals.date || getLocalDateString()
+          });
+        } catch (error) {
+          console.error('⚠️ Error al guardar vinculación al actualizar (no crítico):', error);
+        }
+      }
+
       // Mostrar notificación de éxito
       showSuccess('✓ Cliente actualizado exitosamente');
 
@@ -252,7 +280,33 @@ const SaldoClientes = () => {
           totalIngresos: clienteData.totalIngresos
         };
         
-        await addClientBalance(firebaseData);
+        // Guardar en Firebase
+        const saldoClienteId = await addClientBalance(firebaseData);
+
+        // Guardar vinculación si hay boletas vinculadas de mercadería y saldo a favor positivo
+        if (clienteData.saldoFinal > 0) {
+          try {
+            await guardarVinculacionSaldoCliente({
+              saldoClienteId: saldoClienteId,
+              proveedor: clienteData.nombreCliente,
+              boletasVinculadas: clienteData.boletas, // Todas las boletas (el hook filtra las vinculadas)
+              saldoAFavor: clienteData.saldoFinal,
+              detalleSaldo: {
+                totalVentas: clienteData.totalVentas,
+                totalPlata: clienteData.totalPlata,
+                totalEfectivo: clienteData.totalEfectivo,
+                totalCheque: clienteData.totalCheque,
+                totalTransferencia: clienteData.totalTransferencia,
+                totalIngresos: clienteData.totalIngresos,
+                totalBoletas: clienteData.totalBoletas
+              },
+              fechaSaldoCliente: clienteData.fecha
+            });
+          } catch (error) {
+            console.error('⚠️ Error al guardar vinculación (no crítico):', error);
+            // No mostrar error al usuario, solo log
+          }
+        }
 
         setSavedClientes(prev => [clienteData, ...prev]);
         showSuccess('✓ Cliente guardado exitosamente');

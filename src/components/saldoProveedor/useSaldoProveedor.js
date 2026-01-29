@@ -1,148 +1,231 @@
-import { useState, useMemo } from 'react';
-import { useClientBalances } from '../../firebase/hooks';
+import { useState, useEffect, useMemo } from 'react';
+import { collection, addDoc, getDocs, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { parseCurrencyValue } from '../../utils/money';
 
 /**
  * Hook personalizado para manejar saldos a favor de proveedores
- * Busca en "Saldo Clientes" la cuenta más reciente del proveedor
- * y calcula el saldo a favor basado en todos los ingresos menos las boletas
+ * 
+ * NUEVA LÓGICA:
+ * - Las vinculaciones se guardan SOLO cuando se crea/guarda un saldo cliente con boletas vinculadas
+ * - El descuento solo aplica si las boletas seleccionadas en Pagos a Proveedores están vinculadas en Saldo Clientes
+ * - No se arrastran valores de semanas anteriores o ya pagados
  */
 export const useSaldoProveedor = () => {
-  const { balances, loading } = useClientBalances();
-  
-  // Estado para descuentos aplicados por proveedor
+  // Estado para descuentos aplicados por proveedor (solo en memoria, no se guarda)
   // Formato: { "Tito": 400000, "OtroProveedor": 50000 }
   const [descuentosAplicados, setDescuentosAplicados] = useState({});
+  
+  // Estado para vinculaciones cargadas desde Firebase
+  const [vinculaciones, setVinculaciones] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  /**
-   * Normaliza un nombre para comparación (elimina espacios extra, convierte a minúsculas)
-   * @param {string} nombre - Nombre a normalizar
-   * @returns {string} - Nombre normalizado
-   */
-  const normalizarNombre = (nombre) => {
-    if (!nombre) return '';
-    return nombre
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ') // Reemplazar múltiples espacios con uno solo
-      .normalize('NFD') // Normalizar acentos
-      .replace(/[\u0300-\u036f]/g, ''); // Eliminar diacríticos
-  };
-
-  /**
-   * Obtiene el saldo más reciente de un proveedor
-   * Busca la cuenta con la fecha más reciente para ese proveedor
-   * @param {string} nombreProveedor - Nombre del proveedor a buscar
-   * @returns {object|null} - Objeto con saldo a favor o null si no existe
-   */
-  const obtenerSaldoMasReciente = useMemo(() => {
-    return (nombreProveedor) => {
-      if (!balances || !nombreProveedor) return null;
-
-      const nombreProveedorNormalizado = normalizarNombre(nombreProveedor);
-
-      // Filtrar balances del proveedor
-      const balancesProveedor = balances
-        .filter(balance => {
-          const nombreClienteNormalizado = normalizarNombre(balance.clientName);
-          return nombreClienteNormalizado === nombreProveedorNormalizado;
-        })
-        .map(balance => {
-          // Calcular totales si no existen en la base de datos
-          const totalBoletas = balance.totalBoletas || 
-            balance.boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
-          
-          const totalVentas = balance.totalVentas || 
-            balance.ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0;
-          
-          const totalPlata = balance.totalPlata || 
-            balance.plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0;
-          
-          const totalEfectivo = balance.totalEfectivo || 
-            balance.efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0;
-          
-          const totalCheque = balance.totalCheque || 
-            balance.cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0;
-          
-          const totalTransferencia = balance.totalTransferencia || 
-            balance.transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0;
-          
-          const totalIngresos = balance.totalIngresos || 
-            (totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia);
-          
-          const finalBalance = balance.finalBalance || 
-            (totalIngresos - totalBoletas);
-
-          return {
-            id: balance.id,
-            fecha: balance.date,
-            totalBoletas,
-            totalVentas,
-            totalPlata,
-            totalEfectivo,
-            totalCheque,
-            totalTransferencia,
-            totalIngresos,
-            finalBalance, // Si es positivo, está a favor del usuario
-            fechaTimestamp: balance.date ? new Date(balance.date).getTime() : 0
-          };
+  // Escuchar cambios en tiempo real de las vinculaciones
+  useEffect(() => {
+    const collectionRef = collection(db, 'saldoProveedorVinculaciones');
+    
+    const unsubscribe = onSnapshot(
+      collectionRef,
+      (snapshot) => {
+        const vinculacionesData = [];
+        snapshot.forEach((doc) => {
+          vinculacionesData.push({
+            id: doc.id,
+            ...doc.data()
+          });
         });
+        setVinculaciones(vinculacionesData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('❌ Error al cargar vinculaciones:', error);
+        setLoading(false);
+      }
+    );
 
-      if (balancesProveedor.length === 0) return null;
+    return () => unsubscribe();
+  }, []);
 
-      // Ordenar por fecha (más reciente primero) y tomar el primero
-      const saldoMasReciente = balancesProveedor.sort((a, b) => 
-        b.fechaTimestamp - a.fechaTimestamp
-      )[0];
+  /**
+   * Guarda una vinculación cuando se crea/guarda un saldo cliente con boletas vinculadas
+   * Se llama desde SaldoClientes.jsx cuando se guarda un saldo cliente
+   * 
+   * @param {object} datos - Datos del saldo cliente guardado
+   * @param {string} datos.saldoClienteId - ID del documento de saldo cliente en Firebase
+   * @param {string} datos.proveedor - Nombre del proveedor/cliente
+   * @param {array} datos.boletasVinculadas - Array de boletas con mercaderiaIndex
+   * @param {number} datos.saldoAFavor - Saldo a favor calculado (finalBalance si es positivo)
+   * @param {object} datos.detalleSaldo - Detalle completo del saldo (ventas, plata, efectivo, etc.)
+   * @returns {Promise<string>} - ID del documento de vinculación creado
+   */
+  const guardarVinculacionSaldoCliente = async (datos) => {
+    try {
+      // Extraer solo las boletas que tienen mercaderiaIndex (vinculadas de mercadería)
+      const boletasConMercaderia = (datos.boletasVinculadas || []).filter(
+        boleta => boleta.mercaderiaIndex !== undefined && boleta.esDeMercaderia === true
+      );
 
-      // Solo retornar si hay saldo a favor (finalBalance > 0)
-      if (saldoMasReciente.finalBalance > 0) {
-        return {
-          ...saldoMasReciente,
-          saldoAFavor: saldoMasReciente.finalBalance
-        };
+      // Si no hay boletas vinculadas de mercadería, no guardar vinculación
+      if (boletasConMercaderia.length === 0) {
+        console.log('ℹ️ No hay boletas vinculadas de mercadería, no se guarda vinculación');
+        return null;
       }
 
-      return null;
-    };
-  }, [balances]);
+      // Si el saldo a favor no es positivo, no guardar vinculación
+      if (!datos.saldoAFavor || datos.saldoAFavor <= 0) {
+        console.log('ℹ️ No hay saldo a favor positivo, no se guarda vinculación');
+        return null;
+      }
+
+      // Extraer los índices de mercadería de las boletas vinculadas
+      const indicesMercaderia = boletasConMercaderia.map(b => b.mercaderiaIndex);
+
+      // Crear documento de vinculación
+      const vinculacionData = {
+        saldoClienteId: datos.saldoClienteId,
+        proveedor: datos.proveedor,
+        boletasVinculadas: indicesMercaderia, // Array de índices de mercadería
+        saldoAFavor: datos.saldoAFavor,
+        detalleSaldo: {
+          totalVentas: datos.detalleSaldo?.totalVentas || 0,
+          totalPlata: datos.detalleSaldo?.totalPlata || 0,
+          totalEfectivo: datos.detalleSaldo?.totalEfectivo || 0,
+          totalCheque: datos.detalleSaldo?.totalCheque || 0,
+          totalTransferencia: datos.detalleSaldo?.totalTransferencia || 0,
+          totalIngresos: datos.detalleSaldo?.totalIngresos || 0,
+          totalBoletas: datos.detalleSaldo?.totalBoletas || 0
+        },
+        fechaCreacion: serverTimestamp(),
+        fechaSaldoCliente: datos.fechaSaldoCliente || new Date().toISOString()
+      };
+
+      const docRef = await addDoc(collection(db, 'saldoProveedorVinculaciones'), vinculacionData);
+      console.log('✅ Vinculación guardada:', docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error('❌ Error al guardar vinculación:', error);
+      throw error;
+    }
+  };
 
   /**
-   * Obtiene el saldo a favor disponible para un proveedor
+   * Obtiene el saldo a favor disponible para un proveedor basado en las boletas seleccionadas
+   * Solo retorna saldo si las boletas seleccionadas están vinculadas en algún saldo cliente
+   * 
    * @param {string} nombreProveedor - Nombre del proveedor
-   * @returns {number} - Monto del saldo a favor (0 si no existe)
+   * @param {array} boletasSeleccionadas - Array de objetos boleta con { index, id, ... }
+   * @returns {number} - Monto del saldo a favor disponible (0 si no hay vinculación)
+   */
+  const obtenerSaldoAFavorPorBoletas = (nombreProveedor, boletasSeleccionadas = []) => {
+    if (!nombreProveedor || !boletasSeleccionadas || boletasSeleccionadas.length === 0) {
+      return 0;
+    }
+
+    // Obtener los índices de las boletas seleccionadas
+    const indicesSeleccionados = boletasSeleccionadas.map(b => b.index).filter(idx => idx !== undefined);
+
+    if (indicesSeleccionados.length === 0) {
+      return 0;
+    }
+
+    // Buscar vinculaciones que:
+    // 1. Coincidan con el proveedor
+    // 2. Tengan al menos una boleta vinculada que esté en las seleccionadas
+    const vinculacionesRelevantes = vinculaciones.filter(vinculacion => {
+      // Comparar nombres (normalizados para evitar problemas de mayúsculas/espacios)
+      const nombreVinculacion = (vinculacion.proveedor || '').trim().toLowerCase();
+      const nombreProveedorNormalizado = (nombreProveedor || '').trim().toLowerCase();
+      
+      if (nombreVinculacion !== nombreProveedorNormalizado) {
+        return false;
+      }
+
+      // Verificar si alguna boleta vinculada está en las seleccionadas
+      const boletasVinculadas = vinculacion.boletasVinculadas || [];
+      const hayInterseccion = boletasVinculadas.some(idxVinculado => 
+        indicesSeleccionados.includes(idxVinculado)
+      );
+
+      return hayInterseccion;
+    });
+
+    if (vinculacionesRelevantes.length === 0) {
+      return 0;
+    }
+
+    // Si hay múltiples vinculaciones, tomar la más reciente
+    // Ordenar por fechaCreacion (más reciente primero)
+    vinculacionesRelevantes.sort((a, b) => {
+      const fechaA = a.fechaCreacion?.toDate?.() || new Date(a.fechaSaldoCliente || 0);
+      const fechaB = b.fechaCreacion?.toDate?.() || new Date(b.fechaSaldoCliente || 0);
+      return fechaB - fechaA;
+    });
+
+    // Retornar el saldo a favor de la vinculación más reciente
+    const vinculacionMasReciente = vinculacionesRelevantes[0];
+    return vinculacionMasReciente.saldoAFavor || 0;
+  };
+
+  /**
+   * Obtiene el saldo a favor disponible para un proveedor (versión simplificada para compatibilidad)
+   * Esta función se usa cuando no se tienen las boletas seleccionadas aún
+   * 
+   * @param {string} nombreProveedor - Nombre del proveedor
+   * @returns {number} - Monto del saldo a favor disponible (0 si no hay vinculación)
    */
   const obtenerSaldoAFavor = (nombreProveedor) => {
-    const saldo = obtenerSaldoMasReciente(nombreProveedor);
-    
-    // Debug temporal
-    if (nombreProveedor && balances) {
-      const nombreNormalizado = normalizarNombre(nombreProveedor);
-      const nombresEnBalances = balances.map(b => ({
-        original: b.clientName,
-        normalizado: normalizarNombre(b.clientName),
-        finalBalance: b.finalBalance || (b.totalIngresos || 0) - (b.totalBoletas || 0)
-      }));
-      
-      console.log('🔍 Buscando saldo para proveedor:', nombreProveedor);
-      console.log('📋 Nombres normalizados en balances:', nombresEnBalances);
-      console.log('💰 Saldo encontrado:', saldo);
+    if (!nombreProveedor) return 0;
+
+    // Buscar vinculaciones del proveedor
+    const vinculacionesProveedor = vinculaciones.filter(vinculacion => {
+      const nombreVinculacion = (vinculacion.proveedor || '').trim().toLowerCase();
+      const nombreProveedorNormalizado = (nombreProveedor || '').trim().toLowerCase();
+      return nombreVinculacion === nombreProveedorNormalizado;
+    });
+
+    if (vinculacionesProveedor.length === 0) {
+      return 0;
     }
-    
-    return saldo?.saldoAFavor || 0;
+
+    // Retornar el saldo de la vinculación más reciente
+    vinculacionesProveedor.sort((a, b) => {
+      const fechaA = a.fechaCreacion?.toDate?.() || new Date(a.fechaSaldoCliente || 0);
+      const fechaB = b.fechaCreacion?.toDate?.() || new Date(b.fechaSaldoCliente || 0);
+      return fechaB - fechaA;
+    });
+
+    return vinculacionesProveedor[0]?.saldoAFavor || 0;
   };
 
   /**
-   * Obtiene información completa del saldo más reciente
+   * Obtiene información completa de la vinculación más reciente para un proveedor
    * @param {string} nombreProveedor - Nombre del proveedor
-   * @returns {object|null} - Información completa del saldo o null
+   * @returns {object|null} - Información completa de la vinculación o null
    */
   const obtenerInfoSaldo = (nombreProveedor) => {
-    return obtenerSaldoMasReciente(nombreProveedor);
+    if (!nombreProveedor) return null;
+
+    const vinculacionesProveedor = vinculaciones.filter(vinculacion => {
+      const nombreVinculacion = (vinculacion.proveedor || '').trim().toLowerCase();
+      const nombreProveedorNormalizado = (nombreProveedor || '').trim().toLowerCase();
+      return nombreVinculacion === nombreProveedorNormalizado;
+    });
+
+    if (vinculacionesProveedor.length === 0) {
+      return null;
+    }
+
+    vinculacionesProveedor.sort((a, b) => {
+      const fechaA = a.fechaCreacion?.toDate?.() || new Date(a.fechaSaldoCliente || 0);
+      const fechaB = b.fechaCreacion?.toDate?.() || new Date(b.fechaSaldoCliente || 0);
+      return fechaB - fechaA;
+    });
+
+    return vinculacionesProveedor[0];
   };
 
   /**
-   * Aplica un descuento para un proveedor
+   * Aplica un descuento para un proveedor (solo en memoria)
    * @param {string} nombreProveedor - Nombre del proveedor
    * @param {number} monto - Monto del descuento a aplicar
    */
@@ -233,13 +316,18 @@ export const useSaldoProveedor = () => {
   return {
     // Estado
     descuentosAplicados,
+    vinculaciones,
     loading,
+    
+    // Funciones para guardar vinculaciones (llamar desde Saldo Clientes)
+    guardarVinculacionSaldoCliente,
     
     // Funciones para obtener información
     obtenerSaldoAFavor,
+    obtenerSaldoAFavorPorBoletas, // Nueva función principal
     obtenerInfoSaldo,
     
-    // Funciones para manejar descuentos
+    // Funciones para manejar descuentos (solo en memoria)
     aplicarDescuento,
     quitarDescuento,
     obtenerDescuentoAplicado,
