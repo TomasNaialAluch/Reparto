@@ -237,84 +237,97 @@ const SaldoClientes = () => {
     showSuccess(`✓ ${ventasImportadas.length} boletas importadas a "Ventas" de ${clienteGestion.nombre}`);
   };
 
-  // Guardar el cliente actual como card
+  // Guardar en Firebase sin limpiar el formulario (función interna reutilizable)
+  const guardarEnFirebase = async () => {
+    if (!clientName.trim() || !summaryData) {
+      throw new Error('Datos incompletos para guardar');
+    }
+
+    const plataFavorData = showPlata ? plata.filter(p => p.amount) : [];
+    
+    const clienteData = {
+      id: `cliente_${Date.now()}`,
+      nombreCliente: clientName.trim(),
+      fecha: getLocalDateString(),
+      boletas: boletas.filter(b => b.date && b.amount),
+      ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
+      plataFavor: plataFavorData,
+      efectivo: showEfectivo ? efectivo.filter(e => e.amount) : [],
+      cheques: showCheque ? cheques.filter(c => c.id && c.amount) : [],
+      transferencias: showTransferencia ? transferencias.filter(t => t.amount) : [],
+      saldoFinal: summaryData.finalBalance || 0,
+      // Incluir todos los totales del summaryData para consistencia
+      totalBoletas: summaryData.totalBoletas || 0,
+      totalVentas: summaryData.totalVentas || 0,
+      totalPlata: summaryData.totalPlata || 0,
+      totalEfectivo: summaryData.totalEfectivo || 0,
+      totalCheque: summaryData.totalCheque || 0,
+      totalTransferencia: summaryData.totalTransferencia || 0,
+      totalIngresos: summaryData.totalIngresos || 0
+    };
+
+    const firebaseData = {
+      clientName: clienteData.nombreCliente,
+      boletas: clienteData.boletas,
+      ventas: clienteData.ventas,
+      plataFavor: plataFavorData,
+      efectivo: clienteData.efectivo,
+      cheques: clienteData.cheques,
+      transferencias: clienteData.transferencias,
+      finalBalance: clienteData.saldoFinal,
+      date: clienteData.fecha,
+      // Incluir todos los totales calculados
+      totalBoletas: clienteData.totalBoletas,
+      totalVentas: clienteData.totalVentas,
+      totalPlata: clienteData.totalPlata,
+      totalEfectivo: clienteData.totalEfectivo,
+      totalCheque: clienteData.totalCheque,
+      totalTransferencia: clienteData.totalTransferencia,
+      totalIngresos: clienteData.totalIngresos
+    };
+    
+    // Guardar en Firebase
+    const saldoClienteId = await addClientBalance(firebaseData);
+
+    // Guardar vinculación si hay boletas vinculadas de mercadería y saldo a favor positivo
+    if (clienteData.saldoFinal > 0) {
+      try {
+        await guardarVinculacionSaldoCliente({
+          saldoClienteId: saldoClienteId,
+          proveedor: clienteData.nombreCliente,
+          boletasVinculadas: clienteData.boletas, // Todas las boletas (el hook filtra las vinculadas)
+          saldoAFavor: clienteData.saldoFinal,
+          detalleSaldo: {
+            totalVentas: clienteData.totalVentas,
+            totalPlata: clienteData.totalPlata,
+            totalEfectivo: clienteData.totalEfectivo,
+            totalCheque: clienteData.totalCheque,
+            totalTransferencia: clienteData.totalTransferencia,
+            totalIngresos: clienteData.totalIngresos,
+            totalBoletas: clienteData.totalBoletas
+          },
+          fechaSaldoCliente: clienteData.fecha
+        });
+      } catch (error) {
+        console.error('⚠️ Error al guardar vinculación (no crítico):', error);
+        // No mostrar error al usuario, solo log
+      }
+    }
+
+    // Actualizar estado local
+    setSavedClientes(prev => [clienteData, ...prev]);
+    
+    return { saldoClienteId, clienteData };
+  };
+
+  // Guardar el cliente actual como card (guarda Y limpia el formulario)
   const saveCurrentCliente = async () => {
     if (clientName.trim() && summaryData) {
       try {
-        const plataFavorData = showPlata ? plata.filter(p => p.amount) : [];
-        
-        const clienteData = {
-          id: `cliente_${Date.now()}`,
-          nombreCliente: clientName.trim(),
-          fecha: getLocalDateString(),
-          boletas: boletas.filter(b => b.date && b.amount),
-          ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
-          plataFavor: plataFavorData,
-          efectivo: showEfectivo ? efectivo.filter(e => e.amount) : [],
-          cheques: showCheque ? cheques.filter(c => c.id && c.amount) : [],
-          transferencias: showTransferencia ? transferencias.filter(t => t.amount) : [],
-          saldoFinal: summaryData.finalBalance || 0,
-          // Incluir todos los totales del summaryData para consistencia
-          totalBoletas: summaryData.totalBoletas || 0,
-          totalVentas: summaryData.totalVentas || 0,
-          totalPlata: summaryData.totalPlata || 0,
-          totalEfectivo: summaryData.totalEfectivo || 0,
-          totalCheque: summaryData.totalCheque || 0,
-          totalTransferencia: summaryData.totalTransferencia || 0,
-          totalIngresos: summaryData.totalIngresos || 0
-        };
-
-        const firebaseData = {
-          clientName: clienteData.nombreCliente,
-          boletas: clienteData.boletas,
-          ventas: clienteData.ventas,
-          plataFavor: plataFavorData,
-          efectivo: clienteData.efectivo,
-          cheques: clienteData.cheques,
-          transferencias: clienteData.transferencias,
-          finalBalance: clienteData.saldoFinal,
-          date: clienteData.fecha,
-          // Incluir todos los totales calculados
-          totalBoletas: clienteData.totalBoletas,
-          totalVentas: clienteData.totalVentas,
-          totalPlata: clienteData.totalPlata,
-          totalEfectivo: clienteData.totalEfectivo,
-          totalCheque: clienteData.totalCheque,
-          totalTransferencia: clienteData.totalTransferencia,
-          totalIngresos: clienteData.totalIngresos
-        };
-        
-        // Guardar en Firebase
-        const saldoClienteId = await addClientBalance(firebaseData);
-
-        // Guardar vinculación si hay boletas vinculadas de mercadería y saldo a favor positivo
-        if (clienteData.saldoFinal > 0) {
-          try {
-            await guardarVinculacionSaldoCliente({
-              saldoClienteId: saldoClienteId,
-              proveedor: clienteData.nombreCliente,
-              boletasVinculadas: clienteData.boletas, // Todas las boletas (el hook filtra las vinculadas)
-              saldoAFavor: clienteData.saldoFinal,
-              detalleSaldo: {
-                totalVentas: clienteData.totalVentas,
-                totalPlata: clienteData.totalPlata,
-                totalEfectivo: clienteData.totalEfectivo,
-                totalCheque: clienteData.totalCheque,
-                totalTransferencia: clienteData.totalTransferencia,
-                totalIngresos: clienteData.totalIngresos,
-                totalBoletas: clienteData.totalBoletas
-              },
-              fechaSaldoCliente: clienteData.fecha
-            });
-          } catch (error) {
-            console.error('⚠️ Error al guardar vinculación (no crítico):', error);
-            // No mostrar error al usuario, solo log
-          }
-        }
-
-        setSavedClientes(prev => [clienteData, ...prev]);
+        await guardarEnFirebase();
         showSuccess('✓ Cliente guardado exitosamente');
         
+        // Limpiar formulario después de guardar
         setClientName('');
         setBoletas([{ date: '', amount: '' }]);
         setShowVentas(false);
@@ -331,7 +344,7 @@ const SaldoClientes = () => {
         setShowSummary(false);
       } catch (error) {
         console.error('❌ Error al guardar cliente:', error);
-        showError('Error al guardar el cliente');
+        showError('Error al guardar el cliente: ' + error.message);
       }
     }
   };
@@ -802,11 +815,31 @@ const SaldoClientes = () => {
                 )
               )}
 
-              <button className="btn btn-secondary mt-3 no-print" onClick={() => {
+              <button className="btn btn-secondary mt-3 no-print" onClick={async () => {
                 if (!summaryData) {
                   showError('No hay datos para imprimir');
                   return;
                 }
+                
+                // Verificar si ya está guardado en Firebase
+                const yaGuardado = savedClientes.some(c => 
+                  c.nombreCliente === clientName.trim() && 
+                  c.fecha === getLocalDateString() &&
+                  Math.abs(c.saldoFinal - summaryData.finalBalance) < 0.01 // Comparar con tolerancia para decimales
+                );
+                
+                // Si no está guardado, guardar automáticamente antes de imprimir
+                if (!yaGuardado && clientName.trim()) {
+                  try {
+                    await guardarEnFirebase();
+                    showSuccess('✓ Datos guardados automáticamente antes de imprimir');
+                  } catch (error) {
+                    console.error('❌ Error al guardar antes de imprimir:', error);
+                    showError('Error al guardar: ' + error.message);
+                    return; // No imprimir si falla el guardado
+                  }
+                }
+                
                 // Mapear summaryData al formato que espera PrintDocument
                 const printData = {
                   clientName: summaryData.clientName,
