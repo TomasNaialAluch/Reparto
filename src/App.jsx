@@ -18,6 +18,7 @@ import GestionSemanal from './pages/GestionSemanal';
 import Balance from './pages/Balance';
 import Contador from './pages/Contador';
 import ListaPrecios from './pages/ListaPrecios';
+import DolarHoy from './pages/DolarHoy';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -96,7 +97,7 @@ const AppContent = () => {
           <Route path="/dolar" element={
             <div style={{ backgroundColor: '#F0F8FF', minHeight: '100vh' }}>
               <Navbar />
-              <div className="container mt-4"><h1>Dólar Hoy - En construcción</h1></div>
+              <DolarHoy />
             </div>
           } />
           <Route path="/transferencias" element={
