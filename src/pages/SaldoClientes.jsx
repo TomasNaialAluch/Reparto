@@ -3,6 +3,7 @@ import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { useSaldoProveedor } from '../components/saldoProveedor';
+import { usePagosProveedores } from '../contexts/PagosProveedoresContext';
 import ClienteDeudorCard from '../components/ClienteDeudorCard';
 import EditClienteModal from '../components/EditClienteModal';
 import PrintDocument from '../components/PrintDocument';
@@ -33,6 +34,9 @@ const SaldoClientes = () => {
 
   // Hook para manejar vinculaciones de saldo proveedor
   const { guardarVinculacionSaldoCliente } = useSaldoProveedor();
+  
+  // Hook para acceder al contexto de Pagos a Proveedores
+  const { obtenerBoletasPorProveedor } = usePagosProveedores();
 
   // Notificaciones
   const { notifications, removeNotification, showSuccess, showError } = useNotifications();
@@ -366,26 +370,30 @@ const SaldoClientes = () => {
   };
 
   // Obtener boletas de mercadería disponibles para vincular
+  // NUEVA FUNCIONALIDAD: Incluye tanto boletas nuevas como boletas ya marcadas como pagadas
   const obtenerBoletasMercaderia = () => {
-    if (!semanaActiva?.mercaderia || !clientName.trim()) return [];
+    if (!clientName.trim()) return [];
     
-    return semanaActiva.mercaderia
-      .filter(entrada => entrada.proveedor === clientName.trim())
-      .map((entrada, index) => {
-        const costoTotal = entrada.cortes.reduce((sum, c) => 
-          sum + (c.kg * (c.precioKg || 0)), 0
-        );
-        
-        return {
-          id: `mercaderia-${index}`,
-          index,
-          dia: entrada.dia,
-          proveedor: entrada.proveedor,
-          costoTotal,
-          cortes: entrada.cortes,
-          timestamp: entrada.timestamp || new Date().toISOString()
-        };
-      });
+    // Usar el contexto para obtener boletas (incluye estado de pagada)
+    const boletasProveedor = obtenerBoletasPorProveedor(clientName.trim(), true);
+    
+    const boletasMapeadas = boletasProveedor.map((boleta) => ({
+      id: `mercaderia-${boleta.index}`,
+      index: boleta.index,
+      dia: boleta.dia,
+      proveedor: boleta.proveedor,
+      costoTotal: boleta.costoTotal,
+      cortes: boleta.cortes,
+      timestamp: boleta.timestamp || new Date().toISOString(),
+      estaPagada: boleta.estaPagada // NUEVO: Indica si está marcada como pagada
+    }));
+    
+    // Ordenar de más nueva a más vieja (descendente por timestamp)
+    return boletasMapeadas.sort((a, b) => {
+      const fechaA = new Date(a.timestamp);
+      const fechaB = new Date(b.timestamp);
+      return fechaB - fechaA; // Descendente: más reciente primero
+    });
   };
 
   // Vincular una boleta de mercadería
@@ -409,7 +417,7 @@ const SaldoClientes = () => {
     };
     
     setBoletas([...boletas, nuevaBoleta]);
-    setShowMercaderiaModal(false);
+    // No cerrar el modal para poder vincular múltiples boletas
     showSuccess(`Boleta de mercadería del ${boletaMercaderia.dia} vinculada correctamente`);
   };
 
@@ -985,7 +993,7 @@ const SaldoClientes = () => {
                         return (
                           <div 
                             key={boleta.id} 
-                            className={`list-group-item ${yaVinculada ? 'bg-light' : ''}`}
+                            className={`list-group-item ${yaVinculada ? 'bg-light' : ''} ${boleta.estaPagada ? 'border-success' : ''}`}
                           >
                             <div className="d-flex justify-content-between align-items-center">
                               <div>
@@ -995,9 +1003,19 @@ const SaldoClientes = () => {
                                   {yaVinculada && (
                                     <span className="badge bg-success">✓ Ya vinculada</span>
                                   )}
+                                  {boleta.estaPagada && (
+                                    <span className="badge bg-success" title="Esta boleta está marcada como pagada en Pagos a Proveedores">
+                                      💰 Pagada
+                                    </span>
+                                  )}
                                 </div>
                                 <div className="text-muted small">
                                   {boleta.cortes.length} corte{boleta.cortes.length > 1 ? 's' : ''}
+                                  {boleta.estaPagada && (
+                                    <span className="text-success ms-2">
+                                      • Registrada en Pagos a Proveedores
+                                    </span>
+                                  )}
                                 </div>
                               </div>
                               <div className="text-end">

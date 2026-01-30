@@ -21,6 +21,7 @@ import ListaPrecios from './pages/ListaPrecios';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
+import { PagosProveedoresProvider } from './contexts/PagosProveedoresContext';
 
 // Componente interno que usa el contexto
 const AppContent = () => {
@@ -68,29 +69,30 @@ const AppContent = () => {
 
   // Si está autenticado, mostrar la aplicación
   return (
-    <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/home-ai" element={<HomeAI />} />
-          <Route path="/mi-reparto" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
-              <Navbar />
-              <MiReparto />
-            </div>
-          } />
-          <Route path="/reparto" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
-              <Navbar />
-              <MiReparto />
-            </div>
-          } />
-          <Route path="/saldo-clientes" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
-              <Navbar />
-              <SaldoClientes />
-            </div>
-          } />
+    <PagosProveedoresProvider>
+      <Router>
+        <div className="App">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/home-ai" element={<HomeAI />} />
+            <Route path="/mi-reparto" element={
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+                <Navbar />
+                <MiReparto />
+              </div>
+            } />
+            <Route path="/reparto" element={
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+                <Navbar />
+                <MiReparto />
+              </div>
+            } />
+            <Route path="/saldo-clientes" element={
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+                <Navbar />
+                <SaldoClientes />
+              </div>
+            } />
           <Route path="/dolar" element={
             <div style={{ backgroundColor: '#F0F8FF', minHeight: '100vh' }}>
               <Navbar />
@@ -134,8 +136,9 @@ const AppContent = () => {
             </div>
           } />
         </Routes>
-      </div>
-    </Router>
+        </div>
+      </Router>
+    </PagosProveedoresProvider>
   );
 };
 
