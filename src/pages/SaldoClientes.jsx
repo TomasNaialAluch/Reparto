@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
+import { useAutoSavePrint } from '../hooks/useAutoSavePrint';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { useSaldoProveedor } from '../components/saldoProveedor';
 import { usePagosProveedores } from '../contexts/PagosProveedoresContext';
@@ -348,6 +349,21 @@ const SaldoClientes = () => {
       }
     }
   };
+
+  // Hook para auto-guardar antes de imprimir
+  const { handlePrintWithAutoSave } = useAutoSavePrint({
+    summaryData,
+    savedItems: savedClientes,
+    checkIsAlreadySaved: (data, items) =>
+      items.some(c =>
+        c.nombreCliente === clientName.trim() &&
+        c.fecha === getLocalDateString() &&
+        Math.abs(c.saldoFinal - data.finalBalance) < 0.01
+      ),
+    saveWithoutClear: guardarEnFirebase,
+    showSuccess,
+    showError
+  });
 
   // Formatear input de moneda
   const handleCurrencyBlur = (e) => {
@@ -815,47 +831,24 @@ const SaldoClientes = () => {
                 )
               )}
 
-              <button className="btn btn-secondary mt-3 no-print" onClick={async () => {
-                if (!summaryData) {
-                  showError('No hay datos para imprimir');
-                  return;
+              <button className="btn btn-secondary mt-3 no-print" onClick={() => handlePrintWithAutoSave(
+                (data) => ({
+                  clientName: data.clientName,
+                  boletas: data.boletas || [],
+                  ventas: data.ventas || [],
+                  plataFavor: data.plataFavor || [],
+                  efectivo: data.efectivo || [],
+                  cheques: data.cheques || [],
+                  transferencias: data.transferencias || [],
+                  totalBoletas: data.totalBoletas || 0,
+                  totalIngresos: data.totalIngresos || 0,
+                  finalBalance: data.finalBalance || 0
+                }),
+                (printData) => {
+                  setPrintData(printData);
+                  setShowPrintModal(true);
                 }
-                
-                // Verificar si ya está guardado en Firebase
-                const yaGuardado = savedClientes.some(c => 
-                  c.nombreCliente === clientName.trim() && 
-                  c.fecha === getLocalDateString() &&
-                  Math.abs(c.saldoFinal - summaryData.finalBalance) < 0.01 // Comparar con tolerancia para decimales
-                );
-                
-                // Si no está guardado, guardar automáticamente antes de imprimir
-                if (!yaGuardado && clientName.trim()) {
-                  try {
-                    await guardarEnFirebase();
-                    showSuccess('✓ Datos guardados automáticamente antes de imprimir');
-                  } catch (error) {
-                    console.error('❌ Error al guardar antes de imprimir:', error);
-                    showError('Error al guardar: ' + error.message);
-                    return; // No imprimir si falla el guardado
-                  }
-                }
-                
-                // Mapear summaryData al formato que espera PrintDocument
-                const printData = {
-                  clientName: summaryData.clientName,
-                  boletas: summaryData.boletas || [],
-                  ventas: summaryData.ventas || [],
-                  plataFavor: summaryData.plataFavor || [],
-                  efectivo: summaryData.efectivo || [],
-                  cheques: summaryData.cheques || [],
-                  transferencias: summaryData.transferencias || [],
-                  totalBoletas: summaryData.totalBoletas || 0,
-                  totalIngresos: summaryData.totalIngresos || 0,
-                  finalBalance: summaryData.finalBalance || 0
-                };
-                setPrintData(printData);
-                setShowPrintModal(true);
-              }}>
+              )}>
                 <i className="fas fa-print me-2"></i>
                 Imprimir
               </button>

@@ -1012,8 +1012,20 @@ export default function PagosProveedoresTab({
           <>
             {/* Sección superior: Todas las boletas en formato compacto */}
             <div className="card mb-4">
-              <div className="card-header bg-secondary text-white">
+              <div className="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h5 className="mb-0">📋 Seleccionar boletas a pagar</h5>
+                {boletas.length > 0 && (() => {
+                  const pendientes = boletas.filter(b => !boletasPagadas[b.id]).length;
+                  return pendientes > 0 ? (
+                    <span className="badge bg-warning text-dark" title="Boletas sin marcar como pagadas">
+                      {pendientes} de {boletas.length} pendientes
+                    </span>
+                  ) : (
+                    <span className="badge bg-success" title="Todas las boletas marcadas como pagadas">
+                      ✓ Todas pagadas
+                    </span>
+                  );
+                })()}
               </div>
               <div className="card-body">
                 {Object.entries(boletasPorProveedor).map(([proveedor, boletasProv]) => {

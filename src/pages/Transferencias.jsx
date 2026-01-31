@@ -3,6 +3,7 @@ import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../u
 import { getLocalDateString } from '../utils/date';
 import { useTransferenciasClientes } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
+import { useAutoSavePrint } from '../hooks/useAutoSavePrint';
 import PrintDocument from '../components/PrintDocument';
 import TransferenciaCard from '../components/TransferenciaCard';
 import NotificationContainer from '../components/NotificationContainer';
@@ -114,7 +115,15 @@ const Transferencias = () => {
     }, 300);
   };
 
-  // Guardar en Firebase
+  // Guardar en Firebase sin limpiar el formulario (reutilizable para auto-save al imprimir)
+  const guardarEnFirebase = async () => {
+    if (!summaryData) {
+      throw new Error('Primero debe calcular el saldo');
+    }
+    await addTransferencia(summaryData);
+  };
+
+  // Guardar y limpiar formulario (comportamiento del botón Guardar)
   const saveTransferencia = async () => {
     if (!summaryData) {
       showError('Primero debe calcular el saldo');
@@ -122,9 +131,9 @@ const Transferencias = () => {
     }
 
     try {
-      await addTransferencia(summaryData);
+      await guardarEnFirebase();
       showSuccess('✓ Transferencia guardada exitosamente');
-      
+
       // Limpiar formulario
       setClientName('');
       setTransferencias([{ descripcion: '', monto: '' }]);
@@ -136,6 +145,22 @@ const Transferencias = () => {
       showError('Error al guardar la transferencia');
     }
   };
+
+  // Hook para auto-guardar antes de imprimir
+  const { handlePrintWithAutoSave } = useAutoSavePrint({
+    summaryData,
+    savedItems: savedTransferencias || [],
+    checkIsAlreadySaved: (data, items) =>
+      items.some(
+        (t) =>
+          t.nombreCliente === clientName.trim() &&
+          t.fecha === getLocalDateString() &&
+          Math.abs((t.saldoFinal || 0) - (data.saldoFinal || 0)) < 0.01
+      ),
+    saveWithoutClear: guardarEnFirebase,
+    showSuccess,
+    showError
+  });
 
   // Función para filtrar transferencias por fecha
   const getFilteredTransferencias = () => {
@@ -471,10 +496,15 @@ const Transferencias = () => {
 
               <button
                 className="btn btn-secondary mt-3 no-print"
-                onClick={() => {
-                  setPrintData(summaryData);
-                  setShowPrintModal(true);
-                }}
+                onClick={() =>
+                  handlePrintWithAutoSave(
+                    (data) => data,
+                    (printData) => {
+                      setPrintData(printData);
+                      setShowPrintModal(true);
+                    }
+                  )
+                }
               >
                 <i className="fas fa-print me-2"></i>
                 Imprimir

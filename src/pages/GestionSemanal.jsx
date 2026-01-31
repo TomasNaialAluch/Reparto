@@ -116,6 +116,13 @@ export default function GestionSemanal() {
     navigate('/balance');
   };
 
+  // Calcular boletas sin marcar como pagadas (para badge en tab)
+  const totalBoletas = semanaActiva?.mercaderia?.length || 0;
+  const boletasPagadasCount = Object.values(
+    semanaActiva?.pagosProveedoresEstado?.boletasPagadas || {}
+  ).filter(Boolean).length;
+  const boletasPendientes = Math.max(0, totalBoletas - boletasPagadasCount);
+
   if (loading) {
     return (
       <div className="container mt-5 text-center">
@@ -216,8 +223,14 @@ export default function GestionSemanal() {
             className={`nav-link ${activeTab === 'pagos-proveedores' ? 'active' : ''}`}
             onClick={() => handleTabChange('pagos-proveedores')}
             style={{ fontWeight: 'bold', padding: '15px' }}
+            title={boletasPendientes > 0 ? `${boletasPendientes} boleta(s) sin marcar como pagadas` : ''}
           >
             💳 Pagos a Proveedores
+            {boletasPendientes > 0 && (
+              <span className="badge bg-warning text-dark ms-2" style={{ fontSize: '0.75rem' }}>
+                {boletasPendientes}
+              </span>
+            )}
           </button>
         </li>
         </ul>
