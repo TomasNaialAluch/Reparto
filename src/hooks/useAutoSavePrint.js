@@ -9,6 +9,7 @@ export function useAutoSavePrint({
   savedItems = [],
   checkIsAlreadySaved,
   saveWithoutClear,
+  onAfterSave,
   showSuccess,
   showError
 }) {
@@ -29,6 +30,7 @@ export function useAutoSavePrint({
       try {
         await saveWithoutClear();
         showSuccess('✓ Datos guardados automáticamente antes de imprimir');
+        onAfterSave?.();
       } catch (error) {
         console.error('❌ Error al guardar antes de imprimir:', error);
         showError('Error al guardar: ' + (error?.message || 'Error desconocido'));

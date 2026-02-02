@@ -321,28 +321,31 @@ const SaldoClientes = () => {
     return { saldoClienteId, clienteData };
   };
 
+  // Limpiar formulario (usado al guardar y al imprimir con auto-guardado)
+  const clearForm = () => {
+    setClientName('');
+    setBoletas([{ date: '', amount: '' }]);
+    setShowVentas(false);
+    setVentas([]);
+    setShowPlata(false);
+    setPlata([]);
+    setShowEfectivo(false);
+    setEfectivo([]);
+    setShowCheque(false);
+    setCheques([]);
+    setShowTransferencia(false);
+    setTransferencias([]);
+    setSummaryData(null);
+    setShowSummary(false);
+  };
+
   // Guardar el cliente actual como card (guarda Y limpia el formulario)
   const saveCurrentCliente = async () => {
     if (clientName.trim() && summaryData) {
       try {
         await guardarEnFirebase();
         showSuccess('✓ Cliente guardado exitosamente');
-        
-        // Limpiar formulario después de guardar
-        setClientName('');
-        setBoletas([{ date: '', amount: '' }]);
-        setShowVentas(false);
-        setVentas([]);
-        setShowPlata(false);
-        setPlata([]);
-        setShowEfectivo(false);
-        setEfectivo([]);
-        setShowCheque(false);
-        setCheques([]);
-        setShowTransferencia(false);
-        setTransferencias([]);
-        setSummaryData(null);
-        setShowSummary(false);
+        clearForm();
       } catch (error) {
         console.error('❌ Error al guardar cliente:', error);
         showError('Error al guardar el cliente: ' + error.message);
@@ -361,6 +364,7 @@ const SaldoClientes = () => {
         Math.abs(c.saldoFinal - data.finalBalance) < 0.01
       ),
     saveWithoutClear: guardarEnFirebase,
+    onAfterSave: clearForm,
     showSuccess,
     showError
   });
@@ -448,6 +452,15 @@ const SaldoClientes = () => {
     setBoletas([...boletas, nuevaBoleta]);
     // No cerrar el modal para poder vincular múltiples boletas
     showSuccess(`Boleta de mercadería del ${boletaMercaderia.dia} vinculada correctamente`);
+  };
+
+  // Mover boleta de "lo que te vendieron" a "lo que vos vendiste" (Le vendió algo)
+  const moverBoletaAVentas = (index) => {
+    const boleta = boletas[index];
+    setShowVentas(true);
+    setVentas(prev => [...prev, { date: boleta.date || getLocalDateString(), amount: boleta.amount }]);
+    setBoletas(prev => prev.filter((_, i) => i !== index));
+    showSuccess('Boleta movida a "Le vendió algo"');
   };
 
   // Remove rows
@@ -624,6 +637,16 @@ const SaldoClientes = () => {
                     />
                     {boleta.esDeMercaderia && (
                       <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
+                    )}
+                    {!boleta.esDeMercaderia && (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-secondary"
+                        onClick={() => moverBoletaAVentas(index)}
+                        title="Pasé mal: era venta mía al cliente"
+                      >
+                        → Ventas
+                      </button>
                     )}
                     <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeBoleta(index)} style={{ fontSize: '1.2rem' }}>×</button>
                   </div>
