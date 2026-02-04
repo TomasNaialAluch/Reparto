@@ -3,6 +3,7 @@ import { formatCurrency } from '../utils/money';
 import { getLocalDateString, dateToLocalString } from '../utils/date';
 import { useRepartos } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
+import { useAutoSavePrint } from '../hooks/useAutoSavePrint';
 import RepartoCard from '../components/RepartoCard';
 import ClienteRow from '../components/ClienteRow';
 import EditRepartoModal from '../components/EditRepartoModal';
@@ -143,87 +144,84 @@ const MiReparto = () => {
     }
   };
 
-  // Función para guardar el reparto actual como card
+  // Guardar en Firebase sin limpiar el formulario (para auto-guardado al imprimir)
+  const guardarRepartoEnFirebase = async () => {
+    if (currentReparto.clients.length === 0) {
+      throw new Error('No hay clientes para guardar');
+    }
+    const fechaActual = getLocalDateString();
+    const total = currentReparto.clients.reduce((sum, c) => sum + (c.billAmount || 0), 0);
+    const repartoCompleto = {
+      date: fechaActual,
+      clientes: currentReparto.clients,
+      total,
+      cantidad: currentReparto.clients.length,
+      createdAt: new Date().toISOString()
+    };
+    const repartoId = await addReparto(repartoCompleto);
+    const repartoConId = { ...repartoCompleto, id: repartoId };
+    setSavedRepartos(prev => [repartoConId, ...prev]);
+    return repartoConId;
+  };
+
+  // Función para guardar el reparto actual como card (guarda + limpia formulario)
   const saveCurrentReparto = async () => {
     if (currentReparto.clients.length > 0) {
       try {
-        const fechaActual = getLocalDateString();
-        
-        // Calcular total del reparto
-        const total = currentReparto.clients.reduce((sum, cliente) => sum + (cliente.billAmount || 0), 0);
-        
-        // Construir reparto completo
-        const repartoCompleto = {
-          date: fechaActual,
+        await guardarRepartoEnFirebase();
+        setIsManuallyCleared(true);
+        setClientes([]);
+        setCurrentReparto({
+          date: getLocalDateString(),
+          clients: []
+        });
+        setClientName('');
+        setBillAmount('');
+        setValidationErrors({});
+        setShowDebtors(false);
+        showSuccess('✓ Reparto guardado exitosamente - Lista limpiada');
+        setTimeout(() => setIsManuallyCleared(false), 2000);
+      } catch (error) {
+        console.error('❌ Error al guardar reparto como card:', error);
+        const newReparto = {
+          id: Date.now().toString(),
+          date: getLocalDateString(),
           clientes: currentReparto.clients,
-          total: total,
+          total: currentReparto.clients.reduce((sum, c) => sum + (c.billAmount || 0), 0),
           cantidad: currentReparto.clients.length,
           createdAt: new Date().toISOString()
         };
-
-        // Guardar TODO el reparto como un solo documento
-        const repartoId = await addReparto(repartoCompleto);
-        
-        // Agregar el ID al reparto
-        const repartoConId = {
-          ...repartoCompleto,
-          id: repartoId
-        };
-
-        // Actualizar estado local
-        setSavedRepartos(prev => [repartoConId, ...prev]);
-        
-        // LIMPIAR COMPLETAMENTE TODO DESPUÉS DE GUARDAR (React puro)
-        // Marcar como limpiado manualmente para evitar interferencia del listener
-        setIsManuallyCleared(true);
-        
-        // Limpiar todo de forma síncrona
-        setClientes([]);
-        setCurrentReparto({
-          date: getLocalDateString(),
-          clients: []
-        });
-        setClientName('');
-        setBillAmount('');
-        setValidationErrors({});
-        setShowDebtors(false);
-        
-        // Mostrar notificación de éxito
-        showSuccess('✓ Reparto guardado exitosamente - Lista limpiada');
-        
-        // Resetear flag después de un tiempo
-        setTimeout(() => {
-          setIsManuallyCleared(false);
-        }, 2000);
-        
-      } catch (error) {
-        console.error('❌ Error al guardar reparto como card:', error);
-        // Aún así guardar localmente para no perder datos
-        const newReparto = {
-          id: Date.now().toString(),
-          ...currentReparto,
-          createdAt: new Date().toISOString()
-        };
         setSavedRepartos(prev => [newReparto, ...prev]);
-        
-        // Limpiar igual aunque haya error (React puro)
-        console.log('🧹 Limpiando después de error...');
         setClientes([]);
-        setCurrentReparto({
-          date: getLocalDateString(),
-          clients: []
-        });
+        setCurrentReparto({ date: getLocalDateString(), clients: [] });
         setClientName('');
         setBillAmount('');
         setValidationErrors({});
         setShowDebtors(false);
-        
-        // Mostrar notificación de éxito (aunque haya error en Firebase)
         showSuccess('✓ Reparto guardado localmente - Lista limpiada');
       }
     }
   };
 
+  // Datos del reparto actual para imprimir (null si no hay clientes)
+  const repartoSummaryForPrint = currentReparto.clients.length > 0
+    ? { clientes: currentReparto.clients, date: currentReparto.date }
+    : null;
+
+  const { handlePrintWithAutoSave } = useAutoSavePrint({
+    summaryData: repartoSummaryForPrint,
+    savedItems: savedRepartos,
+    checkIsAlreadySaved: (data, items) =>
+      items.some(
+        (r) =>
+          r.date === data.date &&
+          r.cantidad === data.clientes.length &&
+          Math.abs((r.total || 0) - data.clientes.reduce((s, c) => s + (c.billAmount || 0), 0)) < 0.01
+      ),
+    saveWithoutClear: guardarRepartoEnFirebase,
+    showSuccess,
+    showError
+  });
 
   // Función para eliminar un reparto guardado
   const deleteSavedReparto = async (repartoId) => {
@@ -582,17 +580,18 @@ const MiReparto = () => {
                 Guardar
               </button>
             )}
-            <button className="btn btn-secondary" onClick={() => {
-              if (clientes.length === 0) {
-                showError('No hay clientes para imprimir');
-                return;
+            <button
+              className="btn btn-secondary"
+              onClick={() =>
+                handlePrintWithAutoSave(
+                  (data) => ({ clientes: data.clientes, fecha: data.date }),
+                  (printData) => {
+                    setPrintData(printData);
+                    setShowPrintModal(true);
+                  }
+                )
               }
-              setPrintData({
-                clientes: clientes,
-                fecha: currentReparto.date
-              });
-              setShowPrintModal(true);
-            }}>
+            >
               <i className="fas fa-print me-2"></i>
               Imprimir
             </button>
