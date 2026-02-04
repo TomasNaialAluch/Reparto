@@ -243,7 +243,10 @@ export default function GestionSemanal() {
             agregarMercaderia={agregarMercaderia}
             eliminarMercaderia={eliminarMercaderia}
             actualizarMercaderia={actualizarMercaderia}
+            getConfiguracionesUsuario={getConfiguracionesUsuario}
+            guardarConfiguracionesUsuario={guardarConfiguracionesUsuario}
             addNotification={addNotification}
+            user={user}
           />
         )}
 

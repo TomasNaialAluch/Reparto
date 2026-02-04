@@ -1,32 +1,106 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { DIAS_SEMANA, PROVEEDORES, CORTES_CARNE, getDiaActual } from './constants';
 import { formatCurrency } from '../../utils/money';
 import ConfirmModal from '../ConfirmModal';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 
-export default function MercaderiaTab({ 
-  semanaActiva, 
-  agregarMercaderia, 
-  eliminarMercaderia, 
+export default function MercaderiaTab({
+  semanaActiva,
+  agregarMercaderia,
+  eliminarMercaderia,
   actualizarMercaderia,
-  addNotification 
+  getConfiguracionesUsuario,
+  guardarConfiguracionesUsuario,
+  addNotification,
+  user
 }) {
   const [expandedMercaderia, setExpandedMercaderia] = useState({});
   const [editingMercaderia, setEditingMercaderia] = useState(null);
   const [tempMercaderiaData, setTempMercaderiaData] = useState({});
   const [showDeleteCorteModal, setShowDeleteCorteModal] = useState(false);
   const [corteToDelete, setCorteToDelete] = useState(null);
-  
+
+  const [proveedores, setProveedores] = useState([]);
+  const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
+  const [showProveedoresModal, setShowProveedoresModal] = useState(false);
+  const [dropdownProveedorOpen, setDropdownProveedorOpen] = useState(false);
+  const [nuevoProveedorInput, setNuevoProveedorInput] = useState('');
+  const proveedorControlRef = useRef(null);
+
   const [formMercaderia, setFormMercaderia] = useState({
     dia: getDiaActual(),
-    proveedor: 'Catriel',
-    proveedorOtro: '',
+    proveedor: '',
     cortes: {}
   });
-  
+
   const [nuevoCorte, setNuevoCorte] = useState('');
   const [mostrarInputNuevoCorte, setMostrarInputNuevoCorte] = useState(false);
+
+  useEffect(() => {
+    const cargar = async () => {
+      if (!user?.uid || !getConfiguracionesUsuario || !guardarConfiguracionesUsuario) return;
+      try {
+        const config = await getConfiguracionesUsuario();
+        if (config?.proveedores?.length) {
+          setProveedores(config.proveedores);
+        } else {
+          setProveedores(PROVEEDORES);
+          await guardarConfiguracionesUsuario({ proveedores: PROVEEDORES });
+        }
+        if (Array.isArray(config?.ultimosProveedoresUsados)) {
+          setUltimosProveedoresUsados(config.ultimosProveedoresUsados);
+        }
+      } catch (e) {
+        console.error('Error cargando proveedores:', e);
+        setProveedores(PROVEEDORES);
+      }
+    };
+    cargar();
+  }, [user?.uid, getConfiguracionesUsuario, guardarConfiguracionesUsuario]);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (proveedorControlRef.current && !proveedorControlRef.current.contains(e.target)) {
+        setDropdownProveedorOpen(false);
+      }
+    };
+    if (dropdownProveedorOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [dropdownProveedorOpen]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showProveedoresModal) setShowProveedoresModal(false);
+    };
+    if (showProveedoresModal) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [showProveedoresModal]);
+
+  const ordenCortesPorUso = useMemo(() => {
+    const proveedor = formMercaderia.proveedor?.trim();
+    const customCortes = Object.keys(formMercaderia.cortes).filter((c) => !CORTES_CARNE.includes(c));
+    const todos = [...CORTES_CARNE, ...customCortes];
+    if (!proveedor || !semanaActiva?.mercaderia?.length) return todos;
+    const entradasDelProveedor = semanaActiva.mercaderia.filter((e) => e.proveedor === proveedor);
+    const conteo = {};
+    entradasDelProveedor.forEach((entrada) => {
+      entrada.cortes?.forEach((c) => {
+        const n = c.corte ?? c;
+        conteo[n] = (conteo[n] ?? 0) + 1;
+      });
+    });
+    return [...todos].sort((a, b) => (conteo[b] ?? 0) - (conteo[a] ?? 0));
+  }, [formMercaderia.proveedor, formMercaderia.cortes, semanaActiva?.mercaderia]);
 
   const toggleExpandedMercaderia = (index) => {
     if (editingMercaderia !== null) {
@@ -162,8 +236,8 @@ export default function MercaderiaTab({
     try {
       const cortesConDatos = Object.entries(formMercaderia.cortes)
         .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0)
-        .map(([corte, datos]) => ({ 
-          corte, 
+        .map(([corte, datos]) => ({
+          corte,
           kg: parseFloat(datos.kg),
           precioKg: datos.precioKg ? parseFloat(datos.precioKg) : 0
         }));
@@ -173,12 +247,9 @@ export default function MercaderiaTab({
         return;
       }
 
-      const proveedor = formMercaderia.proveedor === 'Otro' 
-        ? formMercaderia.proveedorOtro 
-        : formMercaderia.proveedor;
-
+      const proveedor = (formMercaderia.proveedor || '').trim();
       if (!proveedor) {
-        addNotification('Debe especificar un proveedor', 'warning');
+        addNotification('Debe elegir un proveedor', 'warning');
         return;
       }
 
@@ -188,10 +259,17 @@ export default function MercaderiaTab({
         cortes: cortesConDatos
       });
 
+      const nuevosUltimos = [proveedor, ...ultimosProveedoresUsados.filter((x) => x !== proveedor)].slice(0, 5);
+      setUltimosProveedoresUsados(nuevosUltimos);
+      try {
+        await guardarConfiguracionesUsuario({ ultimosProveedoresUsados: nuevosUltimos });
+      } catch (e) {
+        console.error('Error guardando últimos proveedores:', e);
+      }
+
       setFormMercaderia({
         dia: formMercaderia.dia,
-        proveedor: 'Catriel',
-        proveedorOtro: '',
+        proveedor: '',
         cortes: {}
       });
 
@@ -217,6 +295,53 @@ export default function MercaderiaTab({
     return { porCorte, total };
   };
 
+  const eliminarProveedor = async (nombre) => {
+    const nuevaLista = proveedores.filter((p) => p !== nombre);
+    setProveedores(nuevaLista);
+    if (formMercaderia.proveedor === nombre) {
+      setFormMercaderia((prev) => ({ ...prev, proveedor: '' }));
+    }
+    try {
+      await guardarConfiguracionesUsuario({ proveedores: nuevaLista });
+      addNotification('Proveedor eliminado', 'success');
+    } catch (e) {
+      addNotification('Error al guardar', 'error');
+      setProveedores(proveedores);
+    }
+  };
+
+  const agregarProveedor = async () => {
+    const nombre = nuevoProveedorInput.trim();
+    if (!nombre) {
+      addNotification('Ingresá un nombre', 'warning');
+      return;
+    }
+    if (proveedores.includes(nombre)) {
+      addNotification('Ese proveedor ya existe', 'warning');
+      return;
+    }
+    const nuevaLista = [...proveedores, nombre];
+    setProveedores(nuevaLista);
+    setNuevoProveedorInput('');
+    try {
+      await guardarConfiguracionesUsuario({ proveedores: nuevaLista });
+      addNotification(`"${nombre}" agregado`, 'success');
+    } catch (e) {
+      addNotification('Error al guardar', 'error');
+      setProveedores(proveedores);
+    }
+  };
+
+  const restaurarProveedoresDefault = async () => {
+    setProveedores(PROVEEDORES);
+    try {
+      await guardarConfiguracionesUsuario({ proveedores: PROVEEDORES });
+      addNotification('Lista restaurada por defecto', 'success');
+    } catch (e) {
+      addNotification('Error al guardar', 'error');
+    }
+  };
+
   return (
     <div className="row">
       <div className="col-lg-5" data-tab="mercaderia">
@@ -238,31 +363,55 @@ export default function MercaderiaTab({
               </select>
             </div>
 
-            <div className="mb-3">
+            <div className="mb-3 position-relative" ref={proveedorControlRef}>
               <label className="form-label fw-bold">Proveedor:</label>
-              <select 
-                className="form-select form-select-lg"
-                value={formMercaderia.proveedor}
-                onChange={(e) => setFormMercaderia({...formMercaderia, proveedor: e.target.value})}
-              >
-                {PROVEEDORES.map(prov => (
-                  <option key={prov} value={prov}>{prov}</option>
-                ))}
-                <option value="Otro">Otro...</option>
-              </select>
-            </div>
-
-            {formMercaderia.proveedor === 'Otro' && (
-              <div className="mb-3">
-                <input 
-                  type="text"
-                  className="form-control form-control-lg"
-                  placeholder="Nombre del proveedor"
-                  value={formMercaderia.proveedorOtro}
-                  onChange={(e) => setFormMercaderia({...formMercaderia, proveedorOtro: e.target.value})}
-                />
+              <div className="d-flex rounded overflow-hidden border" style={{ minHeight: '48px' }}>
+                <div
+                  className="flex-grow-1 px-3 d-flex align-items-center bg-white border-end"
+                  style={{ cursor: 'pointer', minHeight: '48px' }}
+                  onClick={() => setDropdownProveedorOpen((o) => !o)}
+                >
+                  <span className={formMercaderia.proveedor ? '' : 'text-muted'}>
+                    {formMercaderia.proveedor || 'Seleccionar proveedor'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-outline-primary d-flex align-items-center justify-content-center px-3"
+                  style={{ minWidth: '48px', minHeight: '48px' }}
+                  onClick={() => {
+                    setDropdownProveedorOpen(false);
+                    setShowProveedoresModal(true);
+                  }}
+                  title="Gestionar proveedores"
+                >
+                  <span className="fs-4">+</span>
+                </button>
               </div>
-            )}
+              {dropdownProveedorOpen && (
+                <div
+                  className="border rounded mt-1 bg-white shadow-sm position-absolute start-0 end-0 z-2"
+                  style={{ maxHeight: '220px', overflowY: 'auto' }}
+                >
+                  {(ultimosProveedoresUsados.length ? ultimosProveedoresUsados : proveedores.slice(0, 5)).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className="btn btn-light w-100 text-start rounded-0 border-bottom"
+                      onClick={() => {
+                        setFormMercaderia((prev) => ({ ...prev, proveedor: p }));
+                        setDropdownProveedorOpen(false);
+                      }}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <small className="form-text text-muted d-block mt-1">
+                Toque para elegir entre los últimos usados; use + para agregar o quitar proveedores.
+              </small>
+            </div>
 
             <div className="mb-3">
               <div className="d-flex justify-content-between align-items-center mb-2">
@@ -303,14 +452,24 @@ export default function MercaderiaTab({
               )}
 
               <div className="row">
-                {CORTES_CARNE.map(corte => {
+                {ordenCortesPorUso.map((corte) => {
                   const esPersonalizado = !CORTES_CARNE.includes(corte);
                   return (
-                    <div key={corte} className="col-lg-4 col-md-6 mb-3">
+                    <motion.div
+                      key={corte}
+                      layout
+                      transition={{ duration: 0.35, ease: 'easeInOut' }}
+                      className="col-lg-4 col-md-6 mb-3"
+                    >
                       <div className={`card h-100 ${esPersonalizado ? 'border-success' : ''}`}>
                         <div className="card-body p-2">
                           <div className="d-flex justify-content-between align-items-center mb-2">
-                            <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>{corte}</label>
+                            <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
+                              {corte}
+                              {esPersonalizado && (
+                                <span className="badge bg-success ms-1" style={{ fontSize: '0.6rem' }}>Personalizado</span>
+                              )}
+                            </label>
                             {esPersonalizado && (
                               <button
                                 className="btn btn-sm btn-outline-danger"
@@ -325,7 +484,7 @@ export default function MercaderiaTab({
                           <div className="d-flex flex-column gap-1">
                             <div className="input-group input-group-sm">
                               <span className="input-group-text">Kg</span>
-                              <input 
+                              <input
                                 type="number"
                                 className="form-control"
                                 placeholder="0"
@@ -333,8 +492,8 @@ export default function MercaderiaTab({
                                 value={formMercaderia.cortes[corte]?.kg || ''}
                                 onChange={(e) => setFormMercaderia({
                                   ...formMercaderia,
-                                  cortes: { 
-                                    ...formMercaderia.cortes, 
+                                  cortes: {
+                                    ...formMercaderia.cortes,
                                     [corte]: {
                                       ...formMercaderia.cortes[corte],
                                       kg: e.target.value
@@ -345,7 +504,7 @@ export default function MercaderiaTab({
                             </div>
                             <div className="input-group input-group-sm">
                               <span className="input-group-text">$/Kg</span>
-                              <input 
+                              <input
                                 type="number"
                                 className="form-control"
                                 placeholder="0"
@@ -353,8 +512,8 @@ export default function MercaderiaTab({
                                 value={formMercaderia.cortes[corte]?.precioKg || ''}
                                 onChange={(e) => setFormMercaderia({
                                   ...formMercaderia,
-                                  cortes: { 
-                                    ...formMercaderia.cortes, 
+                                  cortes: {
+                                    ...formMercaderia.cortes,
                                     [corte]: {
                                       ...formMercaderia.cortes[corte],
                                       precioKg: e.target.value
@@ -366,76 +525,9 @@ export default function MercaderiaTab({
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
-
-                {Object.keys(formMercaderia.cortes)
-                  .filter(corte => !CORTES_CARNE.includes(corte))
-                  .map(corte => (
-                    <div key={corte} className="col-lg-4 col-md-6 mb-3">
-                      <div className="card h-100 border-success">
-                        <div className="card-body p-2">
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
-                              {corte}
-                              <span className="badge bg-success ms-1" style={{ fontSize: '0.6rem' }}>Personalizado</span>
-                            </label>
-                            <button
-                              className="btn btn-sm btn-outline-danger"
-                              style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
-                              onClick={() => eliminarCorteDelFormulario(corte)}
-                              title="Eliminar corte"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                          <div className="d-flex flex-column gap-1">
-                            <div className="input-group input-group-sm">
-                              <span className="input-group-text">Kg</span>
-                              <input 
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                step="0.1"
-                                value={formMercaderia.cortes[corte]?.kg || ''}
-                                onChange={(e) => setFormMercaderia({
-                                  ...formMercaderia,
-                                  cortes: { 
-                                    ...formMercaderia.cortes, 
-                                    [corte]: {
-                                      ...formMercaderia.cortes[corte],
-                                      kg: e.target.value
-                                    }
-                                  }
-                                })}
-                              />
-                            </div>
-                            <div className="input-group input-group-sm">
-                              <span className="input-group-text">$/Kg</span>
-                              <input 
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                step="0.01"
-                                value={formMercaderia.cortes[corte]?.precioKg || ''}
-                                onChange={(e) => setFormMercaderia({
-                                  ...formMercaderia,
-                                  cortes: { 
-                                    ...formMercaderia.cortes, 
-                                    [corte]: {
-                                      ...formMercaderia.cortes[corte],
-                                      precioKg: e.target.value
-                                    }
-                                  }
-                                })}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
               </div>
             </div>
 
@@ -493,9 +585,14 @@ export default function MercaderiaTab({
                             <h5 className="text-primary mb-1">
                               <strong>{totalKilos} kg</strong>
                             </h5>
-                            {costoPromedioKg > 0 && (
+                            {costoTotal > 0 && (
                               <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
-                                <strong>${costoPromedioKg.toFixed(2)}/kg</strong>
+                                <strong>{formatCurrency(costoTotal)}</strong>
+                                {costoPromedioKg > 0 && (
+                                  <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.85rem' }}>
+                                    ({formatCurrency(costoPromedioKg)}/kg)
+                                  </span>
+                                )}
                               </h6>
                             )}
                             <small className="text-muted">
@@ -760,6 +857,107 @@ export default function MercaderiaTab({
           </div>
         )}
       </div>
+
+      {showProveedoresModal && (
+        <div
+          className="modal show d-block"
+          tabIndex={-1}
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowProveedoresModal(false)}
+        >
+          <div
+            className="modal-dialog modal-dialog-centered modal-dialog-scrollable"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Gestionar proveedores</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  aria-label="Cerrar"
+                  onClick={() => setShowProveedoresModal(false)}
+                />
+              </div>
+              <div className="modal-body">
+                <p className="text-muted small mb-3">
+                  Agregá o eliminá proveedores. Los que elimines ya no aparecerán en la lista al cargar mercadería.
+                </p>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Agregar proveedor</label>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Nombre del proveedor"
+                      value={nuevoProveedorInput}
+                      onChange={(e) => setNuevoProveedorInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && agregarProveedor()}
+                    />
+                    <button type="button" className="btn btn-primary" onClick={agregarProveedor}>
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <label className="form-label fw-bold">Lista actual</label>
+                  <p className="text-muted small mb-2">Hacé clic en un nombre para elegirlo e ingresar mercadería.</p>
+                  {proveedores.length === 0 ? (
+                    <p className="text-muted small mb-0">No hay proveedores. Agregá uno arriba o restauramos la lista por defecto.</p>
+                  ) : (
+                    <ul className="list-group list-group-flush">
+                      {proveedores.map((p) => (
+                        <li
+                          key={p}
+                          className="list-group-item d-flex justify-content-between align-items-center px-0"
+                        >
+                          <button
+                            type="button"
+                            className="btn btn-link text-dark text-decoration-none p-0 text-start flex-grow-1"
+                            onClick={() => {
+                              setFormMercaderia((prev) => ({ ...prev, proveedor: p }));
+                              setShowProveedoresModal(false);
+                            }}
+                          >
+                            {p}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger ms-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              eliminarProveedor(p);
+                            }}
+                            title="Eliminar proveedor"
+                          >
+                            Eliminar
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary w-100"
+                  onClick={restaurarProveedoresDefault}
+                >
+                  Restaurar lista por defecto
+                </button>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setShowProveedoresModal(false)}
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={showDeleteCorteModal}
