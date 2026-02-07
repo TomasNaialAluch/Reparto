@@ -28,6 +28,10 @@ export default function MercaderiaTab({
   const [dropdownProveedorOpen, setDropdownProveedorOpen] = useState(false);
   const [nuevoProveedorInput, setNuevoProveedorInput] = useState('');
   const proveedorControlRef = useRef(null);
+  const corteInputRefs = useRef([]);
+  const nuevoCorteInputRef = useRef(null);
+  const agregarEntradaBtnRef = useRef(null);
+  const formAgregarRef = useRef(null);
 
   const [formMercaderia, setFormMercaderia] = useState({
     dia: getDiaActual(),
@@ -342,6 +346,51 @@ export default function MercaderiaTab({
     }
   };
 
+  const handleFormKeyDown = (e) => {
+    const target = e.target;
+    const cortes = ordenCortesPorUso;
+    const n = cortes.length;
+
+    if (e.key === 'Enter') {
+      if (nuevoCorteInputRef.current && target === nuevoCorteInputRef.current) return;
+      if (target === agregarEntradaBtnRef.current) return;
+      if (target.tagName === 'BUTTON' && target !== agregarEntradaBtnRef.current) return;
+      e.preventDefault();
+      handleAgregarMercaderia();
+      return;
+    }
+
+    const arrowNext = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+    const arrowPrev = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+    if (!arrowNext && !arrowPrev) return;
+
+    let currentIndex = -1;
+    for (let i = 0; i < n; i++) {
+      const pair = corteInputRefs.current[i];
+      if (!pair) continue;
+      if (target === pair[0] || target === pair[1]) {
+        currentIndex = i;
+        break;
+      }
+    }
+
+    if (arrowNext) {
+      e.preventDefault();
+      if (currentIndex < 0) return;
+      if (currentIndex < n - 1) {
+        const next = corteInputRefs.current[currentIndex + 1];
+        if (next && next[0]) next[0].focus();
+      } else if (agregarEntradaBtnRef.current) {
+        agregarEntradaBtnRef.current.focus();
+      }
+    } else if (arrowPrev) {
+      e.preventDefault();
+      if (currentIndex <= 0) return;
+      const prev = corteInputRefs.current[currentIndex - 1];
+      if (prev && prev[0]) prev[0].focus();
+    }
+  };
+
   return (
     <div className="row">
       <div className="col-lg-5" data-tab="mercaderia">
@@ -349,7 +398,7 @@ export default function MercaderiaTab({
           <div className="card-header bg-primary text-white">
             <h5 className="mb-0">Agregar Mercadería (Carne)</h5>
           </div>
-          <div className="card-body">
+          <div className="card-body" ref={formAgregarRef} onKeyDown={handleFormKeyDown}>
             <div className="mb-3">
               <label className="form-label fw-bold">Día de la semana:</label>
               <select 
@@ -429,6 +478,7 @@ export default function MercaderiaTab({
                   <div className="card-body p-3">
                     <div className="input-group">
                       <input
+                        ref={nuevoCorteInputRef}
                         type="text"
                         className="form-control"
                         placeholder="Nombre del nuevo corte (ej: Bife de chorizo, Asado, etc.)"
@@ -452,8 +502,9 @@ export default function MercaderiaTab({
               )}
 
               <div className="row">
-                {ordenCortesPorUso.map((corte) => {
+                {ordenCortesPorUso.map((corte, index) => {
                   const esPersonalizado = !CORTES_CARNE.includes(corte);
+                  if (!corteInputRefs.current[index]) corteInputRefs.current[index] = [null, null];
                   return (
                     <motion.div
                       key={corte}
@@ -485,6 +536,7 @@ export default function MercaderiaTab({
                             <div className="input-group input-group-sm">
                               <span className="input-group-text">Kg</span>
                               <input
+                                ref={(el) => { corteInputRefs.current[index][0] = el; }}
                                 type="number"
                                 className="form-control"
                                 placeholder="0"
@@ -505,6 +557,7 @@ export default function MercaderiaTab({
                             <div className="input-group input-group-sm">
                               <span className="input-group-text">$/Kg</span>
                               <input
+                                ref={(el) => { corteInputRefs.current[index][1] = el; }}
                                 type="number"
                                 className="form-control"
                                 placeholder="0"
@@ -532,6 +585,8 @@ export default function MercaderiaTab({
             </div>
 
             <button 
+              ref={agregarEntradaBtnRef}
+              type="button"
               className="btn btn-success btn-lg w-100"
               onClick={handleAgregarMercaderia}
             >
