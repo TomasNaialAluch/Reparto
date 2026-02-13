@@ -1014,6 +1014,22 @@ export const useGestionSemanal = (userId) => {
     }
   };
 
+  // Eliminar cliente completo (y todas sus boletas)
+  const eliminarCliente = async (clienteIndex) => {
+    if (!semanaActiva) return;
+
+    try {
+      const clientesActual = semanaActiva.clientesCuenta || [];
+      const nuevosClientes = clientesActual.filter((_, i) => i !== clienteIndex);
+      await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
+        clientesCuenta: nuevosClientes
+      });
+    } catch (err) {
+      console.error('Error al eliminar cliente:', err);
+      throw err;
+    }
+  };
+
   // Agregar pago a proveedor
   const agregarPagoProveedor = async (pago) => {
     if (!semanaActiva) {
@@ -1182,6 +1198,7 @@ export const useGestionSemanal = (userId) => {
     agregarBoletaCliente,
     eliminarBoletaCliente,
     actualizarCliente,
+    eliminarCliente,
     agregarPagoProveedor,
     eliminarPagoProveedor,
     guardarEstadoPagosProveedores,

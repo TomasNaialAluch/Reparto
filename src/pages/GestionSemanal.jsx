@@ -35,6 +35,7 @@ export default function GestionSemanal() {
     agregarBoletaCliente,
     eliminarBoletaCliente,
     actualizarCliente,
+    eliminarCliente,
     agregarPagoProveedor,
     eliminarPagoProveedor,
     guardarEstadoPagosProveedores,
@@ -288,6 +289,7 @@ export default function GestionSemanal() {
             agregarBoletaCliente={agregarBoletaCliente}
             eliminarBoletaCliente={eliminarBoletaCliente}
             actualizarCliente={actualizarCliente}
+            eliminarCliente={eliminarCliente}
             addNotification={addNotification}
           />
         )}

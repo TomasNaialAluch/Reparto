@@ -7,6 +7,7 @@ export default function ClientesTab({
   agregarBoletaCliente,
   eliminarBoletaCliente,
   actualizarCliente,
+  eliminarCliente,
   addNotification 
 }) {
   const [expandedClientes, setExpandedClientes] = useState({});
@@ -111,6 +112,21 @@ export default function ClientesTab({
     return cliente.boletas.reduce((sum, b) => sum + b.monto, 0);
   };
 
+  const handleEliminarCliente = async (e, clienteIndex) => {
+    e.stopPropagation();
+    const cliente = semanaActiva?.clientesCuenta?.[clienteIndex];
+    if (!cliente || !eliminarCliente) return;
+    try {
+      await eliminarCliente(clienteIndex);
+      addNotification('Cliente eliminado', 'success');
+      setExpandedClientes({});
+      setEditingClientes(null);
+    } catch (err) {
+      addNotification('Error al eliminar cliente', 'error');
+      console.error(err);
+    }
+  };
+
   return (
     <div className="row">
       <div className="col-lg-5" data-tab="clientes">
@@ -193,9 +209,8 @@ export default function ClientesTab({
                               </h6>
                               <button 
                                 className="btn btn-sm btn-danger"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                }}
+                                onClick={(e) => handleEliminarCliente(e, clienteIndex)}
+                                title="Eliminar cliente"
                               >
                                 ✕
                               </button>
@@ -260,9 +275,8 @@ export default function ClientesTab({
                                     </button>
                                     <button 
                                       className="btn btn-sm btn-danger"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                      }}
+                                      onClick={(e) => handleEliminarCliente(e, clienteIndex)}
+                                      title="Eliminar cliente"
                                     >
                                       🗑️
                                     </button>
