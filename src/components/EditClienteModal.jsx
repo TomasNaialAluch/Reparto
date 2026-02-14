@@ -96,7 +96,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   const obtenerBoletasMercaderia = () => {
     if (!semanaActiva?.mercaderia || !formData.clientName.trim()) return [];
     
-    return semanaActiva.mercaderia
+    const boletasMapeadas = semanaActiva.mercaderia
       .filter(entrada => entrada.proveedor === formData.clientName.trim())
       .map((entrada, index) => {
         const costoTotal = entrada.cortes.reduce((sum, c) => 
@@ -113,6 +113,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
           timestamp: entrada.timestamp || new Date().toISOString()
         };
       });
+
+    // Ordenar de más nueva a más vieja (descendente por timestamp)
+    return boletasMapeadas.sort((a, b) => {
+      const fechaA = new Date(a.timestamp);
+      const fechaB = new Date(b.timestamp);
+      return fechaB - fechaA; // Descendente: más reciente primero
+    });
   };
 
   // Vincular una boleta de mercadería
@@ -139,8 +146,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       ...prev,
       boletas: [...prev.boletas, nuevaBoleta]
     }));
-    
-    setShowMercaderiaModal(false);
+    // No cerrar el modal para poder vincular múltiples boletas
   };
 
   const handleSave = () => {
