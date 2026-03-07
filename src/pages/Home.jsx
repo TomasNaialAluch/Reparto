@@ -42,7 +42,8 @@ const Home = () => {
         { path: '/dolar', label: 'DolarHoy' },
         { path: '/asistente', label: 'Asistente' },
         { path: '/contador', label: 'Contador' },
-        { path: '/lista-precios', label: 'Lista de Precios' }
+        { path: '/lista-precios', label: 'Lista de Precios' },
+        { path: '/precios-clientes', label: 'Precios Clientes' }
       ]
     }
   ];

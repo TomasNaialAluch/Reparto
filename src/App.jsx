@@ -18,6 +18,7 @@ import GestionSemanal from './pages/GestionSemanal';
 import Balance from './pages/Balance';
 import Contador from './pages/Contador';
 import ListaPrecios from './pages/ListaPrecios';
+import PreciosClientes from './pages/PreciosClientes';
 import DolarHoy from './pages/DolarHoy';
 
 // Firebase Provider
@@ -134,6 +135,12 @@ const AppContent = () => {
             <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
               <Navbar />
               <ListaPrecios />
+            </div>
+          } />
+          <Route path="/precios-clientes" element={
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <Navbar />
+              <PreciosClientes />
             </div>
           } />
         </Routes>
