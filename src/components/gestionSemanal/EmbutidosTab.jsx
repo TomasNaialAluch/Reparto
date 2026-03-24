@@ -355,7 +355,7 @@ export default function EmbutidosTab({
                               </button>
                             </div>
                             <h5 className="text-primary mb-1">
-                              <strong>{totalKilos} kg</strong>
+                              <strong>{Math.round(totalKilos)} kg</strong>
                             </h5>
                             {costoPromedioKg > 0 && (
                               <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
@@ -502,7 +502,7 @@ export default function EmbutidosTab({
                                   <div className="d-flex justify-content-between">
                                     <strong>Total:</strong>
                                     <strong className="text-primary fs-5">
-                                      {tempEmbutidosData.embutidos.reduce((sum, emb) => sum + emb.kg, 0).toFixed(1)} kg
+                                      {tempEmbutidosData.embutidos.reduce((sum, emb) => sum + emb.kg, 0).toFixed(2)} kg
                                     </strong>
                                   </div>
                                 </div>
@@ -512,7 +512,7 @@ export default function EmbutidosTab({
                                 <ul className="list-unstyled mb-0 small">
                                   {entrada.embutidos.map((emb, i) => (
                                     <li key={i} className="mb-1">
-                                      • {emb.tipo}: <strong>{emb.kg} kg</strong>
+                                      • {emb.tipo}: <strong>{emb.kg.toFixed(2)} kg</strong>
                                       {emb.precioKg ? (
                                         <span className="text-muted"> (${emb.precioKg}/kg = ${(emb.kg * emb.precioKg).toFixed(2)})</span>
                                       ) : null}
@@ -523,7 +523,7 @@ export default function EmbutidosTab({
                                   <div className="d-flex justify-content-between">
                                     <strong>Total:</strong>
                                     <strong className="text-primary">
-                                      {totalKilos} kg
+                                      {totalKilos.toFixed(2)} kg
                                     </strong>
                                   </div>
                                   {entrada.embutidos.some(e => e.precioKg) && (
@@ -561,13 +561,13 @@ export default function EmbutidosTab({
                     <div className="row">
                       {Object.entries(porTipo).map(([tipo, kg]) => (
                         <div key={tipo} className="col-6 mb-2">
-                          <strong>{tipo}:</strong> {kg.toFixed(1)} kg
+                          <strong>{tipo}:</strong> {kg.toFixed(2)} kg
                         </div>
                       ))}
                     </div>
                     <hr />
                     <h4 className="text-center mb-0">
-                      <strong>TOTAL: {total.toFixed(1)} kg</strong>
+                      <strong>TOTAL: {total.toFixed(2)} kg</strong>
                     </h4>
                   </>
                 );

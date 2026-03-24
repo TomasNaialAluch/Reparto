@@ -638,7 +638,7 @@ export default function MercaderiaTab({
                               </button>
                             </div>
                             <h5 className="text-primary mb-1">
-                              <strong>{totalKilos} kg</strong>
+                              <strong>{Math.round(totalKilos)} kg</strong>
                             </h5>
                             {costoTotal > 0 && (
                               <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
@@ -799,7 +799,7 @@ export default function MercaderiaTab({
                                   <div className="d-flex justify-content-between">
                                     <strong>Total:</strong>
                                     <strong className="text-primary fs-5">
-                                      {tempMercaderiaData.cortes.reduce((sum, corte) => sum + corte.kg, 0).toFixed(1)} kg
+                                      {tempMercaderiaData.cortes.reduce((sum, corte) => sum + corte.kg, 0).toFixed(2)} kg
                                     </strong>
                                   </div>
                                   {tempMercaderiaData.cortes.some(c => c.precioKg && c.precioKg > 0) && (
@@ -828,7 +828,7 @@ export default function MercaderiaTab({
                                   {entrada.cortes.map((corte, i) => (
                                     <li key={i} className="mb-1 d-flex justify-content-between align-items-center">
                                       <div>
-                                        • {corte.corte}: <strong>{corte.kg} kg</strong>
+                                        • {corte.corte}: <strong>{corte.kg.toFixed(2)} kg</strong>
                                         {corte.precioKg ? (
                                           <span className="text-muted"> (${corte.precioKg}/kg = ${(corte.kg * corte.precioKg).toFixed(2)})</span>
                                         ) : null}
@@ -851,7 +851,7 @@ export default function MercaderiaTab({
                                   <div className="d-flex justify-content-between">
                                     <strong>Total:</strong>
                                     <strong className="text-primary">
-                                      {totalKilos} kg
+                                      {totalKilos.toFixed(2)} kg
                                     </strong>
                                   </div>
                                   {entrada.cortes.some(c => c.precioKg) && (
@@ -897,13 +897,13 @@ export default function MercaderiaTab({
                     <div className="row">
                       {Object.entries(porCorte).map(([corte, kg]) => (
                         <div key={corte} className="col-6 mb-2">
-                          <strong>{corte}:</strong> {kg.toFixed(1)} kg
+                          <strong>{corte}:</strong> {kg.toFixed(2)} kg
                         </div>
                       ))}
                     </div>
                     <hr />
                     <h4 className="text-center mb-0">
-                      <strong>TOTAL: {total.toFixed(1)} kg</strong>
+                      <strong>TOTAL: {total.toFixed(2)} kg</strong>
                     </h4>
                   </>
                 );
