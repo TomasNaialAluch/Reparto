@@ -10,7 +10,7 @@ import EditClienteModal from '../components/EditClienteModal';
 import PrintDocument from '../components/PrintDocument';
 import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
-import { getLocalDateString } from '../utils/date';
+import { getLocalDateString, formatDateSafe } from '../utils/date';
 
 const SaldoClientes = () => {
   const { user } = useFirebase();
@@ -1048,6 +1048,7 @@ const SaldoClientes = () => {
                               <div>
                                 <div className="d-flex align-items-center gap-2 mb-1">
                                   <span className="badge bg-primary">{boleta.dia}</span>
+                                  <span className="text-muted small">{formatDateSafe(boleta.timestamp?.split('T')[0])}</span>
                                   <strong>{boleta.proveedor}</strong>
                                   {yaVinculada && (
                                     <span className="badge bg-success">✓ Ya vinculada</span>

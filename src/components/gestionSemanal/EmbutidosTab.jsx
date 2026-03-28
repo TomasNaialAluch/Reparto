@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DIAS_SEMANA, TIPOS_EMBUTIDOS, getDiaActual } from './constants';
 import { formatCurrency } from '../../utils/money';
 
@@ -18,6 +18,8 @@ export default function EmbutidosTab({
   const [tiposEmbutidosPersonalizados, setTiposEmbutidosPersonalizados] = useState([]);
   const [nuevoTipoEmbutido, setNuevoTipoEmbutido] = useState('');
   const [mostrarInputNuevoTipo, setMostrarInputNuevoTipo] = useState(false);
+  const nuevoTipoInputRef = useRef(null);
+  const agregarEntradaBtnRef = useRef(null);
   
   const [formEmbutidos, setFormEmbutidos] = useState({
     dia: getDiaActual(),
@@ -183,6 +185,15 @@ export default function EmbutidosTab({
     return { porTipo, total };
   };
 
+  const handleFormKeyDown = (e) => {
+    if (e.key !== 'Enter') return;
+    if (nuevoTipoInputRef.current && e.target === nuevoTipoInputRef.current) return;
+    if (e.target === agregarEntradaBtnRef.current) return;
+    if (e.target.tagName === 'BUTTON') return;
+    e.preventDefault();
+    handleAgregarEmbutidos();
+  };
+
   return (
     <div className="row">
       <div className="col-lg-5" data-tab="embutidos">
@@ -190,7 +201,7 @@ export default function EmbutidosTab({
           <div className="card-header bg-primary text-white">
             <h5 className="mb-0">Agregar Embutidos</h5>
           </div>
-          <div className="card-body">
+          <div className="card-body" onKeyDown={handleFormKeyDown}>
             <div className="mb-3">
               <label className="form-label fw-bold">Día de la semana:</label>
               <select 
@@ -220,13 +231,15 @@ export default function EmbutidosTab({
                   <div className="card-body p-3">
                     <div className="input-group">
                       <input 
+                        ref={nuevoTipoInputRef}
                         type="text"
                         className="form-control"
                         placeholder="Nombre del nuevo tipo de embutido"
                         value={nuevoTipoEmbutido}
                         onChange={(e) => setNuevoTipoEmbutido(e.target.value)}
-                        onKeyPress={(e) => {
+                        onKeyDown={(e) => {
                           if (e.key === 'Enter') {
+                            e.preventDefault();
                             agregarTipoEmbutidoPersonalizado();
                           }
                         }}
@@ -306,6 +319,8 @@ export default function EmbutidosTab({
             </div>
 
             <button 
+              ref={agregarEntradaBtnRef}
+              type="button"
               className="btn btn-success btn-lg w-100"
               onClick={handleAgregarEmbutidos}
             >
@@ -357,9 +372,14 @@ export default function EmbutidosTab({
                             <h5 className="text-primary mb-1">
                               <strong>{Math.round(totalKilos)} kg</strong>
                             </h5>
-                            {costoPromedioKg > 0 && (
+                            {costoTotal > 0 && (
                               <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
-                                <strong>${costoPromedioKg.toFixed(2)}/kg</strong>
+                                <strong>{formatCurrency(costoTotal)}</strong>
+                                {costoPromedioKg > 0 && (
+                                  <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.85rem' }}>
+                                    ({formatCurrency(costoPromedioKg)}/kg)
+                                  </span>
+                                )}
                               </h6>
                             )}
                             <small className="text-muted">
