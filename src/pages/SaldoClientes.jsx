@@ -60,6 +60,12 @@ const SaldoClientes = () => {
   // Estado para modal de vincular boletas de mercadería
   const [showMercaderiaModal, setShowMercaderiaModal] = useState(false);
 
+  // Estados para el banner de saldo previo
+  const [saldoPrevioData, setSaldoPrevioData] = useState([]);
+  const [showSaldoPrevio, setShowSaldoPrevio] = useState(false);
+  const [saldoPrevioDismissed, setSaldoPrevioDismissed] = useState('');
+  const [saldoPrevioSeleccion, setSaldoPrevioSeleccion] = useState([]);
+
   // Función para filtrar clientes por fecha
   const getFilteredClientes = () => {
     const today = new Date();
@@ -553,6 +559,43 @@ const SaldoClientes = () => {
     }
   }, []);
 
+  // Debounce: buscar últimos 3 saldos cuando cambia el nombre del cliente
+  useEffect(() => {
+    if (!clientName.trim() || clientName.trim().length < 2) {
+      setShowSaldoPrevio(false);
+      setSaldoPrevioData([]);
+      return;
+    }
+
+    if (clientName.trim().toLowerCase() === saldoPrevioDismissed.toLowerCase()) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      const nombreBuscado = clientName.trim().toLowerCase();
+      const coincidentes = savedClientes
+        .filter(c => c.nombreCliente?.toLowerCase() === nombreBuscado)
+        .sort((a, b) => {
+          if (a.fecha > b.fecha) return -1;
+          if (a.fecha < b.fecha) return 1;
+          return 0;
+        })
+        .slice(0, 3);
+
+      if (coincidentes.length > 0) {
+        setSaldoPrevioData(coincidentes);
+        setSaldoPrevioSeleccion(coincidentes.map((_, i) => i)); // todos seleccionados por defecto
+        setShowSaldoPrevio(true);
+      } else {
+        setShowSaldoPrevio(false);
+        setSaldoPrevioData([]);
+        setSaldoPrevioSeleccion([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [clientName, savedClientes, saldoPrevioDismissed]);
+
   useEffect(() => {
     if (balances && balances.length > 0) {
       const clientesFormateados = balances.map(balance => {
@@ -607,10 +650,99 @@ const SaldoClientes = () => {
                   className="form-control" 
                   placeholder="Ingrese nombre" 
                   value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  onChange={(e) => {
+                    setClientName(e.target.value);
+                    setSaldoPrevioDismissed('');
+                  }}
                   required 
                 />
               </div>
+
+              {/* Banner de saldo previo */}
+              {showSaldoPrevio && saldoPrevioData.length > 0 && (() => {
+                const neto = saldoPrevioData
+                  .filter((_, i) => saldoPrevioSeleccion.includes(i))
+                  .reduce((sum, c) => sum + (c.saldoFinal || 0), 0);
+                const netoPositivo = neto > 0;
+                const haySeleccion = saldoPrevioSeleccion.length > 0;
+                return (
+                  <div className="alert alert-secondary mb-3 p-3" style={{ borderLeft: '4px solid #6c757d' }}>
+                    <div className="d-flex justify-content-between align-items-start mb-2">
+                      <strong style={{ fontSize: '0.95rem' }}>
+                        💰 Saldo histórico con {clientName.trim()}
+                      </strong>
+                      <button
+                        type="button"
+                        className="btn-close btn-sm"
+                        onClick={() => {
+                          setShowSaldoPrevio(false);
+                          setSaldoPrevioDismissed(clientName.trim());
+                        }}
+                      />
+                    </div>
+                    <small className="text-muted d-block mb-2">Seleccioná los saldos que querés considerar:</small>
+                    <div className="mb-2">
+                      {saldoPrevioData.map((c, i) => {
+                        const esFavor = (c.saldoFinal || 0) > 0;
+                        const checked = saldoPrevioSeleccion.includes(i);
+                        return (
+                          <div
+                            key={i}
+                            className={`d-flex align-items-center gap-2 py-2 px-2 mb-1 rounded ${checked ? (esFavor ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10') : 'bg-light'}`}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => {
+                              setSaldoPrevioSeleccion(prev =>
+                                prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]
+                              );
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              className="form-check-input mt-0"
+                              checked={checked}
+                              readOnly
+                              style={{ pointerEvents: 'none' }}
+                            />
+                            <small className="text-muted flex-shrink-0">📅 {c.fecha || 'Sin fecha'}</small>
+                            <span className={`badge ${esFavor ? 'bg-success' : 'bg-danger'} ms-auto`}>
+                              {esFavor ? '+' : ''}{formatCurrency(c.saldoFinal || 0)}
+                            </span>
+                            <small className={`flex-shrink-0 ${esFavor ? 'text-success' : 'text-danger'}`}>
+                              {esFavor ? 'A tu favor' : 'Debés'}
+                            </small>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {haySeleccion && (
+                      <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                        <strong className={netoPositivo ? 'text-success' : 'text-danger'} style={{ fontSize: '0.95rem' }}>
+                          Neto seleccionado: {formatCurrency(Math.abs(neto))}
+                          <span className="ms-1">{netoPositivo ? '✓ A tu favor' : '⚠ Debés'}</span>
+                        </strong>
+                        {netoPositivo && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-success"
+                            onClick={() => {
+                              setShowPlata(true);
+                              setPlata(prev => {
+                                const items = prev.filter(p => p.amount);
+                                return [...items, { date: getLocalDateString(), amount: formatCurrencyNoSymbol(neto) }];
+                              });
+                              setShowSaldoPrevio(false);
+                              setSaldoPrevioDismissed(clientName.trim());
+                              showSuccess(`✓ ${formatCurrency(neto)} agregado como Plata a Favor`);
+                            }}
+                          >
+                            + Agregar como Plata a Favor
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <h4>Detalle de Boletas</h4>
               <div className="mb-3">
