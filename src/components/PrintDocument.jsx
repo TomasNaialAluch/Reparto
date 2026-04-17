@@ -6,6 +6,7 @@ const PrintDocument = ({ data, type, onClose }) => {
   const modalBodyRef = useRef();
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(true);
+  const [anchoImpresion, setAnchoImpresion] = useState('completo');
 
   useEffect(() => {
     const modalBody = modalBodyRef.current;
@@ -31,7 +32,8 @@ const PrintDocument = ({ data, type, onClose }) => {
     };
   }, []);
 
-  const getStylesForType = (printType) => {
+  const getStylesForType = (printType, ancho = 'completo') => {
+    const esMitad = ancho === 'mitad';
     // Estilos por defecto para todas las impresiones
     const baseStyles = `
       @page {
@@ -46,6 +48,7 @@ const PrintDocument = ({ data, type, onClose }) => {
         font-size: 11pt;
         line-height: 1.4;
         color: #000;
+        ${esMitad ? 'max-width: 50%;' : ''}
       }
       
       .print-header {
@@ -281,7 +284,7 @@ const PrintDocument = ({ data, type, onClose }) => {
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     const content = printRef.current.innerHTML;
-    const styles = getStylesForType(type);
+    const styles = getStylesForType(type, anchoImpresion);
     
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -1045,14 +1048,35 @@ const PrintDocument = ({ data, type, onClose }) => {
               Si no ves todas las secciones, haz scroll hacia arriba para ver el detalle completo
             </div>
           </div>
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancelar
-            </button>
-            <button type="button" className="btn btn-primary" onClick={handlePrint}>
-              <i className="fas fa-print me-2"></i>
-              Imprimir
-            </button>
+          <div className="modal-footer flex-column gap-2">
+            <div className="d-flex align-items-center gap-2 w-100">
+              <span className="fw-bold small text-muted" style={{ whiteSpace: 'nowrap' }}>Ancho de impresión:</span>
+              <div className="btn-group btn-group-sm w-100">
+                <button
+                  type="button"
+                  className={`btn ${anchoImpresion === 'completo' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setAnchoImpresion('completo')}
+                >
+                  📄 Hoja completa
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${anchoImpresion === 'mitad' ? 'btn-primary' : 'btn-outline-primary'}`}
+                  onClick={() => setAnchoImpresion('mitad')}
+                >
+                  ✂️ Media hoja
+                </button>
+              </div>
+            </div>
+            <div className="d-flex gap-2 w-100 justify-content-end">
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Cancelar
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handlePrint}>
+                <i className="fas fa-print me-2"></i>
+                Imprimir
+              </button>
+            </div>
           </div>
         </div>
       </div>
