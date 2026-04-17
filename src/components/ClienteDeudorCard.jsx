@@ -45,13 +45,25 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                     (cliente.cheques?.length || 0) + 
                     (cliente.transferencias?.length || 0);
 
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      nombreCliente: cliente.nombreCliente,
+      saldoFinal: totalDeuda
+    }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
-    <div className={`card mb-3 ${isExpanded ? 'expanded' : 'collapsed'}`} 
-         style={{ 
-           transition: 'all 0.3s ease',
-           cursor: 'pointer',
-           border: '1px solid #dee2e6'
-         }}>
+    <div
+      className={`card mb-3 ${isExpanded ? 'expanded' : 'collapsed'}`}
+      draggable={true}
+      onDragStart={handleDragStart}
+      style={{ 
+        transition: 'all 0.3s ease',
+        cursor: 'grab',
+        border: '1px solid #dee2e6'
+      }}
+    >
       
       {/* Header de la Card (siempre visible) */}
       <div className="card-header p-3" onClick={() => setIsExpanded(!isExpanded)}>

@@ -26,8 +26,11 @@ const SaldoClientes = () => {
   const [cheques, setCheques] = useState([]);
   const [showTransferencia, setShowTransferencia] = useState(false);
   const [transferencias, setTransferencias] = useState([]);
+  const [showDeuda, setShowDeuda] = useState(false);
+  const [deudas, setDeudas] = useState([]);
   const [summaryData, setSummaryData] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Firebase hooks
   const { balances, loading, error, addClientBalance, deleteBalance, updateBalance } = useClientBalances();
@@ -137,18 +140,19 @@ const SaldoClientes = () => {
 
   // Función para manejar impresión desde las cards
   const handlePrintCliente = (cliente) => {
-    // Convertir el formato del cliente guardado al formato que espera PrintDocument
     const printData = {
       clientName: cliente.nombreCliente,
       boletas: cliente.boletas || [],
       ventas: cliente.ventas || [],
       plataFavor: cliente.plataFavor || [],
+      deudas: cliente.deudas || [],
       efectivo: cliente.efectivo || [],
       cheques: cliente.cheques || [],
       transferencias: cliente.transferencias || [],
       totalBoletas: cliente.totalBoletas || 0,
       totalVentas: cliente.totalVentas || 0,
       totalPlata: cliente.totalPlata || 0,
+      totalDeuda: cliente.totalDeuda || 0,
       totalEfectivo: cliente.totalEfectivo || 0,
       totalCheque: cliente.totalCheque || 0,
       totalTransferencia: cliente.totalTransferencia || 0,
@@ -251,6 +255,7 @@ const SaldoClientes = () => {
     }
 
     const plataFavorData = showPlata ? plata.filter(p => p.amount) : [];
+    const deudasData = showDeuda ? deudas.filter(d => d.amount) : [];
     
     const clienteData = {
       id: `cliente_${Date.now()}`,
@@ -262,14 +267,15 @@ const SaldoClientes = () => {
       efectivo: showEfectivo ? efectivo.filter(e => e.amount) : [],
       cheques: showCheque ? cheques.filter(c => c.id && c.amount) : [],
       transferencias: showTransferencia ? transferencias.filter(t => t.amount) : [],
+      deudas: deudasData,
       saldoFinal: summaryData.finalBalance || 0,
-      // Incluir todos los totales del summaryData para consistencia
       totalBoletas: summaryData.totalBoletas || 0,
       totalVentas: summaryData.totalVentas || 0,
       totalPlata: summaryData.totalPlata || 0,
       totalEfectivo: summaryData.totalEfectivo || 0,
       totalCheque: summaryData.totalCheque || 0,
       totalTransferencia: summaryData.totalTransferencia || 0,
+      totalDeuda: summaryData.totalDeuda || 0,
       totalIngresos: summaryData.totalIngresos || 0
     };
 
@@ -281,15 +287,16 @@ const SaldoClientes = () => {
       efectivo: clienteData.efectivo,
       cheques: clienteData.cheques,
       transferencias: clienteData.transferencias,
+      deudas: deudasData,
       finalBalance: clienteData.saldoFinal,
       date: clienteData.fecha,
-      // Incluir todos los totales calculados
       totalBoletas: clienteData.totalBoletas,
       totalVentas: clienteData.totalVentas,
       totalPlata: clienteData.totalPlata,
       totalEfectivo: clienteData.totalEfectivo,
       totalCheque: clienteData.totalCheque,
       totalTransferencia: clienteData.totalTransferencia,
+      totalDeuda: clienteData.totalDeuda,
       totalIngresos: clienteData.totalIngresos
     };
     
@@ -341,6 +348,8 @@ const SaldoClientes = () => {
     setCheques([]);
     setShowTransferencia(false);
     setTransferencias([]);
+    setShowDeuda(false);
+    setDeudas([]);
     setSummaryData(null);
     setShowSummary(false);
   };
@@ -406,6 +415,26 @@ const SaldoClientes = () => {
   };
   const addTransferencia = () => {
     setTransferencias([...transferencias, { amount: '' }]);
+  };
+  const addDeuda = () => {
+    setDeudas([...deudas, { date: getLocalDateString(), amount: '' }]);
+  };
+  const removeDeuda = (index) => { setDeudas(deudas.filter((_, i) => i !== index)); };
+
+  const handleDropCliente = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (clientName.trim()) return;
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (!data?.nombreCliente) return;
+      setClientName(data.nombreCliente);
+    } catch {}
+  };
+  const updateDeuda = (index, field, value) => {
+    const newDeudas = [...deudas];
+    newDeudas[index][field] = value;
+    setDeudas(newDeudas);
   };
 
   // Obtener boletas de mercadería disponibles para vincular
@@ -522,8 +551,9 @@ const SaldoClientes = () => {
     const totalEfectivo = efectivo.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
     const totalCheque = cheques.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
     const totalTransferencia = transferencias.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
+    const totalDeuda = deudas.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0);
     const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    const finalBalance = totalPagos - totalBoletas;
+    const finalBalance = totalPagos - totalBoletas - totalDeuda;
 
     setSummaryData({
       clientName,
@@ -533,12 +563,14 @@ const SaldoClientes = () => {
       efectivo,
       cheques,
       transferencias,
+      deudas,
       totalBoletas,
       totalVentas,
       totalPlata,
       totalEfectivo,
       totalCheque,
       totalTransferencia,
+      totalDeuda,
       totalIngresos: totalPagos,
       finalBalance,
     });
@@ -639,9 +671,20 @@ const SaldoClientes = () => {
       <div className="row">
         {/* Formulario Principal - Izquierda */}
         <div className="col-lg-7 col-md-12">
-          <div className="card p-3 no-print mb-3">
+          <div
+            className="card p-3 no-print mb-3"
+            onDragOver={(e) => { e.preventDefault(); if (!clientName.trim()) setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDropCliente}
+            style={isDragOver ? { border: '2px dashed #0d6efd', background: '#f0f6ff' } : {}}
+          >
             <form>
               <h4>Datos del Cliente</h4>
+              {isDragOver && (
+                <div className="alert alert-primary py-2 mb-2 text-center" style={{ pointerEvents: 'none' }}>
+                  <i className="fas fa-arrow-down me-2"></i>Soltá para cargar el saldo histórico
+                </div>
+              )}
               <div className="mb-3">
                 <label htmlFor="clientName" className="form-label">Nombre del Cliente</label>
                 <input 
@@ -660,11 +703,22 @@ const SaldoClientes = () => {
 
               {/* Banner de saldo previo */}
               {showSaldoPrevio && saldoPrevioData.length > 0 && (() => {
-                const neto = saldoPrevioData
-                  .filter((_, i) => saldoPrevioSeleccion.includes(i))
-                  .reduce((sum, c) => sum + (c.saldoFinal || 0), 0);
-                const netoPositivo = neto > 0;
-                const haySeleccion = saldoPrevioSeleccion.length > 0;
+                const seleccionados = saldoPrevioData.filter((_, i) => saldoPrevioSeleccion.includes(i));
+                const itemsAFavor = seleccionados.filter(c => (c.saldoFinal || 0) > 0);
+                const itemsDeuda  = seleccionados.filter(c => (c.saldoFinal || 0) < 0);
+                const totalAFavor = itemsAFavor.reduce((sum, c) => sum + (c.saldoFinal || 0), 0);
+                const totalDeudaHist = itemsDeuda.reduce((sum, c) => sum + Math.abs(c.saldoFinal || 0), 0);
+                const haySeleccion = seleccionados.length > 0;
+                const hayMezcla = totalAFavor > 0 && totalDeudaHist > 0;
+
+                const btnLabel = hayMezcla
+                  ? `Aplicar: ${formatCurrency(totalAFavor)} a favor + ${formatCurrency(totalDeudaHist)} en deuda`
+                  : totalAFavor > 0
+                    ? `+ Agregar como Plata a Favor`
+                    : `+ Agregar como Deuda`;
+
+                const btnClass = hayMezcla ? 'btn btn-sm btn-primary' : totalAFavor > 0 ? 'btn btn-sm btn-success' : 'btn btn-sm btn-danger';
+
                 return (
                   <div className="alert alert-secondary mb-3 p-3" style={{ borderLeft: '4px solid #6c757d' }}>
                     <div className="d-flex justify-content-between align-items-start mb-2">
@@ -715,34 +769,70 @@ const SaldoClientes = () => {
                       })}
                     </div>
                     {haySeleccion && (
-                      <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                        <strong className={netoPositivo ? 'text-success' : 'text-danger'} style={{ fontSize: '0.95rem' }}>
-                          Neto seleccionado: {formatCurrency(Math.abs(neto))}
-                          <span className="ms-1">{netoPositivo ? '✓ A tu favor' : '⚠ Debés'}</span>
-                        </strong>
-                        {netoPositivo && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-success"
-                            onClick={() => {
+                      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
+                        <div style={{ fontSize: '0.9rem' }}>
+                          {totalAFavor > 0 && (
+                            <span className="text-success me-3">✓ A favor: <strong>{formatCurrency(totalAFavor)}</strong></span>
+                          )}
+                          {totalDeudaHist > 0 && (
+                            <span className="text-danger">⚠ Deuda: <strong>{formatCurrency(totalDeudaHist)}</strong></span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className={btnClass}
+                          onClick={() => {
+                            if (totalAFavor > 0) {
                               setShowPlata(true);
                               setPlata(prev => {
                                 const items = prev.filter(p => p.amount);
-                                return [...items, { date: getLocalDateString(), amount: formatCurrencyNoSymbol(neto) }];
+                                return [...items, { date: getLocalDateString(), amount: formatCurrencyNoSymbol(totalAFavor) }];
                               });
-                              setShowSaldoPrevio(false);
-                              setSaldoPrevioDismissed(clientName.trim());
-                              showSuccess(`✓ ${formatCurrency(neto)} agregado como Plata a Favor`);
-                            }}
-                          >
-                            + Agregar como Plata a Favor
-                          </button>
-                        )}
+                            }
+                            if (totalDeudaHist > 0) {
+                              setShowDeuda(true);
+                              setDeudas(prev => {
+                                const items = prev.filter(d => d.amount);
+                                return [...items, { date: getLocalDateString(), amount: formatCurrencyNoSymbol(totalDeudaHist) }];
+                              });
+                            }
+                            setShowSaldoPrevio(false);
+                            setSaldoPrevioDismissed(clientName.trim());
+                            const msg = hayMezcla
+                              ? `✓ ${formatCurrency(totalAFavor)} a Plata a Favor · ${formatCurrency(totalDeudaHist)} a Deuda`
+                              : totalAFavor > 0
+                                ? `✓ ${formatCurrency(totalAFavor)} agregado como Plata a Favor`
+                                : `✓ ${formatCurrency(totalDeudaHist)} agregado como Deuda`;
+                            showSuccess(msg);
+                          }}
+                        >
+                          {btnLabel}
+                        </button>
                       </div>
                     )}
                   </div>
                 );
               })()}
+
+              <h4>Deuda</h4>
+              <div className="mb-3">
+                <div className="form-check">
+                  <input type="checkbox" id="checkDeuda" className="form-check-input" checked={showDeuda} onChange={(e) => { setShowDeuda(e.target.checked); if (e.target.checked && deudas.length === 0) { addDeuda(); } }} />
+                  <label htmlFor="checkDeuda" className="form-check-label">Tiene Deuda pendiente</label>
+                </div>
+              </div>
+              {showDeuda && (
+                <div className="mb-3">
+                  {deudas.map((item, index) => (
+                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                      <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateDeuda(index, 'date', e.target.value)} />
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateDeuda(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeDeuda(index)} style={{ fontSize: '1.2rem' }}>×</button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary mb-3" onClick={addDeuda}>Agregar Deuda</button>
+                </div>
+              )}
 
               <h4>Detalle de Boletas</h4>
               <div className="mb-3">
@@ -936,6 +1026,18 @@ const SaldoClientes = () => {
                 </>
               )}
 
+              {summaryData && summaryData.totalDeuda > 0 && (
+                <>
+                  <p className="print-small" style={{ marginTop: '1rem' }}><strong>Deuda pendiente:</strong></p>
+                  {summaryData.deudas && summaryData.deudas.map((d, i) => (
+                    <p key={`d-${i}`} className="print-small">Deuda {i+1}: {d.date ? `${d.date}, ` : ''}{formatCurrency(parseCurrencyValue(d.amount))}</p>
+                  ))}
+                  <div className="print-subtotal" style={{ borderLeft: '3px solid #dc3545', paddingLeft: '16px' }}>
+                    <p className="mb-0"><strong>Total Deuda:</strong> {formatCurrency(summaryData.totalDeuda)}</p>
+                  </div>
+                </>
+              )}
+
               {summaryData && summaryData.totalEfectivo > 0 && (
                 <>
                   <p className="print-small" style={{ marginTop: '1rem' }}><strong>Efectivo:</strong></p>
@@ -964,7 +1066,7 @@ const SaldoClientes = () => {
               )}
 
               <div className="print-subtotal">
-                <p><strong>Total de Pagos del Usuario:</strong> {formatCurrency(summaryData?.totalIngresos || 0)}</p>
+                <p><strong>Total Ingresos:</strong> {formatCurrency(summaryData?.totalIngresos || 0)}</p>
               </div>
 
               {summaryData && (
@@ -992,10 +1094,12 @@ const SaldoClientes = () => {
                   boletas: data.boletas || [],
                   ventas: data.ventas || [],
                   plataFavor: data.plataFavor || [],
+                  deudas: data.deudas || [],
                   efectivo: data.efectivo || [],
                   cheques: data.cheques || [],
                   transferencias: data.transferencias || [],
                   totalBoletas: data.totalBoletas || 0,
+                  totalDeuda: data.totalDeuda || 0,
                   totalIngresos: data.totalIngresos || 0,
                   finalBalance: data.finalBalance || 0
                 }),

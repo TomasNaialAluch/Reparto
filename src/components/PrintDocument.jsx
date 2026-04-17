@@ -434,7 +434,8 @@ const PrintDocument = ({ data, type, onClose }) => {
       clientName, 
       boletas, 
       ventas, 
-      plataFavor, 
+      plataFavor,
+      deudas,
       efectivo, 
       cheques, 
       transferencias,
@@ -457,6 +458,21 @@ const PrintDocument = ({ data, type, onClose }) => {
           <div className="print-section-title">Cliente: {clientName}</div>
         </div>
         
+        {/* Deuda */}
+        {deudas && deudas.length > 0 && (
+          <div className="print-section">
+            <div className="print-section-title" style={{ color: '#dc3545' }}>Deuda pendiente:</div>
+            {deudas.map((d, i) => (
+              <div key={i} className="print-item">
+                Deuda {i + 1}{d.date ? `: ${d.date}` : ''} - {formatCurrency(parseCurrencyValue(d.amount))}
+              </div>
+            ))}
+            <div className="print-subtotal" style={{ borderLeft: '3px solid #dc3545', paddingLeft: '16px' }}>
+              Total Deuda: {formatCurrency(deudas.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0))}
+            </div>
+          </div>
+        )}
+
         {/* Boletas */}
         {boletas && boletas.length > 0 && (
           <div className="print-section">
@@ -550,7 +566,7 @@ const PrintDocument = ({ data, type, onClose }) => {
         {/* Resumen de Pagos */}
         <div className="print-section">
           <div className="print-subtotal">
-            Total Pagos: {formatCurrency((
+            Total Ingresos: {formatCurrency((
               (ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0) +
               (plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0) +
               (efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0) +
@@ -569,12 +585,14 @@ const PrintDocument = ({ data, type, onClose }) => {
                (efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0) +
                (cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0) +
                (transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0)) -
-              (boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0)
+              (boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0) -
+              (deudas?.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0) || 0)
             ))}
           </div>
           <div className="print-item" style={{ textAlign: 'center', marginTop: '10px', fontWeight: 'bold' }}>
             {(() => {
               const totalBoletasCalc = boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
+              const totalDeudasCalc = deudas?.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0) || 0;
               const totalIngresosCalc = (
                 (ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0) +
                 (plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0) +
@@ -583,8 +601,7 @@ const PrintDocument = ({ data, type, onClose }) => {
                 (transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0)
               );
               
-              // Balance correcto: totalIngresos - totalBoletas (Tito debe si es positivo)
-              const balanceCorrecto = totalIngresosCalc - totalBoletasCalc;
+              const balanceCorrecto = totalIngresosCalc - totalBoletasCalc - totalDeudasCalc;
               
               if (balanceCorrecto > 0) {
                 return `${clientName} te debe ${formatCurrency(balanceCorrecto)}`;

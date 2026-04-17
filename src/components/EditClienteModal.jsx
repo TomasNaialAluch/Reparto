@@ -10,6 +10,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     boletas: [{ date: '', amount: '' }],
     ventas: [],
     plataFavor: [],
+    deudas: [],
     efectivo: [],
     cheques: [],
     transferencias: []
@@ -17,6 +18,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   const [showSections, setShowSections] = useState({
     ventas: false,
     plataFavor: false,
+    deuda: false,
     efectivo: false,
     cheques: false,
     transferencias: false
@@ -33,6 +35,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
         boletas: cliente.boletas?.length > 0 ? cliente.boletas : [{ date: '', amount: '' }],
         ventas: cliente.ventas || [],
         plataFavor: cliente.plataFavor || [],
+        deudas: cliente.deudas || [],
         efectivo: cliente.efectivo || [],
         cheques: cliente.cheques || [],
         transferencias: cliente.transferencias || []
@@ -40,6 +43,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       setShowSections({
         ventas: (cliente.ventas?.length || 0) > 0,
         plataFavor: (cliente.plataFavor?.length || 0) > 0,
+        deuda: (cliente.deudas?.length || 0) > 0,
         efectivo: (cliente.efectivo?.length || 0) > 0,
         cheques: (cliente.cheques?.length || 0) > 0,
         transferencias: (cliente.transferencias?.length || 0) > 0
@@ -88,6 +92,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   const addBoleta = () => addItem('boletas', { date: getLocalDateString(), amount: '' });
   const addVenta = () => addItem('ventas', { date: getLocalDateString(), amount: '' });
   const addPlataFavor = () => addItem('plataFavor', { date: getLocalDateString(), amount: '' });
+  const addDeuda = () => addItem('deudas', { date: getLocalDateString(), amount: '' });
   const addEfectivo = () => addItem('efectivo', { date: getLocalDateString(), amount: '' });
   const addCheque = () => addItem('cheques', { date: getLocalDateString(), id: '', amount: '' });
   const addTransferencia = () => addItem('transferencias', { date: getLocalDateString(), amount: '' });
@@ -159,6 +164,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     const boletasFiltradas = formData.boletas.filter(b => b.date && b.amount);
     const ventasFiltradas = showSections.ventas ? formData.ventas.filter(v => v.date && v.amount) : [];
     const plataFiltrada = showSections.plataFavor ? formData.plataFavor.filter(p => p.amount) : [];
+    const deudasFiltradas = showSections.deuda ? formData.deudas.filter(d => d.amount) : [];
     const efectivoFiltrado = showSections.efectivo ? formData.efectivo.filter(e => e.amount) : [];
     const chequesFiltrados = showSections.cheques ? formData.cheques.filter(c => c.id && c.amount) : [];
     const transferenciasFiltradas = showSections.transferencias ? formData.transferencias.filter(t => t.amount) : [];
@@ -167,25 +173,26 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     const totalBoletas = boletasFiltradas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
     const totalVentas = ventasFiltradas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0);
     const totalPlata = plataFiltrada.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
+    const totalDeuda = deudasFiltradas.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0);
     const totalEfectivo = efectivoFiltrado.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
     const totalCheque = chequesFiltrados.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
     const totalTransferencia = transferenciasFiltradas.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
     const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    const finalBalance = totalPagos - totalBoletas;
-
+    const finalBalance = totalPagos - totalBoletas - totalDeuda;
 
     const clienteData = {
       clientName: formData.clientName.trim(),
       boletas: boletasFiltradas,
       ventas: ventasFiltradas,
       plataFavor: plataFiltrada,
+      deudas: deudasFiltradas,
       efectivo: efectivoFiltrado,
       cheques: chequesFiltrados,
       transferencias: transferenciasFiltradas,
-      // Agregar todos los totales calculados
       totalBoletas,
       totalVentas,
       totalPlata,
+      totalDeuda,
       totalEfectivo,
       totalCheque,
       totalTransferencia,
@@ -221,6 +228,34 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
                 required 
               />
+            </div>
+
+            {/* Deuda */}
+            <div className="mb-3">
+              <div className="form-check">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  checked={showSections.deuda}
+                  onChange={(e) => {
+                    setShowSections(prev => ({ ...prev, deuda: e.target.checked }));
+                    if (e.target.checked && formData.deudas.length === 0) addDeuda();
+                  }}
+                />
+                <label className="form-check-label">Tiene Deuda pendiente</label>
+              </div>
+              {showSections.deuda && (
+                <div className="mt-2">
+                  {formData.deudas.map((item, index) => (
+                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
+                      <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateItem('deudas', index, 'date', e.target.value)} />
+                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('deudas', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('deudas', index)}>×</button>
+                    </div>
+                  ))}
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={addDeuda}>Agregar Deuda</button>
+                </div>
+              )}
             </div>
 
             {/* Boletas */}
@@ -429,6 +464,11 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                     formData.plataFavor
                       .filter(p => p.amount)
                       .reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) : 0;
+
+                  const totalDeuda = showSections.deuda ?
+                    formData.deudas
+                      .filter(d => d.amount)
+                      .reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0) : 0;
                   
                   const totalEfectivo = showSections.efectivo ? 
                     formData.efectivo
@@ -446,7 +486,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                       .reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) : 0;
                   
                   const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-                  const finalBalance = totalPagos - totalBoletas;
+                  const finalBalance = totalPagos - totalBoletas - totalDeuda;
 
                   return (
                     <div>
@@ -458,6 +498,13 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                           <p><strong>Total Pagos:</strong> {formatCurrency(totalPagos)}</p>
                         </div>
                       </div>
+                      {totalDeuda > 0 && (
+                        <div className="row">
+                          <div className="col-12">
+                            <p className="text-danger"><strong>Total Deuda:</strong> {formatCurrency(totalDeuda)}</p>
+                          </div>
+                        </div>
+                      )}
                       <div className="row">
                         <div className="col-12">
                           <div className={`alert ${finalBalance > 0 ? 'alert-warning' : finalBalance < 0 ? 'alert-success' : 'alert-info'}`}>
