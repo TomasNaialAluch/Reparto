@@ -37,7 +37,7 @@ const MiReparto = () => {
   const [savedRepartos, setSavedRepartos] = useState([]);
   
   // Estados para filtros de fecha
-  const [dateFilter, setDateFilter] = useState('hoy');
+  const [dateFilter, setDateFilter] = useState('semana');
   const [customMonth, setCustomMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

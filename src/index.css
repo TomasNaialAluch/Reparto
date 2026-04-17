@@ -337,6 +337,19 @@ table tbody tr:hover {
 }
 
 
+/* Animación de alerta para inputs de precio sin completar */
+@keyframes precioAlert {
+  0%   { box-shadow: none; }
+  20%  { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.55); }
+  40%  { box-shadow: none; }
+  65%  { box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.55); }
+  100% { box-shadow: none; }
+}
+.precio-alert-highlight {
+  animation: precioAlert 0.95s ease;
+  border-radius: 5px;
+}
+
 /* Estilos de impresión simples - usando window.print() */
 @media print {
   @page {

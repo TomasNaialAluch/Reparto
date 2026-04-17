@@ -46,7 +46,7 @@ const SaldoClientes = () => {
   const [savedClientes, setSavedClientes] = useState([]);
   
   // Estados para filtros de fecha
-  const [dateFilter, setDateFilter] = useState('hoy');
+  const [dateFilter, setDateFilter] = useState('semana');
   const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   
   // Estados para el modal de edición

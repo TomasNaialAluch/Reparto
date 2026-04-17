@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { DIAS_SEMANA, TIPOS_EMBUTIDOS, getDiaActual } from './constants';
 import { formatCurrency } from '../../utils/money';
+import ConfirmModal from '../ConfirmModal';
 
 export default function EmbutidosTab({ 
   semanaActiva, 
@@ -21,6 +22,9 @@ export default function EmbutidosTab({
   const nuevoTipoInputRef = useRef(null);
   const agregarEntradaBtnRef = useRef(null);
   
+  const [showWarningPrecios, setShowWarningPrecios] = useState(false);
+  const [preciosHighlight, setPreciosHighlight] = useState(new Set());
+
   const [formEmbutidos, setFormEmbutidos] = useState({
     dia: getDiaActual(),
     embutidos: {}
@@ -138,7 +142,7 @@ export default function EmbutidosTab({
     }));
   };
 
-  const handleAgregarEmbutidos = async () => {
+  const handleAgregarEmbutidos = async (forzarSinPrecios = false) => {
     try {
       const embutidosConDatos = Object.entries(formEmbutidos.embutidos)
         .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0)
@@ -151,6 +155,14 @@ export default function EmbutidosTab({
       if (embutidosConDatos.length === 0) {
         addNotification('Debe ingresar al menos un tipo de embutido con kilos', 'warning');
         return;
+      }
+
+      if (!forzarSinPrecios) {
+        const sinPrecio = embutidosConDatos.filter(e => !e.precioKg || e.precioKg === 0);
+        if (sinPrecio.length > 0) {
+          setShowWarningPrecios(true);
+          return;
+        }
       }
 
       await agregarEmbutidos({
@@ -185,6 +197,23 @@ export default function EmbutidosTab({
     return { porTipo, total };
   };
 
+  const handleCloseWarningPrecios = () => {
+    setShowWarningPrecios(false);
+    const sinPrecio = Object.entries(formEmbutidos.embutidos)
+      .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0 && (!datos.precioKg || parseFloat(datos.precioKg) === 0))
+      .map(([tipo]) => tipo);
+    if (sinPrecio.length > 0) {
+      const nombres = new Set(sinPrecio);
+      setPreciosHighlight(new Set());
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setPreciosHighlight(nombres);
+          setTimeout(() => setPreciosHighlight(new Set()), 1000);
+        });
+      });
+    }
+  };
+
   const handleFormKeyDown = (e) => {
     if (e.key !== 'Enter') return;
     if (nuevoTipoInputRef.current && e.target === nuevoTipoInputRef.current) return;
@@ -195,6 +224,7 @@ export default function EmbutidosTab({
   };
 
   return (
+    <>
     <div className="row">
       <div className="col-lg-5" data-tab="embutidos">
         <div className="card">
@@ -289,7 +319,7 @@ export default function EmbutidosTab({
                                 })}
                               />
                             </div>
-                            <div className="input-group input-group-sm">
+                            <div className={`input-group input-group-sm${preciosHighlight.has(tipo) ? ' precio-alert-highlight' : ''}`}>
                               <span className="input-group-text">$/Kg</span>
                               <input 
                                 type="number"
@@ -597,6 +627,18 @@ export default function EmbutidosTab({
         )}
       </div>
     </div>
+
+    <ConfirmModal
+      isOpen={showWarningPrecios}
+      onClose={handleCloseWarningPrecios}
+      onConfirm={() => handleAgregarEmbutidos(true)}
+      title="⚠️ Faltan los precios"
+      message="Hay embutidos sin precio por kg. Registrar los precios es clave para calcular tus costos. ¿Querés ingresar igual sin los precios?"
+      confirmText="Ingresar sin precios"
+      cancelText="Volver a completar"
+      confirmButtonClass="btn-warning"
+    />
+    </>
   );
 }
 

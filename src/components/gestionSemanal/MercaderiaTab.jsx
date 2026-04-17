@@ -21,6 +21,8 @@ export default function MercaderiaTab({
   const [tempMercaderiaData, setTempMercaderiaData] = useState({});
   const [showDeleteCorteModal, setShowDeleteCorteModal] = useState(false);
   const [corteToDelete, setCorteToDelete] = useState(null);
+  const [showWarningPrecios, setShowWarningPrecios] = useState(false);
+  const [preciosHighlight, setPreciosHighlight] = useState(new Set());
 
   const [proveedores, setProveedores] = useState([]);
   const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
@@ -236,7 +238,7 @@ export default function MercaderiaTab({
     });
   };
 
-  const handleAgregarMercaderia = async () => {
+  const handleAgregarMercaderia = async (forzarSinPrecios = false) => {
     try {
       const cortesConDatos = Object.entries(formMercaderia.cortes)
         .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0)
@@ -255,6 +257,14 @@ export default function MercaderiaTab({
       if (!proveedor) {
         addNotification('Debe elegir un proveedor', 'warning');
         return;
+      }
+
+      if (!forzarSinPrecios) {
+        const sinPrecio = cortesConDatos.filter(c => !c.precioKg || c.precioKg === 0);
+        if (sinPrecio.length > 0) {
+          setShowWarningPrecios(true);
+          return;
+        }
       }
 
       await agregarMercaderia({
@@ -343,6 +353,23 @@ export default function MercaderiaTab({
       addNotification('Lista restaurada por defecto', 'success');
     } catch (e) {
       addNotification('Error al guardar', 'error');
+    }
+  };
+
+  const handleCloseWarningPrecios = () => {
+    setShowWarningPrecios(false);
+    const sinPrecio = Object.entries(formMercaderia.cortes)
+      .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0 && (!datos.precioKg || parseFloat(datos.precioKg) === 0))
+      .map(([corte]) => corte);
+    if (sinPrecio.length > 0) {
+      const nombres = new Set(sinPrecio);
+      setPreciosHighlight(new Set());
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setPreciosHighlight(nombres);
+          setTimeout(() => setPreciosHighlight(new Set()), 1000);
+        });
+      });
     }
   };
 
@@ -554,7 +581,7 @@ export default function MercaderiaTab({
                                 })}
                               />
                             </div>
-                            <div className="input-group input-group-sm">
+                            <div className={`input-group input-group-sm${preciosHighlight.has(corte) ? ' precio-alert-highlight' : ''}`}>
                               <span className="input-group-text">$/Kg</span>
                               <input
                                 ref={(el) => { corteInputRefs.current[index][1] = el; }}
@@ -1013,6 +1040,17 @@ export default function MercaderiaTab({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showWarningPrecios}
+        onClose={handleCloseWarningPrecios}
+        onConfirm={() => handleAgregarMercaderia(true)}
+        title="⚠️ Faltan los precios"
+        message="Hay cortes sin precio por kg. Registrar los precios es clave para calcular tus costos. ¿Querés ingresar igual sin los precios?"
+        confirmText="Ingresar sin precios"
+        cancelText="Volver a completar"
+        confirmButtonClass="btn-warning"
+      />
 
       <ConfirmModal
         isOpen={showDeleteCorteModal}
