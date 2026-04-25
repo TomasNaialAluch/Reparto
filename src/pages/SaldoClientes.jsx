@@ -399,13 +399,16 @@ const SaldoClientes = () => {
 
   // Add rows
   const addBoleta = () => {
-    setBoletas([...boletas, { date: getLocalDateString(), amount: '' }]);
+    const ultimaFecha = boletas[boletas.length - 1]?.date || getLocalDateString();
+    setBoletas([...boletas, { date: ultimaFecha, amount: '' }]);
   };
   const addVenta = () => {
-    setVentas([...ventas, { date: getLocalDateString(), amount: '' }]);
+    const ultimaFecha = ventas[ventas.length - 1]?.date || getLocalDateString();
+    setVentas([...ventas, { date: ultimaFecha, amount: '' }]);
   };
   const addPlata = () => {
-    setPlata([...plata, { date: getLocalDateString(), amount: '' }]);
+    const ultimaFecha = plata[plata.length - 1]?.date || getLocalDateString();
+    setPlata([...plata, { date: ultimaFecha, amount: '' }]);
   };
   const addEfectivo = () => {
     setEfectivo([...efectivo, { amount: '' }]);
@@ -417,7 +420,8 @@ const SaldoClientes = () => {
     setTransferencias([...transferencias, { amount: '' }]);
   };
   const addDeuda = () => {
-    setDeudas([...deudas, { date: getLocalDateString(), amount: '' }]);
+    const ultimaFecha = deudas[deudas.length - 1]?.date || getLocalDateString();
+    setDeudas([...deudas, { date: ultimaFecha, amount: '' }]);
   };
   const removeDeuda = (index) => { setDeudas(deudas.filter((_, i) => i !== index)); };
 
@@ -782,27 +786,37 @@ const SaldoClientes = () => {
                           type="button"
                           className={btnClass}
                           onClick={() => {
-                            if (totalAFavor > 0) {
+                            if (itemsAFavor.length > 0) {
                               setShowPlata(true);
                               setPlata(prev => {
                                 const items = prev.filter(p => p.amount);
-                                return [...items, { date: getLocalDateString(), amount: formatCurrencyNoSymbol(totalAFavor) }];
+                                const nuevos = itemsAFavor.map(c => ({
+                                  date: c.fecha || getLocalDateString(),
+                                  amount: formatCurrencyNoSymbol(c.saldoFinal)
+                                }));
+                                return [...items, ...nuevos];
                               });
                             }
-                            if (totalDeudaHist > 0) {
+                            if (itemsDeuda.length > 0) {
                               setShowDeuda(true);
                               setDeudas(prev => {
                                 const items = prev.filter(d => d.amount);
-                                return [...items, { date: getLocalDateString(), amount: formatCurrencyNoSymbol(totalDeudaHist) }];
+                                const nuevos = itemsDeuda.map(c => ({
+                                  date: c.fecha || getLocalDateString(),
+                                  amount: formatCurrencyNoSymbol(Math.abs(c.saldoFinal))
+                                }));
+                                return [...items, ...nuevos];
                               });
                             }
                             setShowSaldoPrevio(false);
                             setSaldoPrevioDismissed(clientName.trim());
+                            const cantFavor = itemsAFavor.length;
+                            const cantDeuda = itemsDeuda.length;
                             const msg = hayMezcla
-                              ? `✓ ${formatCurrency(totalAFavor)} a Plata a Favor · ${formatCurrency(totalDeudaHist)} a Deuda`
-                              : totalAFavor > 0
-                                ? `✓ ${formatCurrency(totalAFavor)} agregado como Plata a Favor`
-                                : `✓ ${formatCurrency(totalDeudaHist)} agregado como Deuda`;
+                              ? `✓ ${cantFavor} saldo${cantFavor > 1 ? 's' : ''} a Plata a Favor · ${cantDeuda} deuda${cantDeuda > 1 ? 's' : ''} agregada${cantDeuda > 1 ? 's' : ''}`
+                              : cantFavor > 0
+                                ? `✓ ${cantFavor} saldo${cantFavor > 1 ? 's' : ''} (${formatCurrency(totalAFavor)}) agregado${cantFavor > 1 ? 's' : ''} como Plata a Favor`
+                                : `✓ ${cantDeuda} deuda${cantDeuda > 1 ? 's' : ''} (${formatCurrency(totalDeudaHist)}) agregada${cantDeuda > 1 ? 's' : ''}`;
                             showSuccess(msg);
                           }}
                         >
