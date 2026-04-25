@@ -45,6 +45,16 @@ const Home = () => {
         { path: '/lista-precios', label: 'Lista de Precios' },
         { path: '/precios-clientes', label: 'Precios Clientes' }
       ]
+    },
+    { 
+      path: '#', 
+      label: 'Gestión',
+      hasSubmenu: true,
+      menuKey: 'gestionMenu',
+      submenuItems: [
+        { path: '/gestion-deudas', label: '📋 Deudas' },
+        { path: '/libro-cheques', label: '📒 Libro de Cheques' },
+      ]
     }
   ];
 

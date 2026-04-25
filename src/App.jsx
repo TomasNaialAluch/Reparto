@@ -20,6 +20,8 @@ import Contador from './pages/Contador';
 import ListaPrecios from './pages/ListaPrecios';
 import PreciosClientes from './pages/PreciosClientes';
 import DolarHoy from './pages/DolarHoy';
+import GestionDeudas from './pages/GestionDeudas';
+import LibroCheques from './pages/LibroCheques';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -138,11 +140,23 @@ const AppContent = () => {
             </div>
           } />
           <Route path="/precios-clientes" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
-              <Navbar />
-              <PreciosClientes />
-            </div>
-          } />
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+                <Navbar />
+                <PreciosClientes />
+              </div>
+            } />
+          <Route path="/gestion-deudas" element={
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+                <Navbar />
+                <GestionDeudas />
+              </div>
+            } />
+          <Route path="/libro-cheques" element={
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+                <Navbar />
+                <LibroCheques />
+              </div>
+            } />
         </Routes>
         </div>
       </Router>
