@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   collection, addDoc, deleteDoc, doc, onSnapshot,
-  updateDoc, orderBy, query, serverTimestamp
+  updateDoc, orderBy, query, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getLocalDateString } from '../utils/date';
 
 const COLLECTION = 'libroCheques';
+const MAX_BULK_CHEQUES = 2000;
 
 const emptyForm = (numero = '') => ({
   numeroInterno: numero,
@@ -19,6 +20,57 @@ const emptyForm = (numero = '') => ({
   fechaSalida: '',
   endosadoA: '',
 });
+
+const emptyBulkShared = () => ({
+  fechaEntrada: getLocalDateString(),
+  librador: '',
+  banco: '',
+  fechaCheque: '',
+  importe: '',
+  fechaSalida: '',
+  endosadoA: '',
+});
+
+/** Rango numérico consecutivo; respeta ceros a la izquierda según el primer valor. */
+function expandConsecutiveNumbers(firstStr, countRaw) {
+  const t = String(firstStr || '').trim();
+  const count = Math.min(
+    MAX_BULK_CHEQUES,
+    Math.max(1, parseInt(String(countRaw), 10) || 0)
+  );
+  if (!t) return { items: [], error: 'Ingresá el primer N° de cheque.' };
+  if (!/^\d+$/.test(t)) {
+    return {
+      items: [],
+      error: 'En modo rango el primer N° debe ser solo dígitos. Para otros formatos usá "Lista".',
+    };
+  }
+  const width = t.length;
+  const start = parseInt(t, 10);
+  if (Number.isNaN(start)) return { items: [], error: '~N° inválido.' };
+  const items = [];
+  for (let i = 0; i < count; i++) {
+    const v = start + i;
+    const padded = String(v).padStart(width, '0');
+    items.push(padded.length > width ? String(v) : padded);
+  }
+  return { items, error: null };
+}
+
+function parseListaNumeros(text) {
+  const parts = String(text || '')
+    .split(/\r?\n|[,;]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const seen = new Set();
+  const out = [];
+  for (const n of parts) {
+    if (seen.has(n)) continue;
+    seen.add(n);
+    out.push(n);
+  }
+  return out.slice(0, MAX_BULK_CHEQUES);
+}
 
 const formatImporte = (val) => {
   if (!val && val !== 0) return '';
@@ -37,6 +89,12 @@ const LibroCheques = () => {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm());
   const [showForm, setShowForm] = useState(false);
+  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [bulkShared, setBulkShared] = useState(emptyBulkShared);
+  const [bulkModoNumeros, setBulkModoNumeros] = useState('rango');
+  const [bulkPrimerNro, setBulkPrimerNro] = useState('');
+  const [bulkCantidad, setBulkCantidad] = useState('10');
+  const [bulkListaTexto, setBulkListaTexto] = useState('');
   const [editId, setEditId] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [filtroBanco, setFiltroBanco] = useState('');
@@ -61,6 +119,15 @@ const LibroCheques = () => {
     if (cheques.length === 0) return 1;
     return Math.max(...cheques.map(c => c.numero || 0)) + 1;
   };
+
+  const previewBulkNumeros = useMemo(() => {
+    if (bulkModoNumeros === 'rango') {
+      return expandConsecutiveNumbers(bulkPrimerNro, bulkCantidad);
+    }
+    const items = parseListaNumeros(bulkListaTexto);
+    if (items.length === 0) return { items: [], error: 'Ingresá al menos un N° de cheque (línea, coma o punto y coma).' };
+    return { items, error: null };
+  }, [bulkModoNumeros, bulkPrimerNro, bulkCantidad, bulkListaTexto]);
 
   const guardar = async () => {
     if (!form.librador.trim() && !form.nroCheque.trim()) return;
@@ -93,6 +160,67 @@ const LibroCheques = () => {
     setGuardando(false);
   };
 
+  const guardarMasivo = async () => {
+    const { items: numeros, error: prevError } = previewBulkNumeros;
+    if (prevError || numeros.length === 0) return;
+    if (!bulkShared.librador.trim() && !bulkShared.banco.trim()) {
+      window.alert('Completá al menos Librador o Banco (datos comunes del lote).');
+      return;
+    }
+    if (!window.confirm(`¿Registrar ${numeros.length} cheques en el libro?`)) return;
+
+    setGuardando(true);
+    try {
+      const importeVal = parseImporte(bulkShared.importe);
+      const baseFields = {
+        fechaEntrada: bulkShared.fechaEntrada,
+        librador: bulkShared.librador,
+        banco: bulkShared.banco,
+        fechaCheque: bulkShared.fechaCheque || '',
+        importe: importeVal,
+        fechaSalida: bulkShared.fechaSalida || '',
+        endosadoA: bulkShared.endosadoA || '',
+        updatedAt: serverTimestamp(),
+      };
+
+      let nextInternal = siguienteNumero();
+      const batchSize = 450;
+      let batch = writeBatch(db);
+      let ops = 0;
+
+      for (const nroCheque of numeros) {
+        const ref = doc(collection(db, COLLECTION));
+        batch.set(ref, {
+          ...baseFields,
+          numeroInterno: String(nextInternal),
+          nroCheque,
+          numero: nextInternal,
+          createdAt: serverTimestamp(),
+        });
+        nextInternal += 1;
+        ops += 1;
+        if (ops >= batchSize) {
+          await batch.commit();
+          batch = writeBatch(db);
+          ops = 0;
+        }
+      }
+      if (ops > 0) await batch.commit();
+
+      setShowBulkForm(false);
+      setBulkShared(emptyBulkShared());
+      setBulkPrimerNro('');
+      setBulkCantidad('10');
+      setBulkListaTexto('');
+      setBulkModoNumeros('rango');
+      window.alert(`Se guardaron ${numeros.length} cheques.`);
+    } catch (e) {
+      console.error(e);
+      window.alert('No se pudo guardar el lote. Revisá la consola o la conexión.');
+    }
+    setGuardando(false);
+  };
+
   const eliminar = async (id) => {
     if (!window.confirm('¿Eliminar este cheque?')) return;
     await deleteDoc(doc(db, COLLECTION, id));
@@ -111,6 +239,7 @@ const LibroCheques = () => {
       endosadoA: cheque.endosadoA || '',
     });
     setEditId(cheque.id);
+    setShowBulkForm(false);
     setShowForm(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -120,6 +249,17 @@ const LibroCheques = () => {
     setEditId(null);
     setShowForm(false);
   };
+
+  const cancelarBulk = () => {
+    setShowBulkForm(false);
+    setBulkShared(emptyBulkShared());
+    setBulkPrimerNro('');
+    setBulkCantidad('10');
+    setBulkListaTexto('');
+    setBulkModoNumeros('rango');
+  };
+
+  const fb = (campo) => (e) => setBulkShared((p) => ({ ...p, [campo]: e.target.value }));
 
   // Opciones únicas para filtros
   const bancos = [...new Set(cheques.map(c => c.banco).filter(Boolean))].sort();
@@ -149,13 +289,35 @@ const LibroCheques = () => {
           <h2 className="mb-0">📒 Libro de Cheques</h2>
           <small className="text-muted">{cheques.length} cheques registrados</small>
         </div>
-        {!showForm && (
-          <button className="btn btn-primary" onClick={() => {
-            setForm(emptyForm(String(siguienteNumero())));
-            setShowForm(true);
-          }}>
-            + Nuevo Cheque
-          </button>
+        {!showForm && !showBulkForm && (
+          <div className="d-flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                setShowBulkForm(false);
+                setForm(emptyForm(String(siguienteNumero())));
+                setShowForm(true);
+              }}
+            >
+              + Nuevo Cheque
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-primary"
+              onClick={() => {
+                cancelar();
+                setBulkShared(emptyBulkShared());
+                setBulkPrimerNro('');
+                setBulkCantidad('10');
+                setBulkListaTexto('');
+                setBulkModoNumeros('rango');
+                setShowBulkForm(true);
+              }}
+            >
+              📋 Carga masiva
+            </button>
+          </div>
         )}
       </div>
 
@@ -220,6 +382,155 @@ const LibroCheques = () => {
                 {guardando ? 'Guardando...' : editId ? '✓ Actualizar' : '✓ Guardar'}
               </button>
               <button className="btn btn-outline-secondary btn-sm" onClick={cancelar}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Carga masiva — mismo lote: fecha entrada, librador, banco, importe/fechas compartidas */}
+      {showBulkForm && !editId && (
+        <div className="card mb-4 border-success">
+          <div className="card-header bg-success text-white">
+            <h6 className="mb-0">📋 Carga masiva de cheques</h6>
+          </div>
+          <div className="card-body">
+            <p className="small text-muted mb-3">
+              Completá los datos que comparten todos los cheques. Después indicá los N° con un rango consecutivo o una lista (uno por línea; también podés separar con coma).
+            </p>
+            <div className="row g-2 mb-3">
+              <div className="col-6 col-md-2">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Fecha entrada</label>
+                <input type="date" className="form-control form-control-sm" value={bulkShared.fechaEntrada} onChange={fb('fechaEntrada')} />
+              </div>
+              <div className="col-12 col-md-3">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Librador / Endosante</label>
+                <input type="text" className="form-control form-control-sm" placeholder="Ej: Roque" value={bulkShared.librador} onChange={fb('librador')} />
+              </div>
+              <div className="col-12 col-md-2">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Banco</label>
+                <input type="text" className="form-control form-control-sm" placeholder="Ej: Galicia" value={bulkShared.banco} onChange={fb('banco')} />
+              </div>
+              <div className="col-6 col-md-2">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Fecha de cheque</label>
+                <input type="date" className="form-control form-control-sm" value={bulkShared.fechaCheque} onChange={fb('fechaCheque')} />
+              </div>
+              <div className="col-6 col-md-1">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Importe</label>
+                <input type="number" className="form-control form-control-sm" placeholder="0" value={bulkShared.importe} onChange={fb('importe')} min="0" step="0.01" />
+              </div>
+              <div className="col-6 col-md-1">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Fecha salida</label>
+                <input type="date" className="form-control form-control-sm" value={bulkShared.fechaSalida} onChange={fb('fechaSalida')} />
+              </div>
+              <div className="col-12 col-md-1">
+                <label className="form-label fw-bold" style={{ fontSize: '0.8rem' }}>Endosado a</label>
+                <input type="text" className="form-control form-control-sm" value={bulkShared.endosadoA} onChange={fb('endosadoA')} />
+              </div>
+            </div>
+
+            <div className="btn-group btn-group-sm mb-3" role="group">
+              <button
+                type="button"
+                className={`btn ${bulkModoNumeros === 'rango' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                onClick={() => setBulkModoNumeros('rango')}
+              >
+                Rango consecutivo
+              </button>
+              <button
+                type="button"
+                className={`btn ${bulkModoNumeros === 'lista' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                onClick={() => setBulkModoNumeros('lista')}
+              >
+                Lista de números
+              </button>
+            </div>
+
+            {bulkModoNumeros === 'rango' ? (
+              <div className="row g-2 mb-3">
+                <div className="col-6 col-md-3">
+                  <label className="form-label fw-bold small">Primer N° cheque (solo dígitos)</label>
+                  <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    placeholder="Ej: 00012345"
+                    value={bulkPrimerNro}
+                    onChange={(e) => setBulkPrimerNro(e.target.value)}
+                  />
+                </div>
+                <div className="col-6 col-md-2">
+                  <label className="form-label fw-bold small">Cantidad</label>
+                  <input
+                    type="number"
+                    className="form-control form-control-sm"
+                    min="1"
+                    max={MAX_BULK_CHEQUES}
+                    value={bulkCantidad}
+                    onChange={(e) => setBulkCantidad(e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="mb-3">
+                <label className="form-label fw-bold small">Un N° por línea (o separados por coma)</label>
+                <textarea
+                  className="form-control form-control-sm font-monospace"
+                  rows={6}
+                  placeholder={'1234567\n1234570\n1234581'}
+                  value={bulkListaTexto}
+                  onChange={(e) => setBulkListaTexto(e.target.value)}
+                />
+              </div>
+            )}
+
+            {previewBulkNumeros.error && (
+              <div className="alert alert-warning py-2 small mb-2">{previewBulkNumeros.error}</div>
+            )}
+            {!previewBulkNumeros.error && previewBulkNumeros.items.length > 0 && (
+              <div className="border rounded p-2 mb-3 bg-light" style={{ maxHeight: '220px', overflow: 'auto' }}>
+                <div className="small text-muted mb-1">
+                  Vista previa: <strong>{previewBulkNumeros.items.length}</strong> cheques
+                  {previewBulkNumeros.items.length >= MAX_BULK_CHEQUES && (
+                    <span className="text-danger"> (máx. {MAX_BULK_CHEQUES})</span>
+                  )}
+                </div>
+                <table className="table table-sm table-bordered mb-0" style={{ fontSize: '0.75rem' }}>
+                  <thead>
+                    <tr>
+                      <th># int. (asignado al guardar)</th>
+                      <th>N° cheque</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {previewBulkNumeros.items.slice(0, 40).map((nro, i) => (
+                      <tr key={`${nro}-${i}`}>
+                        <td className="text-muted">{siguienteNumero() + i}</td>
+                        <td className="fw-bold">{nro}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {previewBulkNumeros.items.length > 40 && (
+                  <small className="text-muted">… y {previewBulkNumeros.items.length - 40} filas más</small>
+                )}
+              </div>
+            )}
+
+            <div className="d-flex gap-2 flex-wrap">
+              <button
+                type="button"
+                className="btn btn-success btn-sm"
+                onClick={guardarMasivo}
+                disabled={
+                  guardando ||
+                  !!previewBulkNumeros.error ||
+                  previewBulkNumeros.items.length === 0
+                }
+              >
+                {guardando ? 'Guardando…' : `✓ Guardar ${previewBulkNumeros.items.length || 0} cheques`}
+              </button>
+              <button type="button" className="btn btn-outline-secondary btn-sm" onClick={cancelarBulk}>
+                Cancelar
+              </button>
             </div>
           </div>
         </div>
