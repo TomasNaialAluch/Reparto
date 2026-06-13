@@ -16,8 +16,10 @@ const MiReparto = () => {
   const [billAmount, setBillAmount] = useState('');
   const [validationErrors, setValidationErrors] = useState({});
   
-  // Referencia para el input de nombre
   const clientNameInputRef = useRef(null);
+  const filterContainerRef = useRef(null);
+  const filterButtonRefs = useRef({});
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
   
 
   // Estados para el reparto actual (React puro)
@@ -504,116 +506,148 @@ const MiReparto = () => {
     }
   }, [lastProcessedDate]);
 
+  // Slider del segmented control de filtros
+  useEffect(() => {
+    const activeBtn = filterButtonRefs.current[dateFilter];
+    const container = filterContainerRef.current;
+    if (activeBtn && container) {
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      setSliderStyle({ left: btnRect.left - containerRect.left, width: btnRect.width });
+    }
+  }, [dateFilter, savedRepartos]);
+
   return (
     <div className="container mt-4 printable">
       <div className="row justify-content-start">
         <div className="col-lg-7 col-md-8">
       {/* Formulario para agregar cliente */}
-      <div className="card p-3 no-print mb-3">
-        <h2 className="card-title mb-3">Agregar Cliente</h2>
+      <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
         <form onSubmit={handleSubmit}>
-          <div className="mb-3">
-            <label htmlFor="clientName" className="form-label">Nombre del Cliente *</label>
-            <input 
+
+          {/* Título de sección */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+              Agregar Cliente
+            </span>
+            <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+          </div>
+
+          {/* Nombre */}
+          <div style={{ marginBottom: '14px' }}>
+            <label htmlFor="clientName" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
+              Nombre del Cliente
+            </label>
+            <input
               ref={clientNameInputRef}
-              type="text" 
-              className={`form-control ${validationErrors.clientName ? 'is-invalid' : ''}`}
-              id="clientName" 
+              type="text"
+              id="clientName"
+              className="form-control"
               value={clientName}
-              onChange={(e) => {
-                setClientName(e.target.value);
-                clearValidationError('clientName');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  document.getElementById('billAmount').focus();
-                }
-              }}
-              placeholder="Ingrese nombre" 
-              required 
+              onChange={(e) => { setClientName(e.target.value); clearValidationError('clientName'); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('billAmount').focus(); } }}
+              placeholder="Ingrese nombre"
+              required
+              style={{ borderRadius: '8px', fontSize: '0.95rem', borderColor: validationErrors.clientName ? '#dc3545' : undefined }}
             />
             {validationErrors.clientName && (
-              <div className="invalid-feedback">{validationErrors.clientName}</div>
+              <div style={{ fontSize: '0.75rem', color: '#dc3545', marginTop: '4px' }}>{validationErrors.clientName}</div>
             )}
           </div>
-          <div className="mb-3">
-            <label htmlFor="billAmount" className="form-label">Monto de la Boleta *</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              className={`form-control ${validationErrors.billAmount ? 'is-invalid' : ''}`}
-              id="billAmount" 
+
+          {/* Monto */}
+          <div style={{ marginBottom: '18px' }}>
+            <label htmlFor="billAmount" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
+              Monto de la Boleta
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              id="billAmount"
+              className="form-control"
               value={billAmount}
-              onChange={(e) => {
-                setBillAmount(e.target.value);
-                clearValidationError('billAmount');
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleSubmit(e);
-                }
-              }}
-              placeholder="Ingrese monto" 
-              required 
+              onChange={(e) => { setBillAmount(e.target.value); clearValidationError('billAmount'); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(e); } }}
+              placeholder="Ingrese monto"
+              required
+              style={{ borderRadius: '8px', fontSize: '0.95rem', borderColor: validationErrors.billAmount ? '#dc3545' : undefined }}
             />
             {validationErrors.billAmount && (
-              <div className="invalid-feedback">{validationErrors.billAmount}</div>
+              <div style={{ fontSize: '0.75rem', color: '#dc3545', marginTop: '4px' }}>{validationErrors.billAmount}</div>
             )}
           </div>
-          <button type="submit" className="btn btn-primary">Agregar Cliente</button>
+
+          {/* Botón */}
+          <button
+            type="submit"
+            disabled={!clientName.trim() || !billAmount}
+            style={{
+              width: '100%', padding: '11px', borderRadius: '10px', border: 'none',
+              background: !clientName.trim() || !billAmount ? '#e9ecef' : '#6A8899',
+              color: !clientName.trim() || !billAmount ? '#9ca3af' : 'white',
+              fontSize: '0.9rem', fontWeight: 700,
+              cursor: !clientName.trim() || !billAmount ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+            }}
+          >
+            + Agregar Cliente
+          </button>
         </form>
       </div>
       
       {/* Sección de Clientes del Día */}
-      <div className="card p-3 mb-3 printable">
-        <div className="d-flex justify-content-between align-items-center no-print">
-          <h2 className="card-title">Clientes del Día</h2>
-          <div className="d-flex gap-2">
+      <div className="mb-3 printable" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+
+        {/* Header */}
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            Clientes del Día
+          </span>
+          <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+          {/* Acciones */}
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
             {currentReparto.clients.length > 0 && (
-              <button 
-                className="btn btn-success" 
-                onClick={saveCurrentReparto}
-              >
-                <i className="fas fa-save me-1"></i>
-                Guardar
+              <button onClick={saveCurrentReparto}
+                style={{ border: 'none', borderRadius: '8px', padding: '6px 14px', background: '#28a745', color: 'white', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <i className="fas fa-save" style={{ fontSize: '0.72rem' }}></i> Guardar
               </button>
             )}
             <button
-              className="btn btn-secondary"
-              onClick={() =>
-                handlePrintWithAutoSave(
-                  (data) => ({ clientes: data.clientes, fecha: data.date }),
-                  (printData) => {
-                    setPrintData(printData);
-                    setShowPrintModal(true);
-                  }
-                )
-              }
-            >
-              <i className="fas fa-print me-2"></i>
-              Imprimir
+              onClick={() => handlePrintWithAutoSave(
+                (data) => ({ clientes: data.clientes, fecha: data.date }),
+                (pd) => { setPrintData(pd); setShowPrintModal(true); }
+              )}
+              style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '6px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <i className="fas fa-print" style={{ fontSize: '0.72rem' }}></i> Imprimir
             </button>
           </div>
         </div>
-        <div className="alert alert-info mt-2 no-print" role="alert">
-          <small>En la columna Pago: clic para marcar pago completo o doble clic para ingresar un monto parcial.</small>
-          <small className="d-block mt-1">Clic en el monto de la boleta para editarlo (Enter para guardar).</small>
-          <small className="d-block mt-1">Puedes reordenar los clientes arrastrando las filas.</small>
+
+        {/* Tip de uso */}
+        <div className="no-print" style={{ background: 'rgba(106,136,153,0.08)', borderLeft: '3px solid #6A8899', borderRadius: '0 8px 8px 0', padding: '8px 12px', marginBottom: '14px' }}>
+          <div style={{ fontSize: '0.7rem', color: '#3a5060', lineHeight: 1.6 }}>
+            <strong>Pago:</strong> clic = pago completo · doble clic = monto parcial<br />
+            <strong>Monto:</strong> clic sobre el importe para editar · Enter para guardar
+          </div>
         </div>
-        <div className="table-responsive">
-          <table className="table table-bordered mt-3">
-            <thead>
-              <tr>
-                <th>Nombre del Cliente</th>
-                <th>Dirección</th>
-                <th>Monto de Boleta</th>
-                <th>Pago</th>
-                <th className="no-print">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
+
+        {/* Lista de clientes */}
+        {clientes.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '28px 0', color: '#9ca3af' }}>
+            <div style={{ fontSize: '1.8rem', marginBottom: '8px', opacity: 0.3 }}>📋</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>Sin clientes agregados</div>
+            <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>Usá el formulario de arriba para comenzar</div>
+          </div>
+        ) : (
+          <>
+            {/* Cabecera de tabla minimalista */}
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto', gap: '8px', padding: '0 8px 6px', marginBottom: '4px' }}>
+              {['Cliente','Dirección','Boleta','Pago',''].map((h, i) => (
+                <div key={i} style={{ fontSize: '0.65rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {clientes.map(cliente => (
                 <ClienteRow
                   key={cliente.id}
@@ -622,154 +656,154 @@ const MiReparto = () => {
                   onDelete={deleteCliente}
                 />
               ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-3 totals-container">
-          <p><strong>Subtotal:</strong> <span>{formatCurrency(subtotal)}</span></p>
-          <p className="total"><strong>Total Pendiente:</strong> <span>{formatCurrency(totalPendiente)}</span></p>
-        </div>
-      </div>
-      
-      {/* Sección de Deudores */}
-      <div className="card p-3 no-print">
-        <button 
-          className="btn btn-warning"
-          onClick={handleShowDebtors}
-        >
-          {showDebtors ? 'Ocultar Deudores' : 'Ver Deudores'}
-        </button>
-        {showDebtors && (
-          <div className="mt-3">
-          <h3>Lista de Deudores</h3>
-            <ul className="list-group">
-              {deudores.map(deudor => {
-                const pagado = deudor.paymentAmount || 0;
-                const pendiente = deudor.billAmount - pagado;
-                return (
-                  <li key={deudor.id} className="list-group-item">
-                    {deudor.clientName} debe {formatCurrency(pendiente)}
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
+            </div>
+
+            {/* Totales */}
+            <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f3f4f6', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px 12px' }}>
+                <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '2px' }}>Subtotal</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#212529' }}>{formatCurrency(subtotal)}</div>
+              </div>
+              <div style={{ background: totalPendiente > 0 ? 'rgba(220,53,69,0.07)' : 'rgba(40,167,69,0.07)', borderRadius: '8px', padding: '8px 12px', borderLeft: `3px solid ${totalPendiente > 0 ? '#dc3545' : '#28a745'}` }}>
+                <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '2px' }}>Pendiente</div>
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: totalPendiente > 0 ? '#dc3545' : '#28a745' }}>{formatCurrency(totalPendiente)}</div>
+              </div>
+            </div>
+          </>
         )}
       </div>
+
+      {/* Sección de Deudores */}
+      <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={handleShowDebtors}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            Deudores {deudores.length > 0 && <span style={{ background: 'rgba(230,168,23,0.15)', color: '#e6a817', padding: '1px 7px', borderRadius: '999px', fontSize: '0.65rem', fontWeight: 700, marginLeft: '4px' }}>{deudores.length}</span>}
+          </span>
+          <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: showDebtors ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)', flexShrink: 0 }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
-        <div className="col-lg-5 col-md-4">
-          {/* Panel de Repartos */}
-          <div className="card p-3 mb-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h6 className="mb-0">Repartos Guardados</h6>
-              <small className="text-muted">{getFilteredRepartos().length} repartos</small>
-            </div>
-            
-            {/* Filtros de Fecha */}
-            <div className="mb-3">
-              <div className="btn-group w-100 mb-2" role="group">
-                <button 
-                  type="button" 
-                  className={`btn btn-sm ${dateFilter === 'hoy' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setDateFilter('hoy')}
-                >
-                  Hoy
-                </button>
-                <button 
-                  type="button" 
-                  className={`btn btn-sm ${dateFilter === 'semana' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setDateFilter('semana')}
-                >
-                  Semana
-                </button>
-                <button 
-                  type="button" 
-                  className={`btn btn-sm ${dateFilter === 'mes' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setDateFilter('mes')}
-                >
-                  Mes
-                </button>
-                <button 
-                  type="button" 
-                  className={`btn btn-sm ${dateFilter === 'año' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setDateFilter('año')}
-                >
-                  Año
-                </button>
-              </div>
-              
-              {/* Selector de Mes Personalizado */}
-              {dateFilter === 'elegir_mes' && (
-                <div className="mb-2">
-                  <input
-                    type="month"
-                    className="form-control form-control-sm"
-                    value={customMonth}
-                    onChange={(e) => setCustomMonth(e.target.value)}
-                  />
+
+        <div style={{ maxHeight: showDebtors ? '400px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(.4,0,.2,1)' }}>
+          <div style={{ paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {deudores.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: '#9ca3af' }}>Sin deudores 🎉</div>
+            ) : deudores.map(deudor => {
+              const pendiente = deudor.billAmount - (deudor.paymentAmount || 0);
+              return (
+                <div key={deudor.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: '8px', background: 'rgba(220,53,69,0.05)', borderLeft: '3px solid #dc3545' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#212529' }}>{deudor.clientName}</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#dc3545', background: 'rgba(220,53,69,0.1)', padding: '3px 10px', borderRadius: '999px' }}>{formatCurrency(pendiente)}</span>
                 </div>
-              )}
-              
-              <div className="d-flex gap-1">
-                <button 
-                  type="button" 
-                  className={`btn btn-sm flex-fill ${dateFilter === 'elegir_mes' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setDateFilter('elegir_mes')}
-                >
-                  Elegir Mes
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => setDateFilter('todos')}
-                  title="Ver todos los repartos"
-                >
-                  <i className="fas fa-list"></i>
-                </button>
-              </div>
-            </div>
-            
-            {/* Estado de Firebase */}
-            <div className="mb-3">
+              );
+            })}
+          </div>
+        </div>
+      </div>
+        </div>
+        <div className="col-lg-5 col-md-4 clientes-sidebar">
+
+          {/* Status Firebase */}
+          <div
+            className={!loading && !error ? 'status-connected-pulse' : ''}
+            style={{
+              borderRadius: '12px', background: 'white',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+              padding: '10px 14px', marginBottom: '8px',
+              borderLeft: `3px solid ${loading ? '#6c757d' : error ? '#dc3545' : '#28a745'}`,
+              display: 'flex', alignItems: 'center', gap: '10px',
+            }}
+          >
+            <div style={{
+              width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+              background: loading ? '#adb5bd' : error ? '#dc3545' : '#28a745',
+              boxShadow: loading ? 'none' : error
+                ? '0 0 0 3px rgba(220,53,69,0.15)'
+                : '0 0 0 3px rgba(40,167,69,0.15)',
+            }} />
+            <div style={{ minWidth: 0 }}>
               {loading ? (
-                <div className="d-flex align-items-center">
-                  <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                  <small>Conectando...</small>
-                </div>
+                <div style={{ fontSize: '0.78rem', color: '#6c757d', fontWeight: 500 }}>Conectando…</div>
               ) : error ? (
-                <div className="text-danger">
-                  <span className="badge bg-danger me-1">❌</span>
-                  <small>Error de conexión: {error}</small>
-                </div>
+                <>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc3545' }}>Error de conexión</div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>Verificá la consola</div>
+                </>
               ) : (
-                <div className="text-success">
-                  <span className="badge bg-success me-1">🟢</span>
-                  <small>Conectado a Firebase</small>
-                  <br />
-                  <small className="text-muted">{repartos.length} repartos cargados</small>
-                  <br />
-                  <small className="text-info">🔗 Colección: repartos</small>
+                <>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#212529' }}>Firebase conectado</div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                    {repartos.length} {repartos.length === 1 ? 'reparto guardado' : 'repartos guardados'}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Panel Repartos Guardados */}
+          <div className="card p-3 mb-3 clientes-guardados-card">
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Repartos Guardados
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                {getFilteredRepartos().length} {getFilteredRepartos().length === 1 ? 'reparto' : 'repartos'}
+              </span>
+            </div>
+
+            {/* Segmented control filtros */}
+            <div style={{ marginBottom: '12px' }}>
+              <div
+                ref={filterContainerRef}
+                style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}
+              >
+                <div style={{
+                  position: 'absolute', top: '3px', bottom: '3px',
+                  left: sliderStyle.left + 'px', width: sliderStyle.width + 'px',
+                  background: 'white', borderRadius: '8px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                  transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
+                  pointerEvents: 'none', zIndex: 0,
+                }} />
+                {[['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['año','Año'],['elegir_mes','📅'],['todos','Todos']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    ref={el => filterButtonRefs.current[val] = el}
+                    onClick={() => setDateFilter(val)}
+                    style={{
+                      position: 'relative', zIndex: 1, flex: 1, border: 'none',
+                      borderRadius: '8px', padding: '5px 6px', fontSize: '0.75rem',
+                      fontWeight: dateFilter === val ? 600 : 400, background: 'transparent',
+                      color: dateFilter === val ? '#212529' : '#6c757d',
+                      transition: 'color 0.2s', cursor: 'pointer', whiteSpace: 'nowrap', minWidth: 0,
+                    }}
+                  >{label}</button>
+                ))}
+              </div>
+              {dateFilter === 'elegir_mes' && (
+                <div style={{ marginTop: '8px' }}>
+                  <input type="month" className="form-control form-control-sm"
+                    value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
+                    style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
                 </div>
               )}
             </div>
 
-            {/* Lista de Cards de Repartos */}
-            <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {/* Lista */}
+            <div className="clientes-list-scroll">
               {getFilteredRepartos().length === 0 ? (
-                <div className="text-center text-muted py-4">
-                  <i className="fas fa-inbox fa-2x mb-2"></i>
-                  <p className="mb-0">
-                    {savedRepartos.length === 0 
-                      ? 'No hay repartos guardados' 
-                      : `No hay repartos en ${getFilterTitle().toLowerCase()}`
-                    }
-                  </p>
-                  <small>
-                    {savedRepartos.length === 0 
-                      ? 'Agrega clientes y guarda el reparto' 
-                      : 'Cambia el filtro para ver más repartos'
-                    }
-                  </small>
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <div style={{ fontSize: '1.4rem', marginBottom: '6px', opacity: 0.3 }}>📭</div>
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 500 }}>
+                    {savedRepartos.length === 0 ? 'Sin repartos guardados' : `Sin repartos en ${getFilterTitle().toLowerCase()}`}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>
+                    {savedRepartos.length === 0 ? 'Guardá el reparto del día para verlo acá' : 'Cambiá el filtro para ver más'}
+                  </div>
                 </div>
               ) : (
                 getFilteredRepartos().map(reparto => (
@@ -784,8 +818,8 @@ const MiReparto = () => {
               )}
             </div>
           </div>
-          
-          {/* Componente de Reportes */}
+
+          {/* Reportes */}
           <ReportesGraficos repartos={savedRepartos} />
         </div>
       </div>

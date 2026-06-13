@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
 import { useTransferenciasClientes } from '../firebase/hooks';
@@ -41,7 +41,10 @@ const Transferencias = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [transferenciaToEdit, setTransferenciaToEdit] = useState(null);
   const [draggedOverIndex, setDraggedOverIndex] = useState(null);
-  const [draggedOverType, setDraggedOverType] = useState(null); // 'transferencia' o 'boleta'
+  const [draggedOverType, setDraggedOverType] = useState(null);
+  const filterContainerRef = useRef(null);
+  const filterButtonRefs = useRef({});
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
 
   useEffect(() => {
     const today = getLocalDateString();
@@ -230,213 +233,126 @@ const Transferencias = () => {
     }
   };
 
+  useEffect(() => {
+    const activeBtn = filterButtonRefs.current[dateFilter];
+    const container = filterContainerRef.current;
+    if (activeBtn && container) {
+      const cr = container.getBoundingClientRect();
+      const br = activeBtn.getBoundingClientRect();
+      setSliderStyle({ left: br.left - cr.left, width: br.width });
+    }
+  }, [dateFilter, savedTransferencias]);
+
   return (
     <div className="container mt-4">
       <div className="row justify-content-start">
         <div className="col-lg-7 col-md-8">
+
           {/* Formulario */}
-          <div className="card p-3 no-print mb-3">
-            <h4 className="mb-3">Transferencias</h4>
-            
-            {/* Nombre del Cliente */}
-            <div className="mb-3">
-              <label htmlFor="clientName" className="form-label">Nombre del Cliente</label>
-              <input
-                type="text"
-                id="clientName"
-                className="form-control"
-                placeholder="Ingrese el nombre del cliente"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                required
-              />
+          <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+
+            {/* Título */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                Transferencias
+              </span>
+              <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
             </div>
 
-            <hr />
+            {/* Nombre */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
+                Nombre del Cliente
+              </label>
+              <input type="text" className="form-control" placeholder="Ingrese el nombre"
+                value={clientName} onChange={(e) => setClientName(e.target.value)}
+                style={{ borderRadius: '8px', fontSize: '0.95rem' }} required />
+            </div>
 
-            {/* Transferencias */}
-            <h5 className="mb-2">Transferencias Recibidas</h5>
-            <small className="text-muted d-block mb-2">Dinero que el cliente te envió</small>
-            {transferencias.map((t, index) => (
-              <div key={index} className="row mb-2">
-                <div className="col-6">
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Descripción"
-                    value={t.descripcion}
-                    onChange={(e) => updateTransferenciaRow(index, 'descripcion', e.target.value)}
-                  />
-                </div>
-                <div className="col-5">
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Monto (AR$)"
-                    value={t.monto}
-                    onChange={(e) => updateTransferenciaRow(index, 'monto', e.target.value)}
-                    onDragEnter={(e) => {
-                      e.preventDefault();
-                      setDraggedOverIndex(index);
-                      setDraggedOverType('transferencia');
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.dataTransfer.dropEffect = 'copy';
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault();
-                      setDraggedOverIndex(null);
-                      setDraggedOverType(null);
-                    }}
+            {/* Sección Transferencias Recibidas */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  Transferencias Recibidas
+                </span>
+                <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: '10px' }}>Dinero que el cliente te envió</div>
+              {transferencias.map((t, index) => (
+                <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <input type="text" className="form-control" placeholder="Descripción"
+                    value={t.descripcion} onChange={(e) => updateTransferenciaRow(index, 'descripcion', e.target.value)}
+                    style={{ borderRadius: '8px', flex: 2 }} />
+                  <input type="text" className="form-control" placeholder="Monto (AR$)"
+                    value={t.monto} onChange={(e) => updateTransferenciaRow(index, 'monto', e.target.value)}
+                    onDragEnter={(e) => { e.preventDefault(); setDraggedOverIndex(index); setDraggedOverType('transferencia'); }}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
+                    onDragLeave={(e) => { e.preventDefault(); setDraggedOverIndex(null); setDraggedOverType(null); }}
                     onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDraggedOverIndex(null);
-                      setDraggedOverType(null);
-                      const montoValue = e.dataTransfer.getData('text/plain');
-                      if (montoValue) {
-                        // Formatear el valor para mostrarlo en el input
-                        const montoNumerico = parseFloat(montoValue);
-                        if (!isNaN(montoNumerico)) {
-                          // Usar formatCurrencyNoSymbol para mantener consistencia con el formato
-                          const montoFormateado = formatCurrencyNoSymbol(montoNumerico);
-                          updateTransferenciaRow(index, 'monto', montoFormateado);
-                        }
-                      }
+                      e.preventDefault(); e.stopPropagation(); setDraggedOverIndex(null); setDraggedOverType(null);
+                      const v = parseFloat(e.dataTransfer.getData('text/plain'));
+                      if (!isNaN(v)) updateTransferenciaRow(index, 'monto', formatCurrencyNoSymbol(v));
                     }}
-                    style={{ 
-                      cursor: 'copy',
-                      backgroundColor: draggedOverIndex === index && draggedOverType === 'transferencia' ? '#e7f3ff' : '',
-                      borderColor: draggedOverIndex === index && draggedOverType === 'transferencia' ? '#0d6efd' : ''
-                    }}
-                    title="Arrastra un monto aquí"
-                  />
-                </div>
-                <div className="col-1">
+                    style={{ borderRadius: '8px', flex: 1, cursor: 'copy', borderColor: draggedOverIndex === index && draggedOverType === 'transferencia' ? '#6A8899' : undefined, background: draggedOverIndex === index && draggedOverType === 'transferencia' ? 'rgba(106,136,153,0.08)' : undefined }}
+                    title="Arrastrá un monto aquí" />
                   {transferencias.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removeTransferenciaRow(index)}
-                    >
-                      ×
-                    </button>
+                    <button type="button" onClick={() => removeTransferenciaRow(index)}
+                      style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
                   )}
                 </div>
+              ))}
+              <button type="button" onClick={addTransferenciaRow}
+                style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.75rem', cursor: 'pointer' }}>
+                + Agregar Transferencia
+              </button>
+            </div>
+
+            {/* Sección Boletas */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  Boletas Vendidas
+                </span>
+                <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
               </div>
-            ))}
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary mb-3"
-              onClick={addTransferenciaRow}
-            >
-              + Agregar Transferencia
-            </button>
-
-            <hr />
-
-            {/* Boletas */}
-            <h5 className="mb-2">Boletas Vendidas al Cliente</h5>
-            <small className="text-muted d-block mb-2">Dinero que le debes al cliente</small>
-            {boletas.map((b, index) => (
-              <div key={index} className="row mb-2">
-                <div className="col-6">
-                  <input
-                    type="date"
-                    className="form-control form-control-sm"
-                    value={b.fecha}
-                    onChange={(e) => updateBoleta(index, 'fecha', e.target.value)}
-                  />
-                </div>
-                <div className="col-5">
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    placeholder="Monto (AR$)"
-                    value={b.monto}
-                    onChange={(e) => updateBoleta(index, 'monto', e.target.value)}
-                    onDragEnter={(e) => {
-                      e.preventDefault();
-                      setDraggedOverIndex(index);
-                      setDraggedOverType('boleta');
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      e.dataTransfer.dropEffect = 'copy';
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault();
-                      setDraggedOverIndex(null);
-                      setDraggedOverType(null);
-                    }}
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: '10px' }}>Dinero que le debés al cliente</div>
+              {boletas.map((b, index) => (
+                <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                  <input type="date" className="form-control"
+                    value={b.fecha} onChange={(e) => updateBoleta(index, 'fecha', e.target.value)}
+                    style={{ borderRadius: '8px', flex: 2 }} />
+                  <input type="text" className="form-control" placeholder="Monto (AR$)"
+                    value={b.monto} onChange={(e) => updateBoleta(index, 'monto', e.target.value)}
+                    onDragEnter={(e) => { e.preventDefault(); setDraggedOverIndex(index); setDraggedOverType('boleta'); }}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'copy'; }}
+                    onDragLeave={(e) => { e.preventDefault(); setDraggedOverIndex(null); setDraggedOverType(null); }}
                     onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDraggedOverIndex(null);
-                      setDraggedOverType(null);
-                      const montoValue = e.dataTransfer.getData('text/plain');
-                      if (montoValue) {
-                        // Formatear el valor para mostrarlo en el input
-                        const montoNumerico = parseFloat(montoValue);
-                        if (!isNaN(montoNumerico)) {
-                          // Usar formatCurrencyNoSymbol para mantener consistencia con el formato
-                          const montoFormateado = formatCurrencyNoSymbol(montoNumerico);
-                          updateBoleta(index, 'monto', montoFormateado);
-                        }
-                      }
+                      e.preventDefault(); e.stopPropagation(); setDraggedOverIndex(null); setDraggedOverType(null);
+                      const v = parseFloat(e.dataTransfer.getData('text/plain'));
+                      if (!isNaN(v)) updateBoleta(index, 'monto', formatCurrencyNoSymbol(v));
                     }}
-                    style={{ 
-                      cursor: 'copy',
-                      backgroundColor: draggedOverIndex === index && draggedOverType === 'boleta' ? '#e7f3ff' : '',
-                      borderColor: draggedOverIndex === index && draggedOverType === 'boleta' ? '#0d6efd' : ''
-                    }}
-                    title="Arrastra un monto aquí"
-                  />
-                </div>
-                <div className="col-1">
+                    style={{ borderRadius: '8px', flex: 1, cursor: 'copy', borderColor: draggedOverIndex === index && draggedOverType === 'boleta' ? '#6A8899' : undefined, background: draggedOverIndex === index && draggedOverType === 'boleta' ? 'rgba(106,136,153,0.08)' : undefined }}
+                    title="Arrastrá un monto aquí" />
                   {boletas.length > 1 && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removeBoleta(index)}
-                    >
-                      ×
-                    </button>
+                    <button type="button" onClick={() => removeBoleta(index)}
+                      style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
                   )}
                 </div>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="btn btn-sm btn-secondary mb-3"
-              onClick={addBoleta}
-            >
-              + Agregar Boleta
-            </button>
+              ))}
+              <button type="button" onClick={addBoleta}
+                style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.75rem', cursor: 'pointer' }}>
+                + Agregar Boleta
+              </button>
+            </div>
 
-            <hr />
-
-            {/* Botones */}
-            <div className="d-flex gap-3">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={calcularSaldo}
-                style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}
-              >
+            {/* Botones principales */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button type="button" onClick={calcularSaldo}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
                 Calcular Saldo
               </button>
-              <button
-                type="button"
-                className="btn btn-success"
-                onClick={saveTransferencia}
-                disabled={!summaryData}
-                style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}
-              >
-                <i className="fas fa-save me-2"></i>
+              <button type="button" onClick={saveTransferencia} disabled={!summaryData}
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !summaryData ? '#e9ecef' : '#28a745', color: !summaryData ? '#9ca3af' : 'white', fontSize: '0.95rem', fontWeight: 700, cursor: !summaryData ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
                 Guardar
               </button>
             </div>
@@ -444,146 +360,160 @@ const Transferencias = () => {
 
           {/* Resumen */}
           {showSummary && summaryData && (
-            <div className="card p-3 printable">
-              <h4 className="mb-3">Resumen de Transferencias</h4>
-              <h5 className="mb-3">Cliente: {summaryData.nombreCliente}</h5>
+            <div className="mb-3 printable" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+
+              {/* Header resumen */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                  Resumen · {summaryData.nombreCliente}
+                </span>
+                <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+              </div>
 
               {/* Transferencias */}
-              <div className="mb-3">
-                <h6 className="text-primary">Transferencias Recibidas:</h6>
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Transferencias Recibidas</div>
                 {summaryData.transferencias.map((t, i) => (
-                  <p key={i} className="mb-1">
-                    {t.descripcion || `Transferencia ${i + 1}`}: {formatCurrency(parseCurrencyValue(t.monto))}
-                  </p>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '6px', background: 'rgba(106,136,153,0.07)', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#212529' }}>{t.descripcion || `Transferencia ${i + 1}`}</span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#3a5060' }}>{formatCurrency(parseCurrencyValue(t.monto))}</span>
+                  </div>
                 ))}
-                <p className="fw-bold">Subtotal: {formatCurrency(summaryData.totalTransferencias)}</p>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3a5060', textAlign: 'right', marginTop: '4px' }}>
+                  Subtotal: {formatCurrency(summaryData.totalTransferencias)}
+                </div>
               </div>
-
-              <hr />
 
               {/* Boletas */}
-              <div className="mb-3">
-                <h6 className="text-warning">Boletas Vendidas:</h6>
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Boletas Vendidas</div>
                 {summaryData.boletas.map((b, i) => (
-                  <p key={i} className="mb-1">
-                    Boleta {i + 1} ({b.fecha}): {formatCurrency(parseCurrencyValue(b.monto))}
-                  </p>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '6px', background: 'rgba(230,168,23,0.08)', marginBottom: '3px' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#212529' }}>Boleta {i + 1} · {b.fecha}</span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#e6a817' }}>{formatCurrency(parseCurrencyValue(b.monto))}</span>
+                  </div>
                 ))}
-                <p className="fw-bold">Subtotal: {formatCurrency(summaryData.totalBoletas)}</p>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#e6a817', textAlign: 'right', marginTop: '4px' }}>
+                  Subtotal: {formatCurrency(summaryData.totalBoletas)}
+                </div>
               </div>
 
-              <hr />
-
-              {/* Saldo Final */}
-              <div className="mb-3">
-                {summaryData.saldoFinal > 0 ? (
-                  <>
-                    <h5 className="text-success">Saldo a favor del cliente: {formatCurrency(summaryData.saldoFinal)}</h5>
-                    <p className="text-success fw-bold">Le debes {formatCurrency(summaryData.saldoFinal)} a {summaryData.nombreCliente}</p>
-                  </>
-                ) : summaryData.saldoFinal < 0 ? (
-                  <>
-                    <h5 className="text-danger">Saldo a tu favor: {formatCurrency(Math.abs(summaryData.saldoFinal))}</h5>
-                    <p className="text-danger fw-bold">{summaryData.nombreCliente} te debe {formatCurrency(Math.abs(summaryData.saldoFinal))}</p>
-                  </>
-                ) : (
-                  <>
-                    <h5 className="text-info">Saldo Final: Exacto</h5>
-                    <p className="text-info fw-bold">No hay diferencia - Cuentas saldadas</p>
-                  </>
-                )}
+              {/* Saldo final */}
+              <div style={{
+                background: '#f8f9fa', borderRadius: '10px', padding: '12px 16px',
+                borderLeft: `3px solid ${summaryData.saldoFinal > 0 ? '#28a745' : summaryData.saldoFinal < 0 ? '#dc3545' : '#dee2e6'}`,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px'
+              }}>
+                <span style={{ fontSize: '0.78rem', color: '#6c757d' }}>
+                  {summaryData.saldoFinal > 0 ? `Le debés a ${summaryData.nombreCliente}` : summaryData.saldoFinal < 0 ? `${summaryData.nombreCliente} te debe` : 'Cuentas saldadas'}
+                </span>
+                <span style={{
+                  fontWeight: 700, fontSize: '1rem',
+                  color: summaryData.saldoFinal > 0 ? '#28a745' : summaryData.saldoFinal < 0 ? '#dc3545' : '#6c757d',
+                  background: summaryData.saldoFinal > 0 ? 'rgba(40,167,69,0.1)' : summaryData.saldoFinal < 0 ? 'rgba(220,53,69,0.1)' : '#e9ecef',
+                  padding: '4px 14px', borderRadius: '999px'
+                }}>
+                  {formatCurrency(Math.abs(summaryData.saldoFinal))}
+                </span>
               </div>
 
-              <button
-                className="btn btn-secondary mt-3 no-print"
-                onClick={() =>
-                  handlePrintWithAutoSave(
-                    (data) => data,
-                    (printData) => {
-                      setPrintData(printData);
-                      setShowPrintModal(true);
-                    }
-                  )
-                }
-              >
-                <i className="fas fa-print me-2"></i>
-                Imprimir
+              {/* Botón imprimir */}
+              <button className="no-print"
+                onClick={() => handlePrintWithAutoSave((data) => data, (pd) => { setPrintData(pd); setShowPrintModal(true); })}
+                style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '8px 16px', background: 'transparent', color: '#6c757d', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <i className="fas fa-print" style={{ fontSize: '0.75rem' }}></i> Imprimir
               </button>
             </div>
           )}
         </div>
 
-        {/* Panel Derecho - Transferencias Guardadas */}
-        <div className="col-lg-5 col-md-4 no-print">
-          <div className="card p-3 mb-3">
-            <h6>Estado de Conexión</h6>
-            {loading ? (
-              <div className="d-flex align-items-center">
-                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                <small>Cargando transferencias...</small>
-              </div>
-            ) : error ? (
-              <div className="alert alert-danger py-2">
-                <small>Error: {error}</small>
-              </div>
-            ) : (
-              <div className="alert alert-success py-2">
-                <small>✓ Conectado - {savedTransferencias?.length || 0} transferencias</small>
-              </div>
-            )}
+        {/* Panel Derecho */}
+        <div className="col-lg-5 col-md-4 no-print clientes-sidebar">
+
+          {/* Status Firebase */}
+          <div
+            className={!loading && !error ? 'status-connected-pulse' : ''}
+            style={{
+              borderRadius: '12px', background: 'white',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+              padding: '10px 14px', marginBottom: '8px',
+              borderLeft: `3px solid ${loading ? '#6c757d' : error ? '#dc3545' : '#28a745'}`,
+              display: 'flex', alignItems: 'center', gap: '10px',
+            }}
+          >
+            <div style={{
+              width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+              background: loading ? '#adb5bd' : error ? '#dc3545' : '#28a745',
+              boxShadow: loading ? 'none' : error ? '0 0 0 3px rgba(220,53,69,0.15)' : '0 0 0 3px rgba(40,167,69,0.15)',
+            }} />
+            <div style={{ minWidth: 0 }}>
+              {loading ? (
+                <div style={{ fontSize: '0.78rem', color: '#6c757d', fontWeight: 500 }}>Cargando…</div>
+              ) : error ? (
+                <>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc3545' }}>Error de conexión</div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>Verificá la consola</div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#212529' }}>Firebase conectado</div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                    {savedTransferencias?.length || 0} {(savedTransferencias?.length || 0) === 1 ? 'transferencia guardada' : 'transferencias guardadas'}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="card p-3">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h6 className="mb-0">Transferencias Guardadas</h6>
-              <span className="badge bg-primary">{getFilteredTransferencias().length}</span>
+          {/* Panel transferencias guardadas */}
+          <div className="card p-3 clientes-guardados-card">
+
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Transferencias Guardadas
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                {getFilteredTransferencias().length} {getFilteredTransferencias().length === 1 ? 'registro' : 'registros'}
+              </span>
             </div>
 
-            {/* Filtros de Fecha */}
-            <div className="btn-group btn-group-sm mb-3 w-100" role="group">
-              <button
-                type="button"
-                className={`btn ${dateFilter === 'hoy' ? 'btn-primary' : 'btn-outline-primary'}`}
-                onClick={() => setDateFilter('hoy')}
-              >
-                Hoy
-              </button>
-              <button
-                type="button"
-                className={`btn ${dateFilter === 'semana' ? 'btn-primary' : 'btn-outline-primary'}`}
-                onClick={() => setDateFilter('semana')}
-              >
-                Semana
-              </button>
-              <button
-                type="button"
-                className={`btn ${dateFilter === 'mes' ? 'btn-primary' : 'btn-outline-primary'}`}
-                onClick={() => setDateFilter('mes')}
-              >
-                Mes
-              </button>
-              <button
-                type="button"
-                className={`btn ${dateFilter === 'año' ? 'btn-primary' : 'btn-outline-primary'}`}
-                onClick={() => setDateFilter('año')}
-              >
-                Año
-              </button>
-            </div>
-
-            {dateFilter === 'mes' && (
-              <div className="mb-3">
-                <input
-                  type="month"
-                  className="form-control form-control-sm"
-                  value={customMonth}
-                  onChange={(e) => setCustomMonth(e.target.value)}
-                />
+            {/* Segmented control filtros */}
+            <div style={{ marginBottom: '12px' }}>
+              <div ref={filterContainerRef}
+                style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}>
+                <div style={{
+                  position: 'absolute', top: '3px', bottom: '3px',
+                  left: sliderStyle.left + 'px', width: sliderStyle.width + 'px',
+                  background: 'white', borderRadius: '8px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                  transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
+                  pointerEvents: 'none', zIndex: 0,
+                }} />
+                {[['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['año','Año']].map(([val, label]) => (
+                  <button key={val}
+                    ref={el => filterButtonRefs.current[val] = el}
+                    onClick={() => setDateFilter(val)}
+                    style={{
+                      position: 'relative', zIndex: 1, flex: 1, border: 'none',
+                      borderRadius: '8px', padding: '5px 6px', fontSize: '0.75rem',
+                      fontWeight: dateFilter === val ? 600 : 400, background: 'transparent',
+                      color: dateFilter === val ? '#212529' : '#6c757d',
+                      transition: 'color 0.2s', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}>{label}</button>
+                ))}
               </div>
-            )}
+              {dateFilter === 'mes' && (
+                <div style={{ marginTop: '8px' }}>
+                  <input type="month" className="form-control form-control-sm"
+                    value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
+                    style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
+                </div>
+              )}
+            </div>
 
-            {/* Lista de Transferencias */}
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            {/* Lista */}
+            <div className="clientes-list-scroll">
               {getFilteredTransferencias().length > 0 ? (
                 getFilteredTransferencias().map((trans, index) => (
                   <TransferenciaCard
@@ -595,10 +525,10 @@ const Transferencias = () => {
                   />
                 ))
               ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="fas fa-inbox fa-2x mb-2"></i>
-                  <p className="mb-0">No hay transferencias guardadas</p>
-                  <small>Calcula y guarda una transferencia para verla aquí</small>
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <div style={{ fontSize: '1.4rem', marginBottom: '6px', opacity: 0.3 }}>📭</div>
+                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 500 }}>Sin transferencias guardadas</div>
+                  <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>Calculá y guardá para verlas acá</div>
                 </div>
               )}
             </div>

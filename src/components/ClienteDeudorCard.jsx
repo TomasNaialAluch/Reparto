@@ -5,7 +5,6 @@ import { parseCurrencyValue } from '../utils/money';
 const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Función para formatear montos a moneda argentina
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
@@ -15,35 +14,23 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
     }).format(value);
   };
 
-  // Función para formatear fecha (usando la función segura)
-  const formatDate = (dateString) => {
-    return formatDateSafe(dateString);
-  };
-
-  // Calcular total de deuda (balance final)
   const totalDeuda = cliente.saldoFinal || cliente.finalBalance || 0;
-  
-  // Determinar si es a favor o en contra
-  // Si totalDeuda > 0: Tito te debe (a tu favor) = Verde
-  // Si totalDeuda < 0: Tú le debes a Tito (en contra) = Rojo
   const esAFavor = totalDeuda > 0;
-  
-  // Calcular subtotales (igual que en el componente principal)
-  const totalBoletasAmount = cliente.totalBoletas || cliente.boletas?.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0) || 0;
-  const totalVentasAmount = cliente.totalVentas || cliente.ventas?.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) || 0;
-  const totalPlataAmount = cliente.totalPlata || cliente.plataFavor?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0;
-  const totalEfectivoAmount = cliente.totalEfectivo || cliente.efectivo?.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) || 0;
-  const totalChequeAmount = cliente.totalCheque || cliente.cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0;
-  const totalTransferenciaAmount = cliente.totalTransferencia || cliente.transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0;
-  const totalIngresosAmount = cliente.totalIngresos || (totalVentasAmount + totalPlataAmount + totalEfectivoAmount + totalChequeAmount + totalTransferenciaAmount);
-  
-  // Contar transacciones
+
+  const totalBoletasAmount   = cliente.totalBoletas      || cliente.boletas?.reduce((s, b) => s + parseCurrencyValue(b.amount), 0) || 0;
+  const totalVentasAmount    = cliente.totalVentas       || cliente.ventas?.reduce((s, v) => s + parseCurrencyValue(v.amount), 0) || 0;
+  const totalPlataAmount     = cliente.totalPlata        || cliente.plataFavor?.reduce((s, p) => s + parseCurrencyValue(p.amount), 0) || 0;
+  const totalEfectivoAmount  = cliente.totalEfectivo     || cliente.efectivo?.reduce((s, p) => s + parseCurrencyValue(p.amount), 0) || 0;
+  const totalChequeAmount    = cliente.totalCheque       || cliente.cheques?.reduce((s, c) => s + parseCurrencyValue(c.amount), 0) || 0;
+  const totalTransAmount     = cliente.totalTransferencia|| cliente.transferencias?.reduce((s, t) => s + parseCurrencyValue(t.amount), 0) || 0;
+  const totalIngresosAmount  = cliente.totalIngresos     || (totalVentasAmount + totalPlataAmount + totalEfectivoAmount + totalChequeAmount + totalTransAmount);
+
   const totalBoletas = cliente.boletas?.length || 0;
-  const totalVentas = cliente.ventas?.length || 0;
-  const totalPagos = (cliente.plataFavor?.length || 0) + 
-                    (cliente.efectivo?.length || 0) + 
-                    (cliente.cheques?.length || 0) + 
-                    (cliente.transferencias?.length || 0);
+  const totalVentas  = cliente.ventas?.length  || 0;
+  const totalPagos   = (cliente.plataFavor?.length || 0)
+                     + (cliente.efectivo?.length   || 0)
+                     + (cliente.cheques?.length    || 0)
+                     + (cliente.transferencias?.length || 0);
 
   const handleDragStart = (e) => {
     e.dataTransfer.setData('application/json', JSON.stringify({
@@ -53,231 +40,209 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  const accentColor  = esAFavor ? '#28a745' : '#dc3545';
+  const amountBg     = esAFavor ? 'rgba(40,167,69,0.1)' : 'rgba(220,53,69,0.1)';
+  const amountColor  = esAFavor ? '#1a5c2a' : '#8b1c26';
+
   return (
     <div
-      className={`card mb-3 ${isExpanded ? 'expanded' : 'collapsed'}`}
-      draggable={true}
+      draggable
       onDragStart={handleDragStart}
-      style={{ 
-        transition: 'all 0.3s ease',
+      style={{
+        borderRadius: '12px',
+        background: 'white',
+        borderLeft: `3px solid ${accentColor}`,
+        boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+        marginBottom: '8px',
+        overflow: 'hidden',
         cursor: 'grab',
-        border: '1px solid #dee2e6'
+        transition: 'box-shadow 0.2s ease',
       }}
     >
-      
-      {/* Header de la Card (siempre visible) */}
-      <div className="card-header p-3" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="d-flex justify-content-between align-items-center">
-          <div>
-            <h6 className="mb-1" style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>
-              {cliente.nombreCliente}
-            </h6>
-            <small className="text-muted">
-              {formatDate(cliente.fecha)} • {totalBoletas + totalVentas} transacciones
-            </small>
+      {/* ── Header (siempre visible) ── */}
+      <div
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          padding: '11px 14px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          userSelect: 'none',
+        }}
+      >
+        {/* Nombre + fecha */}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#212529', lineHeight: 1.2, marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {cliente.nombreCliente}
           </div>
-          <div className="d-flex align-items-center">
-            <div className="text-end me-2">
-              <div className={`badge ${esAFavor ? 'bg-success' : 'bg-danger'} mb-1`}>
-                {formatCurrency(Math.abs(totalDeuda))}
-              </div>
-              <div className="small text-muted">
-                {esAFavor ? 'A tu favor' : 'Debo'}
-              </div>
+          <div style={{ fontSize: '0.71rem', color: '#6c757d' }}>
+            {formatDateSafe(cliente.fecha)} · {totalBoletas + totalVentas} transacciones
+          </div>
+        </div>
+
+        {/* Monto + chevron */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ background: amountBg, color: amountColor, fontWeight: 700, fontSize: '0.8rem', padding: '3px 10px', borderRadius: '999px', marginBottom: '2px' }}>
+              {formatCurrency(Math.abs(totalDeuda))}
             </div>
-            <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`} style={{ fontSize: '0.8rem' }}></i>
+            <div style={{ fontSize: '0.67rem', color: '#6c757d', textAlign: 'center' }}>
+              {esAFavor ? 'A tu favor' : 'Debo'}
+            </div>
           </div>
+
+          {/* SVG chevron animado */}
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)', flexShrink: 0 }}>
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
       </div>
 
-      {/* Contenido Expandido */}
-      {isExpanded && (
-        <div className="card-body p-3" style={{ borderTop: '1px solid #dee2e6' }}>
-          {/* Resumen del Cliente */}
-          <div className="mb-3">
-            <div className="row text-center">
-              <div className="col-6">
-                <small className="text-muted">Balance Final</small>
-                <div className={`fw-bold ${esAFavor ? 'text-success' : 'text-danger'}`}>
-                  {formatCurrency(Math.abs(totalDeuda))}
-                </div>
+      {/* ── Cuerpo expandible (max-height transition) ── */}
+      <div style={{
+        maxHeight: isExpanded ? '700px' : '0px',
+        overflow: 'hidden',
+        transition: 'max-height 0.3s cubic-bezier(.4,0,.2,1)',
+      }}>
+        <div style={{ padding: '0 14px 14px', borderTop: '1px solid #f3f4f6' }}>
+
+          {/* Stats */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px', margin: '12px 0' }}>
+            {[
+              { label: 'Boletas/Ventas', value: totalBoletas + totalVentas, color: '#e6a817' },
+              { label: 'Pagos',          value: totalPagos,                 color: '#6A8899' },
+              { label: 'Estado',         value: esAFavor ? 'A favor' : 'Debo', color: accentColor },
+            ].map(({ label, value, color }, i) => (
+              <div key={i} style={{ textAlign: 'center', padding: '6px 0', borderRight: i < 2 ? '1px solid #f3f4f6' : 'none' }}>
+                <div style={{ fontSize: '0.67rem', color: '#9ca3af', marginBottom: '2px' }}>{label}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color }}>{value}</div>
               </div>
-              <div className="col-6">
-                <small className="text-muted">Transacciones</small>
-                <div className="fw-bold">{totalBoletas + totalVentas + totalPagos}</div>
-              </div>
-            </div>
-            <div className="row text-center mt-2">
-              <div className="col-4">
-                <small className="text-warning">Boletas/Ventas</small>
-                <div className="text-warning fw-bold">{totalBoletas + totalVentas}</div>
-              </div>
-              <div className="col-4">
-                <small className="text-info">Pagos</small>
-                <div className="text-info fw-bold">{totalPagos}</div>
-              </div>
-              <div className="col-4">
-                <small className="text-muted">Estado</small>
-                <div className={`fw-bold ${esAFavor ? 'text-success' : 'text-danger'}`}>
-                  {esAFavor ? 'A tu favor' : 'Debo'}
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
 
-          {/* Subtotales Detallados */}
-          <div className="mb-3">
-            <h6 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Subtotales:</h6>
-            <div className="row text-center">
-              <div className="col-6">
-                <small className="text-muted">Total Boletas</small>
-                <div className="fw-bold text-warning">{formatCurrency(totalBoletasAmount)}</div>
+          {/* Subtotales */}
+          <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: totalChequeAmount + totalEfectivoAmount + totalTransAmount > 0 ? '8px' : 0 }}>
+              <div>
+                <div style={{ fontSize: '0.67rem', color: '#9ca3af' }}>Total Boletas</div>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#e6a817' }}>{formatCurrency(totalBoletasAmount)}</div>
               </div>
-              <div className="col-6">
-                <small className="text-muted">Total Ingresos</small>
-                <div className="fw-bold text-success">{formatCurrency(totalIngresosAmount)}</div>
-              </div>
-            </div>
-            <div className="row text-center mt-2">
-              <div className="col-4">
-                <small className="text-info">Cheques</small>
-                <div className="text-info fw-bold">{formatCurrency(totalChequeAmount)}</div>
-              </div>
-              <div className="col-4">
-                <small className="text-primary">Efectivo</small>
-                <div className="text-primary fw-bold">{formatCurrency(totalEfectivoAmount)}</div>
-              </div>
-              <div className="col-4">
-                <small className="text-secondary">Transferencias</small>
-                <div className="text-secondary fw-bold">{formatCurrency(totalTransferenciaAmount)}</div>
+              <div>
+                <div style={{ fontSize: '0.67rem', color: '#9ca3af' }}>Total Ingresos</div>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#28a745' }}>{formatCurrency(totalIngresosAmount)}</div>
               </div>
             </div>
+            {(totalChequeAmount + totalEfectivoAmount + totalTransAmount > 0) && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', paddingTop: '8px', borderTop: '1px solid #e9ecef' }}>
+                {[
+                  { label: 'Cheques',      value: totalChequeAmount,   color: '#17a2b8' },
+                  { label: 'Efectivo',     value: totalEfectivoAmount, color: '#6A8899' },
+                  { label: 'Transferencia',value: totalTransAmount,    color: '#6c757d' },
+                ].map(({ label, value, color }) => (
+                  <div key={label}>
+                    <div style={{ fontSize: '0.64rem', color: '#9ca3af' }}>{label}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.75rem', color }}>{formatCurrency(value)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Detalles de Transacciones */}
-          <div className="mb-3">
-            <h6 style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>Detalle de Transacciones:</h6>
-            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-              
-              {/* Boletas */}
-              {cliente.boletas?.map((boleta, index) => (
-                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                  <div>
-                    <div className="d-flex align-items-center gap-2">
-                      <small className="fw-bold text-warning">📄 Boleta</small>
-                      {boleta.esDeMercaderia && (
-                        <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
-                      )}
-                    </div>
-                    <br />
-                    <small className="text-muted">{boleta.date || 'Sin fecha'} - {formatCurrency(parseCurrencyValue(boleta.amount))}</small>
-                  </div>
-                </div>
+          {/* Transacciones */}
+          <div style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+              Detalle de Transacciones
+            </div>
+            <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+
+              {cliente.boletas?.map((boleta, i) => (
+                <TransaccionRow key={`b-${i}`} tipo="📄 Boleta" monto={parseCurrencyValue(boleta.amount)} fecha={boleta.date}
+                  bg="rgba(255,209,102,0.12)" color="#e6a817"
+                  badge={boleta.esDeMercaderia ? '📦' : null} formatCurrency={formatCurrency} />
+              ))}
+              {cliente.ventas?.map((v, i) => (
+                <TransaccionRow key={`v-${i}`} tipo="💰 Venta" monto={parseCurrencyValue(v.amount)} fecha={v.date}
+                  bg="rgba(255,209,102,0.12)" color="#e6a817" formatCurrency={formatCurrency} />
+              ))}
+              {cliente.plataFavor?.map((p, i) => (
+                <TransaccionRow key={`p-${i}`} tipo="💰 Plata a favor" monto={parseCurrencyValue(p.amount)} fecha={p.date}
+                  bg="rgba(40,167,69,0.08)" color="#28a745" formatCurrency={formatCurrency} />
+              ))}
+              {cliente.efectivo?.map((p, i) => (
+                <TransaccionRow key={`e-${i}`} tipo="💵 Efectivo" monto={parseCurrencyValue(p.amount)}
+                  bg="rgba(40,167,69,0.08)" color="#28a745" formatCurrency={formatCurrency} />
+              ))}
+              {cliente.cheques?.map((c, i) => (
+                <TransaccionRow key={`c-${i}`} tipo={`📋 Cheque${c.id ? ` #${c.id}` : ''}`} monto={parseCurrencyValue(c.amount)}
+                  bg="rgba(23,162,184,0.08)" color="#17a2b8" formatCurrency={formatCurrency} />
+              ))}
+              {cliente.transferencias?.map((t, i) => (
+                <TransaccionRow key={`t-${i}`} tipo="🏦 Transferencia" monto={parseCurrencyValue(t.amount)}
+                  bg="rgba(108,117,125,0.08)" color="#6c757d" formatCurrency={formatCurrency} />
               ))}
 
-              {/* Ventas */}
-              {cliente.ventas?.map((venta, index) => (
-                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                  <div>
-                    <small className="fw-bold text-warning">💰 Venta</small>
-                    <br />
-                    <small className="text-muted">{venta.date || 'Sin fecha'} - {formatCurrency(parseCurrencyValue(venta.amount))}</small>
-                  </div>
-                </div>
-              ))}
-
-              {/* Plata a Favor */}
-              {cliente.plataFavor?.map((pago, index) => (
-                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                  <div>
-                    <small className="fw-bold text-success">💰 Plata a Favor</small>
-                    <br />
-                    <small className="text-muted">{pago.date || 'Sin fecha'} - {formatCurrency(parseCurrencyValue(pago.amount))}</small>
-                  </div>
-                </div>
-              ))}
-
-              {/* Efectivo */}
-              {cliente.efectivo?.map((pago, index) => (
-                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                  <div>
-                    <small className="fw-bold text-success">💵 Efectivo</small>
-                    <br />
-                    <small className="text-muted">{formatCurrency(parseCurrencyValue(pago.amount))}</small>
-                  </div>
-                </div>
-              ))}
-
-              {/* Cheques */}
-              {cliente.cheques?.map((cheque, index) => (
-                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                  <div>
-                    <small className="fw-bold text-info">📋 Cheque</small>
-                    <br />
-                    <small className="text-muted">
-                      {cheque.id ? `ID: ${cheque.id} - ` : ''}{formatCurrency(parseCurrencyValue(cheque.amount))}
-                    </small>
-                  </div>
-                </div>
-              ))}
-
-              {/* Transferencias */}
-              {cliente.transferencias?.map((transfer, index) => (
-                <div key={index} className="d-flex justify-content-between align-items-center py-1 border-bottom">
-                  <div>
-                    <small className="fw-bold text-primary">🏦 Transferencia</small>
-                    <br />
-                    <small className="text-muted">{formatCurrency(parseCurrencyValue(transfer.amount))}</small>
-                  </div>
-                </div>
-              ))}
-
-              {(!cliente.boletas?.length && !cliente.ventas?.length && !cliente.plataFavor?.length && !cliente.efectivo?.length && !cliente.cheques?.length && !cliente.transferencias?.length) && (
-                <div className="text-center text-muted py-2">
-                  <small>No hay transacciones registradas</small>
+              {!cliente.boletas?.length && !cliente.ventas?.length && !cliente.plataFavor?.length &&
+               !cliente.efectivo?.length && !cliente.cheques?.length && !cliente.transferencias?.length && (
+                <div style={{ textAlign: 'center', color: '#9ca3af', padding: '8px', fontSize: '0.75rem' }}>
+                  Sin transacciones registradas
                 </div>
               )}
             </div>
           </div>
 
-          {/* Botones de Acción */}
-          <div className="d-flex gap-2">
-            <button 
-              className="btn btn-sm btn-outline-primary flex-fill"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(cliente);
-              }}
-            >
-              <i className="fas fa-edit me-1"></i>
-              Editar
-            </button>
-            <button 
-              className="btn btn-sm btn-outline-secondary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPrint(cliente);
-              }}
-              title="Imprimir saldo"
+          {/* Botones de acción */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <ActionBtn onClick={(e) => { e.stopPropagation(); onEdit(cliente); }} borderColor="#6A8899" color="#3a5060">
+              <i className="fas fa-edit" style={{ fontSize: '0.72rem' }}></i> Editar
+            </ActionBtn>
+            <button
+              onClick={(e) => { e.stopPropagation(); onPrint(cliente); }}
+              title="Imprimir"
+              style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '6px 11px', background: 'transparent', color: '#6c757d', fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.15s' }}
             >
               <i className="fas fa-print"></i>
             </button>
-            <button 
-              className="btn btn-sm btn-outline-danger flex-fill"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Eliminar directamente
-                onDelete(cliente.id);
-              }}
-            >
-              <i className="fas fa-trash me-1"></i>
-              Eliminar
-            </button>
+            <ActionBtn onClick={(e) => { e.stopPropagation(); onDelete(cliente.id); }} borderColor="#dc3545" color="#dc3545">
+              <i className="fas fa-trash" style={{ fontSize: '0.72rem' }}></i> Eliminar
+            </ActionBtn>
           </div>
+
         </div>
-      )}
+      </div>
     </div>
   );
 };
+
+/* ── Sub-componentes internos ── */
+
+const TransaccionRow = ({ tipo, monto, fecha, bg, color, badge, formatCurrency }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', borderRadius: '6px', background: bg }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+      <span style={{ fontSize: '0.7rem', fontWeight: 600, color }}>{tipo}</span>
+      {badge && <span style={{ fontSize: '0.6rem', background: '#17a2b8', color: 'white', padding: '1px 5px', borderRadius: '4px' }}>{badge}</span>}
+    </div>
+    <div style={{ textAlign: 'right' }}>
+      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#212529' }}>{formatCurrency(monto)}</div>
+      {fecha && <div style={{ fontSize: '0.64rem', color: '#9ca3af' }}>{fecha}</div>}
+    </div>
+  </div>
+);
+
+const ActionBtn = ({ onClick, borderColor, color, children }) => (
+  <button
+    onClick={onClick}
+    style={{
+      flex: 1, border: `1px solid ${borderColor}`, borderRadius: '8px', padding: '6px 10px',
+      background: 'transparent', color, fontSize: '0.78rem', fontWeight: 600,
+      cursor: 'pointer', transition: 'all 0.15s',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+    }}
+  >
+    {children}
+  </button>
+);
 
 export default ClienteDeudorCard;

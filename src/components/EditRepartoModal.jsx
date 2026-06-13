@@ -1,17 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/money';
-import { getLocalDateString } from '../utils/date';
+import { getLocalDateString, formatDateSafe } from '../utils/date';
+
+/* ── Sub-componentes ── */
+
+const ModalSection = ({ label, children, action }) => (
+  <div style={{ marginBottom: '20px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+      {action}
+    </div>
+    {children}
+  </div>
+);
+
+const statusPill = (status) => {
+  const map = {
+    paid:    { label: 'Pagado',    bg: 'rgba(40,167,69,0.12)',   color: '#28a745' },
+    partial: { label: 'Parcial',   bg: 'rgba(230,168,23,0.12)',  color: '#e6a817' },
+    pending: { label: 'Pendiente', bg: 'rgba(108,117,125,0.1)',  color: '#6c757d' },
+  };
+  return map[status] || map.pending;
+};
+
+/* ── Componente principal ── */
 
 const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
-  const [formData, setFormData] = useState({
-    date: '',
-    clients: []
-  });
+  const [formData, setFormData] = useState({ date: '', clients: [] });
 
-  // Cargar datos del reparto cuando se abre el modal
   useEffect(() => {
     if (isOpen && reparto) {
-      console.log('🔍 EditRepartoModal - Reparto recibido:', reparto);
       setFormData({
         date: reparto.date || getLocalDateString(),
         clients: reparto.clientes || reparto.clients || []
@@ -19,215 +40,202 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
     }
   }, [isOpen, reparto]);
 
-  // Funciones para manejar clientes
-  const addCliente = () => {
-    setFormData(prev => ({
-      ...prev,
-      clients: [...prev.clients, {
-        id: Date.now().toString() + Math.random(),
-        clientName: '',
-        billAmount: 0,
-        paymentStatus: 'pending',
-        paymentAmount: 0,
-        address: ''
-      }]
-    }));
-  };
+  const addCliente = () => setFormData(prev => ({
+    ...prev,
+    clients: [...prev.clients, {
+      id: Date.now().toString() + Math.random(),
+      clientName: '', billAmount: 0,
+      paymentStatus: 'pending', paymentAmount: 0, address: ''
+    }]
+  }));
 
-  const removeCliente = (index) => {
-    setFormData(prev => ({
-      ...prev,
-      clients: prev.clients.filter((_, i) => i !== index)
-    }));
-  };
+  const removeCliente = (index) => setFormData(prev => ({
+    ...prev, clients: prev.clients.filter((_, i) => i !== index)
+  }));
 
-  const updateCliente = (index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      clients: prev.clients.map((cliente, i) => 
-        i === index ? { ...cliente, [field]: value } : cliente
-      )
-    }));
-  };
+  const updateCliente = (index, field, value) => setFormData(prev => ({
+    ...prev,
+    clients: prev.clients.map((c, i) => i === index ? { ...c, [field]: value } : c)
+  }));
 
   const handleSave = () => {
-    // Validar que haya al menos un cliente
-    if (formData.clients.length === 0) {
-      alert('Debe agregar al menos un cliente');
-      return;
+    if (formData.clients.length === 0) { alert('Debe agregar al menos un cliente'); return; }
+    if (formData.clients.some(c => !c.clientName.trim() || c.billAmount <= 0)) {
+      alert('Todos los clientes deben tener nombre y monto válido'); return;
     }
-
-    // Validar que todos los clientes tengan nombre y monto
-    const clientesInvalidos = formData.clients.some(cliente => 
-      !cliente.clientName.trim() || cliente.billAmount <= 0
-    );
-
-    if (clientesInvalidos) {
-      alert('Todos los clientes deben tener nombre y monto válido');
-      return;
-    }
-
-    const repartoData = {
-      ...formData,
-      clientes: formData.clients.map(cliente => ({
-        ...cliente,
-        clientName: cliente.clientName.trim(),
-        billAmount: parseFloat(cliente.billAmount)
-      })),
-      // Mantener compatibilidad con la estructura existente
-      clients: formData.clients.map(cliente => ({
-        ...cliente,
-        clientName: cliente.clientName.trim(),
-        billAmount: parseFloat(cliente.billAmount)
-      }))
-    };
-
-    console.log('🔍 EditRepartoModal - Datos a guardar:', repartoData);
-    onSave(reparto.id, repartoData);
+    const mapped = formData.clients.map(c => ({
+      ...c, clientName: c.clientName.trim(), billAmount: parseFloat(c.billAmount)
+    }));
+    onSave(reparto.id, { ...formData, clientes: mapped, clients: mapped });
     onClose();
   };
 
-  // Calcular totales
-  const totalReparto = formData.clients.reduce((sum, cliente) => sum + (parseFloat(cliente.billAmount) || 0), 0);
+  const totalReparto = formData.clients.reduce((s, c) => s + (parseFloat(c.billAmount) || 0), 0);
+  const pagados      = formData.clients.filter(c => c.paymentStatus === 'paid').length;
+  const pendientes   = formData.clients.filter(c => c.paymentStatus === 'pending').length;
 
   if (!isOpen) return null;
 
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-xl">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Editar Reparto - {reparto?.date}</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          
-          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            {/* Fecha del Reparto */}
-            <div className="mb-3">
-              <label className="form-label">Fecha del Reparto</label>
-              <input 
-                type="date" 
-                className="form-control" 
-                value={formData.date}
-                onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                required 
-              />
-            </div>
+    <>
+      {/* Overlay */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }} />
 
-            {/* Clientes */}
-            <div className="mb-3">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <h6>Clientes ({formData.clients.length})</h6>
-                <button type="button" className="btn btn-primary btn-sm" onClick={addCliente}>
-                  <i className="fas fa-plus me-1"></i>
-                  Agregar Cliente
-                </button>
+      {/* Panel */}
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'min(700px, 96vw)',
+        maxHeight: '90vh',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+        zIndex: 1051,
+        display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              Editar reparto
+            </div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
+              {formatDateSafe(reparto?.date)}
+            </div>
+          </div>
+          <button onClick={onClose}
+            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d' }}>
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ overflowY: 'auto', padding: '20px 22px', flex: 1 }}>
+
+          {/* Fecha */}
+          <ModalSection label="Fecha">
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
+              Fecha del Reparto
+            </label>
+            <input type="date" className="form-control"
+              value={formData.date}
+              onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+              style={{ borderRadius: '8px', fontSize: '0.9rem', maxWidth: '200px' }}
+              required />
+          </ModalSection>
+
+          {/* Clientes */}
+          <ModalSection
+            label={`Clientes (${formData.clients.length})`}
+            action={
+              <button onClick={addCliente}
+                style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '3px 10px', background: 'transparent', color: '#6c757d', fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                + Agregar
+              </button>
+            }
+          >
+            {formData.clients.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>
+                <div style={{ fontSize: '1.6rem', marginBottom: '6px', opacity: 0.4 }}>👥</div>
+                <div style={{ fontSize: '0.8rem', fontWeight: 500 }}>Sin clientes</div>
+                <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>Usá "+ Agregar" para sumar clientes</div>
               </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {formData.clients.map((cliente, index) => {
+                  const sp = statusPill(cliente.paymentStatus);
+                  return (
+                    <div key={cliente.id || index} style={{
+                      borderRadius: '10px', padding: '10px 12px',
+                      background: '#f8f9fa',
+                      borderLeft: `3px solid ${sp.color}`,
+                      display: 'flex', flexDirection: 'column', gap: '8px',
+                    }}>
+                      {/* Fila 1: nombre + eliminar */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input type="text" className="form-control form-control-sm"
+                          value={cliente.clientName}
+                          onChange={(e) => updateCliente(index, 'clientName', e.target.value)}
+                          placeholder="Nombre del cliente"
+                          style={{ borderRadius: '7px', flex: 2 }} />
+                        <input type="text" className="form-control form-control-sm"
+                          value={cliente.address}
+                          onChange={(e) => updateCliente(index, 'address', e.target.value)}
+                          placeholder="Dirección (opcional)"
+                          style={{ borderRadius: '7px', flex: 2 }} />
+                        <button onClick={() => removeCliente(index)}
+                          style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+                          ×
+                        </button>
+                      </div>
 
-              {formData.clients.length === 0 ? (
-                <div className="text-center text-muted py-3">
-                  <i className="fas fa-users fa-2x mb-2"></i>
-                  <p>No hay clientes agregados</p>
-                  <small>Haz clic en "Agregar Cliente" para comenzar</small>
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-bordered">
-                    <thead>
-                      <tr>
-                        <th>Nombre del Cliente</th>
-                        <th>Dirección</th>
-                        <th>Monto</th>
-                        <th>Estado de Pago</th>
-                        <th width="80">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formData.clients.map((cliente, index) => (
-                        <tr key={cliente.id || index}>
-                          <td>
-                            <input 
-                              type="text" 
-                              className="form-control form-control-sm" 
-                              value={cliente.clientName}
-                              onChange={(e) => updateCliente(index, 'clientName', e.target.value)}
-                              placeholder="Nombre del cliente"
-                              required 
-                            />
-                          </td>
-                          <td>
-                            <input 
-                              type="text" 
-                              className="form-control form-control-sm" 
-                              value={cliente.address}
-                              onChange={(e) => updateCliente(index, 'address', e.target.value)}
-                              placeholder="Dirección (opcional)"
-                            />
-                          </td>
-                          <td>
-                            <input 
-                              type="number" 
-                              step="0.01" 
-                              className="form-control form-control-sm" 
-                              value={cliente.billAmount}
-                              onChange={(e) => updateCliente(index, 'billAmount', parseFloat(e.target.value) || 0)}
-                              placeholder="0.00"
-                              required 
-                            />
-                          </td>
-                          <td>
-                            <select 
-                              className="form-control form-control-sm"
-                              value={cliente.paymentStatus}
-                              onChange={(e) => updateCliente(index, 'paymentStatus', e.target.value)}
-                            >
-                              <option value="pending">Pendiente</option>
-                              <option value="partial">Parcial</option>
-                              <option value="paid">Pagado</option>
-                            </select>
-                          </td>
-                          <td className="text-center">
-                            <button 
-                              type="button" 
-                              className="btn btn-sm btn-outline-danger"
-                              onClick={() => removeCliente(index)}
-                              title="Eliminar cliente"
-                            >
-                              <i className="fas fa-trash"></i>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      {/* Fila 2: monto + estado */}
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Monto</label>
+                          <input type="number" step="0.01" className="form-control form-control-sm"
+                            value={cliente.billAmount}
+                            onChange={(e) => updateCliente(index, 'billAmount', parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                            style={{ borderRadius: '7px' }} />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Estado</label>
+                          <select className="form-control form-control-sm"
+                            value={cliente.paymentStatus}
+                            onChange={(e) => updateCliente(index, 'paymentStatus', e.target.value)}
+                            style={{ borderRadius: '7px', background: sp.bg, color: sp.color, fontWeight: 600, border: `1px solid ${sp.color}30` }}>
+                            <option value="pending">Pendiente</option>
+                            <option value="partial">Parcial</option>
+                            <option value="paid">Pagado</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ModalSection>
 
-              {/* Resumen */}
-              {formData.clients.length > 0 && (
-                <div className="mt-3 p-3 bg-light rounded">
-                  <div className="row text-center">
-                    <div className="col-6">
-                      <small className="text-muted">Total Clientes</small>
-                      <div className="fw-bold">{formData.clients.length}</div>
-                    </div>
-                    <div className="col-6">
-                      <small className="text-muted">Total Reparto</small>
-                      <div className="fw-bold text-primary">{formatCurrency(totalReparto)}</div>
-                    </div>
-                  </div>
+          {/* Resumen en tiempo real */}
+          {formData.clients.length > 0 && (
+            <div style={{ background: '#f8f9fa', borderRadius: '10px', padding: '12px 16px', borderLeft: '3px solid #6A8899' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+                Resumen
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#6A8899' }}>{formatCurrency(totalReparto)}</div>
                 </div>
-              )}
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Pagados</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#28a745' }}>{pagados}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Pendientes</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: pendientes > 0 ? '#e6a817' : '#9ca3af' }}>{pendientes}</div>
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="button" className="btn btn-primary" onClick={handleSave}>Guardar Cambios</button>
-          </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '10px', flexShrink: 0 }}>
+          <button onClick={onClose}
+            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button onClick={handleSave}
+            style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}>
+            Guardar Cambios
+          </button>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

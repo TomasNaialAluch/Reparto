@@ -1016,88 +1016,125 @@ const PrintDocument = ({ data, type, onClose }) => {
   };
 
   return (
-    <div 
-      className="modal fade show" 
-      style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
-      onClick={onClose}
-    >
-      <div 
-        className="modal-dialog modal-lg"
+    <>
+      {/* Overlay */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }} />
+
+      {/* Panel */}
+      <div
         onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'fixed', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: 'min(680px, 96vw)',
+          maxHeight: '92vh',
+          background: 'white',
+          borderRadius: '16px',
+          boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+          zIndex: 1051,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+        }}
       >
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Vista Previa de Impresión</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
-          </div>
-          <div ref={modalBodyRef} className="modal-body position-relative" style={{ maxHeight: '60vh', overflow: 'auto', borderBottom: showBottomIndicator ? '3px solid #007bff' : 'none' }}>
-            {/* Indicador de scroll superior */}
-            {showTopIndicator && (
-              <div className="scroll-indicator-top position-absolute top-0 start-50 translate-middle-x bg-primary text-white px-3 py-1 rounded-pill" style={{ fontSize: '0.8rem', zIndex: 10 }}>
-                <i className="fas fa-chevron-up me-1"></i>
-                Scroll hacia arriba
-              </div>
-            )}
-            
-            {/* Indicador de scroll inferior */}
-            {showBottomIndicator && (
-              <div className="scroll-indicator-bottom position-absolute bottom-0 start-50 translate-middle-x bg-primary text-white px-3 py-1 rounded-pill" style={{ fontSize: '0.8rem', zIndex: 10 }}>
-                <i className="fas fa-chevron-down me-1"></i>
-                Scroll hacia abajo para ver más
-              </div>
-            )}
-            
-            {type === 'reparto' ? renderRepartoContent() : 
-             type === 'transferencia' ? renderTransferenciaContent() : 
-             type === 'empleados' ? renderEmpleadosContent() :
-             type === 'empleado' ? renderEmpleadoContent() :
-             type === 'listaPrecios' ? renderListaPreciosContent() :
-             renderSaldoContent()}
-          </div>
-          
-          {/* Mensaje de advertencia solo para la vista previa, no se imprime */}
-          <div className="alert alert-info mt-3" style={{ textAlign: 'center', margin: '10px 15px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 'bold' }}>
-              <i className="fas fa-info-circle me-2"></i>
-              IMPORTANTE: Asegúrate de ver todo el resumen completo
+        {/* Header */}
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              Vista previa
             </div>
-            <div style={{ fontSize: '12px', marginTop: '5px' }}>
-              Si no ves todas las secciones, haz scroll hacia arriba para ver el detalle completo
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
+              Impresión
             </div>
           </div>
-          <div className="modal-footer flex-column gap-2">
-            <div className="d-flex align-items-center gap-2 w-100">
-              <span className="fw-bold small text-muted" style={{ whiteSpace: 'nowrap' }}>Ancho de impresión:</span>
-              <div className="btn-group btn-group-sm w-100">
-                <button
-                  type="button"
-                  className={`btn ${anchoImpresion === 'completo' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setAnchoImpresion('completo')}
-                >
-                  📄 Hoja completa
+          <button onClick={onClose}
+            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d' }}>
+            ✕
+          </button>
+        </div>
+
+        {/* Body — contenido de impresión con indicadores de scroll */}
+        <div
+          ref={modalBodyRef}
+          style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', position: 'relative' }}
+        >
+          {/* Indicador scroll arriba */}
+          {showTopIndicator && (
+            <div style={{
+              position: 'sticky', top: 0, zIndex: 10,
+              display: 'flex', justifyContent: 'center', marginBottom: '8px',
+              pointerEvents: 'none',
+            }}>
+              <span style={{ background: 'rgba(106,136,153,0.9)', color: 'white', fontSize: '0.7rem', fontWeight: 600, padding: '3px 12px', borderRadius: '999px', backdropFilter: 'blur(4px)' }}>
+                ↑ más arriba
+              </span>
+            </div>
+          )}
+
+          {type === 'reparto'       ? renderRepartoContent()      :
+           type === 'transferencia' ? renderTransferenciaContent() :
+           type === 'empleados'     ? renderEmpleadosContent()     :
+           type === 'empleado'      ? renderEmpleadoContent()      :
+           type === 'listaPrecios'  ? renderListaPreciosContent()  :
+           renderSaldoContent()}
+
+          {/* Indicador scroll abajo */}
+          {showBottomIndicator && (
+            <div style={{
+              position: 'sticky', bottom: 0, zIndex: 10,
+              display: 'flex', justifyContent: 'center', marginTop: '8px',
+              pointerEvents: 'none',
+            }}>
+              <span style={{ background: 'rgba(106,136,153,0.9)', color: 'white', fontSize: '0.7rem', fontWeight: 600, padding: '3px 12px', borderRadius: '999px', backdropFilter: 'blur(4px)' }}>
+                ↓ hay más abajo
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+          {/* Selector de ancho — segmented control */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+              Ancho
+            </span>
+            <div style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px', flex: 1 }}>
+              {/* Slider animado */}
+              <div style={{
+                position: 'absolute', top: '3px', bottom: '3px',
+                left: anchoImpresion === 'completo' ? '3px' : 'calc(50% + 1px)',
+                width: 'calc(50% - 4px)',
+                background: 'white', borderRadius: '8px',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                transition: 'left 0.22s cubic-bezier(.4,0,.2,1)',
+                pointerEvents: 'none', zIndex: 0,
+              }} />
+              {[['completo','📄 Hoja completa'],['mitad','✂️ Media hoja']].map(([val, label]) => (
+                <button key={val} onClick={() => setAnchoImpresion(val)}
+                  style={{ position: 'relative', zIndex: 1, flex: 1, border: 'none', borderRadius: '8px', padding: '5px 8px', fontSize: '0.75rem', fontWeight: anchoImpresion === val ? 600 : 400, background: 'transparent', color: anchoImpresion === val ? '#212529' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {label}
                 </button>
-                <button
-                  type="button"
-                  className={`btn ${anchoImpresion === 'mitad' ? 'btn-primary' : 'btn-outline-primary'}`}
-                  onClick={() => setAnchoImpresion('mitad')}
-                >
-                  ✂️ Media hoja
-                </button>
-              </div>
+              ))}
             </div>
-            <div className="d-flex gap-2 w-100 justify-content-end">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
-                Cancelar
-              </button>
-              <button type="button" className="btn btn-primary" onClick={handlePrint}>
-                <i className="fas fa-print me-2"></i>
-                Imprimir
-              </button>
-            </div>
+          </div>
+
+          {/* Botones Cancelar / Imprimir */}
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={onClose}
+              style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+              Cancelar
+            </button>
+            <button onClick={handlePrint}
+              style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <i className="fas fa-print" style={{ fontSize: '0.85rem' }}></i>
+              Imprimir
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

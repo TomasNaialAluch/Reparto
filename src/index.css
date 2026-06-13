@@ -1,6 +1,28 @@
 /* Estilos globales para Mi Reparto React */
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
 
+/* ── Paleta de marca (Steel Blue — Celeste Acero) ───────────────────────────
+   Actualizada el 13/06/2026. El celeste saturado (#3B9ABD) fue reemplazado
+   por un azul acero grisáceo (#6A8899), inspirado en el gris ártico VW
+   (#A9B2BA). Tiene profundidad, temperatura fría y carácter de marca de auto.
+   Texto sobre primario: blanco.
+   ─────────────────────────────────────────────────────────────────────── */
+:root {
+  --color-primary:        #6A8899;
+  --color-primary-dark:   #506878;
+  --color-primary-soft:   rgba(106, 136, 153, 0.1);
+  --color-primary-border: rgba(106, 136, 153, 0.3);
+  --color-primary-text:   #ffffff;
+  --color-secondary:      #BEE3DB;
+  --color-secondary-dark: #A3D2CA;
+  --color-bg:             #F5F7F9;
+  --color-text:           #333333;
+  --color-text-muted:     #6c757d;
+  --color-card-bg:        #ffffff;
+  --color-slider-bg:      #e9ecef;
+  --color-warning:        #FFD166;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -9,21 +31,23 @@
 
 body {
   font-family: 'Montserrat', sans-serif;
-  background-color: #F0F8FF;
-  color: #333;
+  background-color: #F5F7F9;
+  color: var(--color-text);
   line-height: 1.6;
 }
 
 /* Estilos para los botones personalizados */
 .btn-primary {
-  background-color: #A9D6E5;
-  border-color: #A9D6E5;
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-text);
   transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-  background-color: #90C3D4;
-  border-color: #90C3D4;
+  background-color: var(--color-primary-dark);
+  border-color: var(--color-primary-dark);
+  color: var(--color-primary-text);
   transform: translateY(-1px);
 }
 
@@ -103,8 +127,8 @@ body {
 }
 
 .form-control:focus {
-  border-color: #A9D6E5;
-  box-shadow: 0 0 0 0.2rem rgba(169, 214, 229, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.2);
 }
 
 /* Estilos para el offcanvas - Igual al original */
@@ -160,6 +184,45 @@ body {
   .card {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
+  }
+}
+
+/* Animación del borde izquierdo del status de conexión */
+@keyframes connectedPulse {
+  0%   { border-left-color: #28a745; box-shadow: 0 2px 6px rgba(0,0,0,0.07), -1px 0 0 rgba(40,167,69,0); }
+  40%  { border-left-color: #5ddb7a; box-shadow: 0 2px 6px rgba(0,0,0,0.07), -3px 0 10px rgba(40,167,69,0.35); }
+  60%  { border-left-color: #5ddb7a; box-shadow: 0 2px 6px rgba(0,0,0,0.07), -3px 0 10px rgba(40,167,69,0.35); }
+  100% { border-left-color: #28a745; box-shadow: 0 2px 6px rgba(0,0,0,0.07), -1px 0 0 rgba(40,167,69,0); }
+}
+
+.status-connected-pulse {
+  animation: connectedPulse 2.8s cubic-bezier(.4,0,.2,1) infinite;
+}
+
+/* Panel lateral de Clientes Guardados — misma altura que columna izquierda en desktop */
+.clientes-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+.clientes-guardados-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.clientes-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 80px;
+}
+
+/* Mobile: altura limitada para no ocupar toda la pantalla */
+@media (max-width: 991.98px) {
+  .clientes-list-scroll {
+    flex: none;
+    max-height: 50vh;
   }
 }
 
@@ -230,12 +293,12 @@ body {
 
 /* Estilos personalizados para Mi Reparto */
 .mireparto-brand {
-  color: #A9D6E5;
+  color: var(--color-primary);
   font-weight: 700;
 }
 
 .mireparto-bg {
-  background-color: #A9D6E5;
+  background-color: var(--color-primary);
 }
 
 .mireparto-text {

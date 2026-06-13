@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAutoSavePrint } from '../hooks/useAutoSavePrint';
@@ -51,6 +51,9 @@ const SaldoClientes = () => {
   // Estados para filtros de fecha
   const [dateFilter, setDateFilter] = useState('semana');
   const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
+  const filterContainerRef = useRef(null);
+  const filterButtonRefs = useRef({});
   
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -670,42 +673,113 @@ const SaldoClientes = () => {
     }
   }, [balances]);
 
+  // Sub-componentes internos del formulario
+  const FormSection = ({ label, children }) => (
+    <div style={{ marginBottom: '20px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+          {label}
+        </span>
+        <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+      </div>
+      {children}
+    </div>
+  );
+
+  const ToggleRow = ({ id, label, checked, onChange }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', cursor: 'pointer' }} onClick={() => onChange({ target: { checked: !checked } })}>
+      <div style={{ width: '36px', height: '20px', borderRadius: '10px', background: checked ? '#6A8899' : '#dee2e6', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}>
+        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: checked ? '18px' : '2px', transition: 'left 0.2s cubic-bezier(.4,0,.2,1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+      </div>
+      <label htmlFor={id} style={{ fontSize: '0.85rem', color: '#212529', cursor: 'pointer', margin: 0 }}>{label}</label>
+    </div>
+  );
+
+  const InputRow = ({ children }) => (
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+      {children}
+    </div>
+  );
+
+  const RemoveBtn = ({ onClick }) => (
+    <button type="button" onClick={onClick}
+      style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+      ×
+    </button>
+  );
+
+  const AddBtn = ({ onClick, children }) => (
+    <button type="button" onClick={onClick}
+      style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.75rem', cursor: 'pointer', marginBottom: '8px', marginRight: '6px', transition: 'all 0.15s' }}>
+      {children}
+    </button>
+  );
+
+  // Actualizar posición del slider animado cuando cambia el filtro
+  useEffect(() => {
+    const activeBtn = filterButtonRefs.current[dateFilter];
+    const container = filterContainerRef.current;
+    if (activeBtn && container) {
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = activeBtn.getBoundingClientRect();
+      setSliderStyle({
+        left: btnRect.left - containerRect.left,
+        width: btnRect.width,
+      });
+    }
+  }, [dateFilter, savedClientes]);
+
   return (
     <div className="container mt-4 printable">
-      <div className="row">
+      <div className="row align-items-stretch">
         {/* Formulario Principal - Izquierda */}
         <div className="col-lg-7 col-md-12">
           <div
-            className="card p-3 no-print mb-3"
+            className="no-print mb-3"
             onDragOver={(e) => { e.preventDefault(); if (!clientName.trim()) setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDropCliente}
-            style={isDragOver ? { border: '2px dashed #0d6efd', background: '#f0f6ff' } : {}}
+            style={{
+              borderRadius: '12px',
+              background: 'white',
+              boxShadow: isDragOver ? 'none' : '0 2px 6px rgba(0,0,0,0.07)',
+              border: isDragOver ? '2px dashed #6A8899' : '2px solid transparent',
+              background: isDragOver ? '#f0f8ff' : 'white',
+              padding: '20px',
+              transition: 'border 0.2s, box-shadow 0.2s',
+            }}
           >
             <form>
-              <h4>Datos del Cliente</h4>
-              {isDragOver && (
-                <div className="alert alert-primary py-2 mb-2 text-center" style={{ pointerEvents: 'none' }}>
-                  <i className="fas fa-arrow-down me-2"></i>Soltá para cargar el saldo histórico
-                </div>
-              )}
-              <div className="mb-3">
-                <label htmlFor="clientName" className="form-label">Nombre del Cliente</label>
-                <input 
-                  type="text" 
-                  id="clientName" 
-                  className="form-control" 
-                  placeholder="Ingrese nombre" 
+              {/* Título de sección */}
+              <div style={{ marginBottom: '20px' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  Datos del Cliente
+                </span>
+                {isDragOver && (
+                  <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(106,136,153,0.12)', borderRadius: '8px', fontSize: '0.8rem', color: '#3a5060', textAlign: 'center' }}>
+                    Soltá para cargar el saldo histórico
+                  </div>
+                )}
+              </div>
+
+              {/* Campo nombre */}
+              <div style={{ marginBottom: '20px' }}>
+                <label htmlFor="clientName" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
+                  Nombre del Cliente
+                </label>
+                <input
+                  type="text"
+                  id="clientName"
+                  className="form-control"
+                  placeholder="Ingrese nombre"
                   value={clientName}
-                  onChange={(e) => {
-                    setClientName(e.target.value);
-                    setSaldoPrevioDismissed('');
-                  }}
-                  required 
+                  onChange={(e) => { setClientName(e.target.value); setSaldoPrevioDismissed(''); }}
+                  required
+                  style={{ borderRadius: '8px', fontSize: '0.95rem' }}
                 />
               </div>
 
-              {/* Banner de saldo previo */}
+              {/* Banner saldo previo */}
               {showSaldoPrevio && saldoPrevioData.length > 0 && (() => {
                 const seleccionados = saldoPrevioData.filter((_, i) => saldoPrevioSeleccion.includes(i));
                 const itemsAFavor = seleccionados.filter(c => (c.saldoFinal || 0) > 0);
@@ -714,112 +788,58 @@ const SaldoClientes = () => {
                 const totalDeudaHist = itemsDeuda.reduce((sum, c) => sum + Math.abs(c.saldoFinal || 0), 0);
                 const haySeleccion = seleccionados.length > 0;
                 const hayMezcla = totalAFavor > 0 && totalDeudaHist > 0;
-
                 const btnLabel = hayMezcla
                   ? `Aplicar: ${formatCurrency(totalAFavor)} a favor + ${formatCurrency(totalDeudaHist)} en deuda`
-                  : totalAFavor > 0
-                    ? `+ Agregar como Plata a Favor`
-                    : `+ Agregar como Deuda`;
-
-                const btnClass = hayMezcla ? 'btn btn-sm btn-primary' : totalAFavor > 0 ? 'btn btn-sm btn-success' : 'btn btn-sm btn-danger';
+                  : totalAFavor > 0 ? `+ Agregar como Plata a Favor` : `+ Agregar como Deuda`;
+                const btnColor = hayMezcla ? '#6A8899' : totalAFavor > 0 ? '#28a745' : '#dc3545';
 
                 return (
-                  <div className="alert alert-secondary mb-3 p-3" style={{ borderLeft: '4px solid #6c757d' }}>
-                    <div className="d-flex justify-content-between align-items-start mb-2">
-                      <strong style={{ fontSize: '0.95rem' }}>
-                        💰 Saldo histórico con {clientName.trim()}
-                      </strong>
-                      <button
-                        type="button"
-                        className="btn-close btn-sm"
-                        onClick={() => {
-                          setShowSaldoPrevio(false);
-                          setSaldoPrevioDismissed(clientName.trim());
-                        }}
-                      />
+                  <div style={{ background: '#f8f9fa', borderRadius: '10px', padding: '12px 14px', marginBottom: '20px', borderLeft: '3px solid #6c757d' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#212529' }}>
+                        Saldo histórico con {clientName.trim()}
+                      </span>
+                      <button type="button" className="btn-close btn-sm" style={{ fontSize: '0.6rem' }}
+                        onClick={() => { setShowSaldoPrevio(false); setSaldoPrevioDismissed(clientName.trim()); }} />
                     </div>
-                    <small className="text-muted d-block mb-2">Seleccioná los saldos que querés considerar:</small>
-                    <div className="mb-2">
+                    <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '8px' }}>
+                      Seleccioná los saldos que querés considerar:
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
                       {saldoPrevioData.map((c, i) => {
                         const esFavor = (c.saldoFinal || 0) > 0;
                         const checked = saldoPrevioSeleccion.includes(i);
                         return (
-                          <div
-                            key={i}
-                            className={`d-flex align-items-center gap-2 py-2 px-2 mb-1 rounded ${checked ? (esFavor ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10') : 'bg-light'}`}
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => {
-                              setSaldoPrevioSeleccion(prev =>
-                                prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]
-                              );
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              className="form-check-input mt-0"
-                              checked={checked}
-                              readOnly
-                              style={{ pointerEvents: 'none' }}
-                            />
-                            <small className="text-muted flex-shrink-0">📅 {c.fecha || 'Sin fecha'}</small>
-                            <span className={`badge ${esFavor ? 'bg-success' : 'bg-danger'} ms-auto`}>
+                          <div key={i} onClick={() => setSaldoPrevioSeleccion(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer',
+                              background: checked ? (esFavor ? 'rgba(40,167,69,0.08)' : 'rgba(220,53,69,0.08)') : 'white' }}>
+                            <input type="checkbox" className="form-check-input mt-0" checked={checked} readOnly style={{ pointerEvents: 'none', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.72rem', color: '#6c757d', flexShrink: 0 }}>{c.fecha || 'Sin fecha'}</span>
+                            <span style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 700, color: esFavor ? '#28a745' : '#dc3545', background: esFavor ? 'rgba(40,167,69,0.1)' : 'rgba(220,53,69,0.1)', padding: '2px 8px', borderRadius: '999px' }}>
                               {esFavor ? '+' : ''}{formatCurrency(c.saldoFinal || 0)}
                             </span>
-                            <small className={`flex-shrink-0 ${esFavor ? 'text-success' : 'text-danger'}`}>
+                            <span style={{ fontSize: '0.68rem', color: esFavor ? '#28a745' : '#dc3545', flexShrink: 0 }}>
                               {esFavor ? 'A tu favor' : 'Debés'}
-                            </small>
+                            </span>
                           </div>
                         );
                       })}
                     </div>
                     {haySeleccion && (
-                      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 pt-2 border-top">
-                        <div style={{ fontSize: '0.9rem' }}>
-                          {totalAFavor > 0 && (
-                            <span className="text-success me-3">✓ A favor: <strong>{formatCurrency(totalAFavor)}</strong></span>
-                          )}
-                          {totalDeudaHist > 0 && (
-                            <span className="text-danger">⚠ Deuda: <strong>{formatCurrency(totalDeudaHist)}</strong></span>
-                          )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingTop: '10px', borderTop: '1px solid #e9ecef' }}>
+                        <div style={{ fontSize: '0.75rem' }}>
+                          {totalAFavor > 0 && <span style={{ color: '#28a745', marginRight: '12px' }}>✓ {formatCurrency(totalAFavor)}</span>}
+                          {totalDeudaHist > 0 && <span style={{ color: '#dc3545' }}>⚠ {formatCurrency(totalDeudaHist)}</span>}
                         </div>
-                        <button
-                          type="button"
-                          className={btnClass}
+                        <button type="button"
+                          style={{ border: `1px solid ${btnColor}`, borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: btnColor, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
                           onClick={() => {
-                            if (itemsAFavor.length > 0) {
-                              setShowPlata(true);
-                              setPlata(prev => {
-                                const items = prev.filter(p => p.amount);
-                                const nuevos = itemsAFavor.map(c => ({
-                                  date: c.fecha || getLocalDateString(),
-                                  amount: formatCurrencyNoSymbol(c.saldoFinal)
-                                }));
-                                return [...items, ...nuevos];
-                              });
-                            }
-                            if (itemsDeuda.length > 0) {
-                              setShowDeuda(true);
-                              setDeudas(prev => {
-                                const items = prev.filter(d => d.amount);
-                                const nuevos = itemsDeuda.map(c => ({
-                                  date: c.fecha || getLocalDateString(),
-                                  amount: formatCurrencyNoSymbol(Math.abs(c.saldoFinal))
-                                }));
-                                return [...items, ...nuevos];
-                              });
-                            }
-                            setShowSaldoPrevio(false);
-                            setSaldoPrevioDismissed(clientName.trim());
-                            const cantFavor = itemsAFavor.length;
-                            const cantDeuda = itemsDeuda.length;
-                            const msg = hayMezcla
-                              ? `✓ ${cantFavor} saldo${cantFavor > 1 ? 's' : ''} a Plata a Favor · ${cantDeuda} deuda${cantDeuda > 1 ? 's' : ''} agregada${cantDeuda > 1 ? 's' : ''}`
-                              : cantFavor > 0
-                                ? `✓ ${cantFavor} saldo${cantFavor > 1 ? 's' : ''} (${formatCurrency(totalAFavor)}) agregado${cantFavor > 1 ? 's' : ''} como Plata a Favor`
-                                : `✓ ${cantDeuda} deuda${cantDeuda > 1 ? 's' : ''} (${formatCurrency(totalDeudaHist)}) agregada${cantDeuda > 1 ? 's' : ''}`;
-                            showSuccess(msg);
-                          }}
-                        >
+                            if (itemsAFavor.length > 0) { setShowPlata(true); setPlata(prev => [...prev.filter(p => p.amount), ...itemsAFavor.map(c => ({ date: c.fecha || getLocalDateString(), amount: formatCurrencyNoSymbol(c.saldoFinal) }))]); }
+                            if (itemsDeuda.length > 0) { setShowDeuda(true); setDeudas(prev => [...prev.filter(d => d.amount), ...itemsDeuda.map(c => ({ date: c.fecha || getLocalDateString(), amount: formatCurrencyNoSymbol(Math.abs(c.saldoFinal)) }))]); }
+                            setShowSaldoPrevio(false); setSaldoPrevioDismissed(clientName.trim());
+                            const cantFavor = itemsAFavor.length; const cantDeuda = itemsDeuda.length;
+                            showSuccess(hayMezcla ? `✓ ${cantFavor} saldo${cantFavor > 1 ? 's' : ''} a Plata a Favor · ${cantDeuda} deuda${cantDeuda > 1 ? 's' : ''} agregada${cantDeuda > 1 ? 's' : ''}` : cantFavor > 0 ? `✓ ${cantFavor} saldo${cantFavor > 1 ? 's' : ''} (${formatCurrency(totalAFavor)}) agregado${cantFavor > 1 ? 's' : ''} como Plata a Favor` : `✓ ${cantDeuda} deuda${cantDeuda > 1 ? 's' : ''} (${formatCurrency(totalDeudaHist)}) agregada${cantDeuda > 1 ? 's' : ''}`);
+                          }}>
                           {btnLabel}
                         </button>
                       </div>
@@ -828,182 +848,132 @@ const SaldoClientes = () => {
                 );
               })()}
 
-              <h4>Deuda</h4>
-              <div className="mb-3">
-                <div className="form-check">
-                  <input type="checkbox" id="checkDeuda" className="form-check-input" checked={showDeuda} onChange={(e) => { setShowDeuda(e.target.checked); if (e.target.checked && deudas.length === 0) { addDeuda(); } }} />
-                  <label htmlFor="checkDeuda" className="form-check-label">Tiene Deuda pendiente</label>
-                </div>
-              </div>
-              {showDeuda && (
-                <div className="mb-3">
-                  {deudas.map((item, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateDeuda(index, 'date', e.target.value)} />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateDeuda(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeDeuda(index)} style={{ fontSize: '1.2rem' }}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addDeuda}>Agregar Deuda</button>
-                </div>
-              )}
-
-              <h4>Detalle de Boletas</h4>
-              <div className="mb-3">
-                {boletas.map((boleta, index) => (
-                  <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                    <input 
-                      type="date" 
-                      className="form-control" 
-                      value={boleta.date}
-                      onChange={(e) => updateBoleta(index, 'date', e.target.value)}
-                      required 
-                      disabled={boleta.esDeMercaderia}
-                    />
-                    <input 
-                      type="text" 
-                      className="form-control" 
-                      placeholder="Monto (AR$)" 
-                      value={boleta.amount}
-                      onChange={(e) => updateBoleta(index, 'amount', e.target.value)}
-                      onBlur={handleCurrencyBlur}
-                      onFocus={handleCurrencyFocus}
-                      required 
-                      disabled={boleta.esDeMercaderia}
-                    />
-                    {boleta.esDeMercaderia && (
-                      <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
-                    )}
-                    {!boleta.esDeMercaderia && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-secondary"
-                        onClick={() => moverBoletaAVentas(index)}
-                        title="Pasé mal: era venta mía al cliente"
-                      >
-                        → Ventas
-                      </button>
-                    )}
-                    <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeBoleta(index)} style={{ fontSize: '1.2rem' }}>×</button>
+              {/* Separador de sección */}
+              <FormSection label="Deuda">
+                <ToggleRow id="checkDeuda" label="Tiene Deuda pendiente" checked={showDeuda}
+                  onChange={(e) => { setShowDeuda(e.target.checked); if (e.target.checked && deudas.length === 0) addDeuda(); }} />
+                {showDeuda && (
+                  <div style={{ marginTop: '10px' }}>
+                    {deudas.map((item, index) => (
+                      <InputRow key={index}>
+                        <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateDeuda(index, 'date', e.target.value)} />
+                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateDeuda(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                        <RemoveBtn onClick={() => removeDeuda(index)} />
+                      </InputRow>
+                    ))}
+                    <AddBtn onClick={addDeuda}>+ Agregar Deuda</AddBtn>
                   </div>
-                ))}
-              </div>
-              <div className="d-flex gap-2 mb-3">
-                <button type="button" className="btn btn-secondary" onClick={addBoleta}>Agregar Boleta Manual</button>
-                {clientName.trim() && semanaActiva?.mercaderia && (
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-primary" 
-                    onClick={() => setShowMercaderiaModal(true)}
-                  >
-                    📦 Vincular Boleta de Mercadería
-                  </button>
                 )}
-              </div>
+              </FormSection>
 
-              <h4>Ajustes</h4>
-              <div className="mb-3">
-                <div className="form-check">
-                  <input type="checkbox" id="checkVenta" className="form-check-input" checked={showVentas} onChange={(e) => { setShowVentas(e.target.checked); if (e.target.checked && ventas.length === 0) { addVenta(); } }} />
-                  <label htmlFor="checkVenta" className="form-check-label">Le vendió algo</label>
+              <FormSection label="Boletas">
+                {boletas.map((boleta, index) => (
+                  <InputRow key={index}>
+                    <input type="date" className="form-control" value={boleta.date} onChange={(e) => updateBoleta(index, 'date', e.target.value)} required disabled={boleta.esDeMercaderia} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={boleta.amount} onChange={(e) => updateBoleta(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required disabled={boleta.esDeMercaderia} />
+                    {boleta.esDeMercaderia
+                      ? <span style={{ fontSize: '0.75rem', background: 'rgba(23,162,184,0.12)', color: '#17a2b8', padding: '3px 7px', borderRadius: '6px', flexShrink: 0 }}>📦</span>
+                      : <button type="button" onClick={() => moverBoletaAVentas(index)} title="Pasé mal: era venta mía al cliente"
+                          style={{ border: '1px solid #dee2e6', borderRadius: '6px', padding: '3px 8px', background: 'transparent', color: '#6c757d', fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          → Ventas
+                        </button>
+                    }
+                    <RemoveBtn onClick={() => removeBoleta(index)} />
+                  </InputRow>
+                ))}
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <AddBtn onClick={addBoleta}>+ Boleta Manual</AddBtn>
+                  {clientName.trim() && semanaActiva?.mercaderia && (
+                    <AddBtn onClick={() => setShowMercaderiaModal(true)}>📦 Vincular Mercadería</AddBtn>
+                  )}
                 </div>
-              </div>
-              {showVentas && (
-                <div className="mb-3">
-                  <h5>Detalle de Ventas</h5>
-                  {ventas.map((venta, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="date" className="form-control" value={venta.date} onChange={(e) => updateVenta(index, 'date', e.target.value)} required />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={venta.amount} onChange={(e) => updateVenta(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeVenta(index)} style={{ fontSize: '1.2rem' }}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addVenta}>Agregar Venta</button>
-                </div>
-              )}
+              </FormSection>
 
-              <h4>Plata a Favor</h4>
-              <div className="mb-3">
-                <div className="form-check">
-                  <input type="checkbox" id="checkPlata" className="form-check-input" checked={showPlata} onChange={(e) => { setShowPlata(e.target.checked); if (e.target.checked && plata.length === 0) { addPlata(); } }} />
-                  <label htmlFor="checkPlata" className="form-check-label">Tiene Plata a Favor</label>
-                </div>
-              </div>
-              {showPlata && (
-                <div className="mb-3">
-                  {plata.map((item, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updatePlata(index, 'date', e.target.value)} required />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updatePlata(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removePlata(index)} style={{ fontSize: '1.2rem' }}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addPlata}>Agregar Plata a Favor</button>
-                </div>
-              )}
+              <FormSection label="Ajustes">
+                <ToggleRow id="checkVenta" label="Le vendió algo" checked={showVentas}
+                  onChange={(e) => { setShowVentas(e.target.checked); if (e.target.checked && ventas.length === 0) addVenta(); }} />
+                {showVentas && (
+                  <div style={{ marginTop: '10px' }}>
+                    {ventas.map((venta, index) => (
+                      <InputRow key={index}>
+                        <input type="date" className="form-control" value={venta.date} onChange={(e) => updateVenta(index, 'date', e.target.value)} required />
+                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={venta.amount} onChange={(e) => updateVenta(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <RemoveBtn onClick={() => removeVenta(index)} />
+                      </InputRow>
+                    ))}
+                    <AddBtn onClick={addVenta}>+ Agregar Venta</AddBtn>
+                  </div>
+                )}
+              </FormSection>
 
-              <h4>Pago en Efectivo</h4>
-              <div className="mb-3">
-                <div className="form-check">
-                  <input type="checkbox" id="checkEfectivo" className="form-check-input" checked={showEfectivo} onChange={(e) => { setShowEfectivo(e.target.checked); if (e.target.checked && efectivo.length === 0) { addEfectivo(); } }} />
-                  <label htmlFor="checkEfectivo" className="form-check-label">Pago en Efectivo</label>
-                </div>
-              </div>
-              {showEfectivo && (
-                <div className="mb-3">
-                  {efectivo.map((item, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateEfectivo(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeEfectivo(index)} style={{ fontSize: '1.2rem' }}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addEfectivo}>Agregar Pago en Efectivo</button>
-                </div>
-              )}
+              <FormSection label="Pagos Recibidos">
+                <ToggleRow id="checkPlata" label="Plata a Favor" checked={showPlata}
+                  onChange={(e) => { setShowPlata(e.target.checked); if (e.target.checked && plata.length === 0) addPlata(); }} />
+                {showPlata && (
+                  <div style={{ marginTop: '10px' }}>
+                    {plata.map((item, index) => (
+                      <InputRow key={index}>
+                        <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updatePlata(index, 'date', e.target.value)} required />
+                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updatePlata(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <RemoveBtn onClick={() => removePlata(index)} />
+                      </InputRow>
+                    ))}
+                    <AddBtn onClick={addPlata}>+ Agregar</AddBtn>
+                  </div>
+                )}
 
-              <h4>Pago con Cheque</h4>
-              <div className="mb-3">
-                <div className="form-check">
-                  <input type="checkbox" id="checkCheque" className="form-check-input" checked={showCheque} onChange={(e) => { setShowCheque(e.target.checked); if (e.target.checked && cheques.length === 0) { addCheque(); } }} />
-                  <label htmlFor="checkCheque" className="form-check-label">Pago con Cheque</label>
-                </div>
-              </div>
-              {showCheque && (
-                <div className="mb-3">
-                  {cheques.map((cheque, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateCheque(index, 'id', e.target.value)} required />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateCheque(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeCheque(index)} style={{ fontSize: '1.2rem' }}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addCheque}>Agregar Cheque</button>
-                </div>
-              )}
+                <ToggleRow id="checkEfectivo" label="Pago en Efectivo" checked={showEfectivo}
+                  onChange={(e) => { setShowEfectivo(e.target.checked); if (e.target.checked && efectivo.length === 0) addEfectivo(); }} />
+                {showEfectivo && (
+                  <div style={{ marginTop: '10px' }}>
+                    {efectivo.map((item, index) => (
+                      <InputRow key={index}>
+                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateEfectivo(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <RemoveBtn onClick={() => removeEfectivo(index)} />
+                      </InputRow>
+                    ))}
+                    <AddBtn onClick={addEfectivo}>+ Agregar</AddBtn>
+                  </div>
+                )}
 
-              <h4>Pago por Transferencia</h4>
-              <div className="mb-3">
-                <div className="form-check">
-                  <input type="checkbox" id="checkTransferencia" className="form-check-input" checked={showTransferencia} onChange={(e) => { setShowTransferencia(e.target.checked); if (e.target.checked && transferencias.length === 0) { addTransferencia(); } }} />
-                  <label htmlFor="checkTransferencia" className="form-check-label">Pago por Transferencia</label>
-                </div>
-              </div>
-              {showTransferencia && (
-                <div className="mb-3">
-                  {transferencias.map((transfer, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateTransferencia(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeTransferencia(index)} style={{ fontSize: '1.2rem' }}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary mb-3" onClick={addTransferencia}>Agregar Transferencia</button>
-                </div>
-              )}
+                <ToggleRow id="checkCheque" label="Pago con Cheque" checked={showCheque}
+                  onChange={(e) => { setShowCheque(e.target.checked); if (e.target.checked && cheques.length === 0) addCheque(); }} />
+                {showCheque && (
+                  <div style={{ marginTop: '10px' }}>
+                    {cheques.map((cheque, index) => (
+                      <InputRow key={index}>
+                        <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateCheque(index, 'id', e.target.value)} required />
+                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateCheque(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <RemoveBtn onClick={() => removeCheque(index)} />
+                      </InputRow>
+                    ))}
+                    <AddBtn onClick={addCheque}>+ Agregar</AddBtn>
+                  </div>
+                )}
 
-              <div className="d-flex gap-3">
-                <button type="button" className="btn btn-primary" onClick={calculateSaldo} style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}>Calcular Saldo</button>
-                <button type="button" className="btn btn-success" onClick={saveCurrentCliente} disabled={!clientName.trim() || !summaryData} style={{ fontSize: '1.2rem', padding: '0.75rem 1.5rem' }}>
-                  <i className="fas fa-save me-2"></i>
+                <ToggleRow id="checkTransferencia" label="Pago por Transferencia" checked={showTransferencia}
+                  onChange={(e) => { setShowTransferencia(e.target.checked); if (e.target.checked && transferencias.length === 0) addTransferencia(); }} />
+                {showTransferencia && (
+                  <div style={{ marginTop: '10px' }}>
+                    {transferencias.map((transfer, index) => (
+                      <InputRow key={index}>
+                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateTransferencia(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <RemoveBtn onClick={() => removeTransferencia(index)} />
+                      </InputRow>
+                    ))}
+                    <AddBtn onClick={addTransferencia}>+ Agregar</AddBtn>
+                  </div>
+                )}
+              </FormSection>
+
+              {/* Acciones principales */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                <button type="button" onClick={calculateSaldo}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}>
+                  Calcular Saldo
+                </button>
+                <button type="button" onClick={saveCurrentCliente} disabled={!clientName.trim() || !summaryData}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !clientName.trim() || !summaryData ? '#e9ecef' : '#28a745', color: !clientName.trim() || !summaryData ? '#9ca3af' : 'white', fontSize: '0.95rem', fontWeight: 700, cursor: !clientName.trim() || !summaryData ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
                   Guardar
                 </button>
               </div>
@@ -1128,31 +1098,55 @@ const SaldoClientes = () => {
             </div>
           )}
         </div>
-        <div className="col-lg-5 col-md-4 no-print">
-          <div className="card p-3 mb-3">
-            <h6>Estado de Conexión</h6>
-            {loading ? (
-              <div className="d-flex align-items-center">
-                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                <span>Conectando a Firebase...</span>
-              </div>
-            ) : error ? (
-              <div className="text-danger">
-                <span className="badge bg-danger me-2">❌</span>
-                Error de conexión: {error}
-                <br />
-                <small>Verifica la consola para más detalles</small>
-              </div>
-            ) : (
-              <div className="text-success">
-                <span className="badge bg-success me-2">🟢</span>
-                Conectado a Firebase
-                <br />
-                <small className="text-muted">{balances.length} saldos guardados</small>
-                <br />
-                <small className="text-info">🔗 Colección: clientBalances</small>
-              </div>
-            )}
+        <div className="col-lg-5 col-md-4 no-print clientes-sidebar">
+          {/* Card de estado de conexión */}
+          <div
+            className={!loading && !error ? 'status-connected-pulse' : ''}
+            style={{
+              borderRadius: '12px',
+              background: 'white',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+              padding: '10px 14px',
+              marginBottom: '8px',
+              borderLeft: `3px solid ${loading ? '#6c757d' : error ? '#dc3545' : '#28a745'}`,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+            {/* Dot de estado */}
+            <div style={{
+              width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+              background: loading ? '#adb5bd' : error ? '#dc3545' : '#28a745',
+              boxShadow: loading ? 'none' : error
+                ? '0 0 0 3px rgba(220,53,69,0.15)'
+                : '0 0 0 3px rgba(40,167,69,0.15)',
+            }} />
+
+            <div style={{ minWidth: 0 }}>
+              {loading ? (
+                <div style={{ fontSize: '0.78rem', color: '#6c757d', fontWeight: 500 }}>
+                  Conectando…
+                </div>
+              ) : error ? (
+                <>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc3545' }}>
+                    Error de conexión
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                    Verificá la consola
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#212529' }}>
+                    Firebase conectado
+                  </div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                    {balances.length} {balances.length === 1 ? 'saldo guardado' : 'saldos guardados'}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           
           {/* Panel de Deudas de Gestión Semanal */}
@@ -1200,16 +1194,50 @@ const SaldoClientes = () => {
             </div>
           )}
           
-          <div className="card p-3 mb-3">
+          <div className="card p-3 mb-3 clientes-guardados-card">
             <h6>Clientes Guardados</h6>
             <div className="mb-3">
-              <div className="d-flex flex-wrap gap-2">
-                <button className={`btn btn-sm ${dateFilter === 'hoy' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('hoy')}>Hoy</button>
-                <button className={`btn btn-sm ${dateFilter === 'semana' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('semana')}>Semana</button>
-                <button className={`btn btn-sm ${dateFilter === 'mes' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('mes')}>Mes</button>
-                <button className={`btn btn-sm ${dateFilter === 'año' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('año')}>Año</button>
-                <button className={`btn btn-sm ${dateFilter === 'elegir_mes' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('elegir_mes')}>Elegir Mes</button>
-                <button className={`btn btn-sm ${dateFilter === 'todos' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setDateFilter('todos')}>Todos</button>
+              <div
+                ref={filterContainerRef}
+                style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}
+              >
+                {/* Slider animado */}
+                <div style={{
+                  position: 'absolute',
+                  top: '3px',
+                  bottom: '3px',
+                  left: sliderStyle.left + 'px',
+                  width: sliderStyle.width + 'px',
+                  background: 'white',
+                  borderRadius: '8px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                  transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }} />
+                {[['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['año','Año'],['elegir_mes','📅'],['todos','Todos']].map(([val, label]) => (
+                  <button
+                    key={val}
+                    ref={el => filterButtonRefs.current[val] = el}
+                    onClick={() => setDateFilter(val)}
+                    style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      flex: 1,
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '5px 6px',
+                      fontSize: '0.75rem',
+                      fontWeight: dateFilter === val ? 600 : 400,
+                      background: 'transparent',
+                      color: dateFilter === val ? '#212529' : '#6c757d',
+                      transition: 'color 0.2s, font-weight 0.2s',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      minWidth: 0,
+                    }}
+                  >{label}</button>
+                ))}
               </div>
               {dateFilter === 'elegir_mes' && (
                 <div className="mt-2">
@@ -1217,7 +1245,7 @@ const SaldoClientes = () => {
                 </div>
               )}
             </div>
-            <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
+            <div className="clientes-list-scroll">
               {getFilteredClientes().length > 0 ? (
                 getFilteredClientes().map((cliente, index) => (
                   <ClienteDeudorCard 
@@ -1262,94 +1290,123 @@ const SaldoClientes = () => {
 
       {/* Modal para vincular boletas de mercadería */}
       {showMercaderiaModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">📦 Vincular Boletas de Mercadería</h5>
-                <button type="button" className="btn-close" onClick={() => setShowMercaderiaModal(false)}></button>
+        <>
+          {/* Overlay */}
+          <div onClick={() => setShowMercaderiaModal(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }} />
+
+          {/* Panel */}
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 'min(580px, 95vw)',
+            maxHeight: '85vh',
+            background: 'white',
+            borderRadius: '16px',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+            zIndex: 1051,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
+
+            {/* Header */}
+            <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                  Vincular mercadería
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
+                  {clientName.trim() || 'Sin cliente'}
+                </div>
               </div>
-              <div className="modal-body">
-                {!clientName.trim() ? (
-                  <div className="alert alert-warning">
-                    Por favor ingrese el nombre del cliente/proveedor primero
+              <button onClick={() => setShowMercaderiaModal(false)}
+                style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d' }}>
+                ✕
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ overflowY: 'auto', padding: '20px 22px', flex: 1 }}>
+              {!clientName.trim() ? (
+                <div style={{ background: 'rgba(255,193,7,0.1)', borderLeft: '3px solid #ffc107', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#856404' }}>
+                  Ingresá el nombre del cliente primero
+                </div>
+              ) : obtenerBoletasMercaderia().length === 0 ? (
+                <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#6c757d' }}>
+                  No hay boletas disponibles para <strong>{clientName}</strong>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '4px' }}>
+                    Seleccioná las boletas que querés vincular para <strong style={{ color: '#212529' }}>{clientName}</strong>
                   </div>
-                ) : obtenerBoletasMercaderia().length === 0 ? (
-                  <div className="alert alert-info">
-                    No hay boletas de mercadería disponibles para <strong>{clientName}</strong>
-                  </div>
-                ) : (
-                  <>
-                    <p className="mb-3">
-                      Seleccione las boletas de mercadería que desea vincular para <strong>{clientName}</strong>:
-                    </p>
-                    <div className="list-group" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                      {obtenerBoletasMercaderia().map((boleta) => {
-                        const yaVinculada = boletas.some(b => 
-                          b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
-                        );
-                        
-                        return (
-                          <div 
-                            key={boleta.id} 
-                            className={`list-group-item ${yaVinculada ? 'bg-light' : ''} ${boleta.estaPagada ? 'border-success' : ''}`}
-                          >
-                            <div className="d-flex justify-content-between align-items-center">
-                              <div>
-                                <div className="d-flex align-items-center gap-2 mb-1">
-                                  <span className="badge bg-primary">{boleta.dia}</span>
-                                  <span className="text-muted small">{formatDateSafe(boleta.timestamp?.split('T')[0])}</span>
-                                  <strong>{boleta.proveedor}</strong>
-                                  {yaVinculada && (
-                                    <span className="badge bg-success">✓ Ya vinculada</span>
-                                  )}
-                                  {boleta.estaPagada && (
-                                    <span className="badge bg-success" title="Esta boleta está marcada como pagada en Pagos a Proveedores">
-                                      💰 Pagada
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="text-muted small">
-                                  {boleta.cortes.length} corte{boleta.cortes.length > 1 ? 's' : ''}
-                                  {boleta.estaPagada && (
-                                    <span className="text-success ms-2">
-                                      • Registrada en Pagos a Proveedores
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="text-end">
-                                <div className="fw-bold text-success fs-5">
-                                  {formatCurrency(boleta.costoTotal)}
-                                </div>
-                                <small className="text-muted">
-                                  {formatCurrencyNoSymbol(boleta.costoTotal)} AR$
-                                </small>
-                                {!yaVinculada && (
-                                  <button
-                                    className="btn btn-sm btn-primary mt-2"
-                                    onClick={() => vincularBoletaMercaderia(boleta)}
-                                  >
-                                    Vincular
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+                  {obtenerBoletasMercaderia().map((boleta) => {
+                    const yaVinculada = boletas.some(b =>
+                      b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
+                    );
+                    const accentColor = boleta.estaPagada ? '#28a745' : yaVinculada ? '#6A8899' : '#f3f4f6';
+
+                    return (
+                      <div key={boleta.id} style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '12px 14px', borderRadius: '10px',
+                        background: yaVinculada ? '#f8f9fa' : 'white',
+                        border: `1px solid ${accentColor}`,
+                        borderLeft: `3px solid ${accentColor}`,
+                        transition: 'border 0.15s',
+                      }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.7rem', background: 'rgba(106,136,153,0.15)', color: '#3a5060', padding: '2px 8px', borderRadius: '999px', fontWeight: 600, flexShrink: 0 }}>
+                              {boleta.dia}
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: '#9ca3af', flexShrink: 0 }}>
+                              {formatDateSafe(boleta.timestamp?.split('T')[0])}
+                            </span>
+                            <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#212529' }}>{boleta.proveedor}</span>
+                            {yaVinculada && (
+                              <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>✓ Vinculada</span>
+                            )}
+                            {boleta.estaPagada && (
+                              <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>💰 Pagada</span>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowMercaderiaModal(false)}>
-                  Cerrar
-                </button>
-              </div>
+                          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>
+                            {boleta.cortes.length} corte{boleta.cortes.length !== 1 ? 's' : ''}
+                            {boleta.estaPagada && (
+                              <span style={{ color: '#28a745', marginLeft: '6px' }}>· Registrada en Pagos a Proveedores</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: '12px' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#28a745', marginBottom: '6px' }}>
+                            {formatCurrency(boleta.costoTotal)}
+                          </div>
+                          {!yaVinculada && (
+                            <button onClick={() => vincularBoletaMercaderia(boleta)}
+                              style={{ border: '1px solid #6A8899', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#3a5060', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+                              Vincular
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', flexShrink: 0 }}>
+              <button onClick={() => setShowMercaderiaModal(false)}
+                style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                Cerrar
+              </button>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Contenedor de notificaciones */}

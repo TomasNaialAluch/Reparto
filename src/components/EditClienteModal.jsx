@@ -3,6 +3,52 @@ import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../u
 import { getLocalDateString } from '../utils/date';
 import { useGestionSemanal } from '../firebase/hooks';
 
+/* ── Sub-componentes (mismos patrones que FormSection del formulario principal) ── */
+
+const ModalSection = ({ label, children }) => (
+  <div style={{ marginBottom: '20px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+    </div>
+    {children}
+  </div>
+);
+
+const ToggleSwitch = ({ id, label, checked, onChange }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', cursor: 'pointer' }}
+    onClick={() => onChange(!checked)}>
+    <div style={{ width: '36px', height: '20px', borderRadius: '10px', background: checked ? '#6A8899' : '#dee2e6', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+      <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: checked ? '18px' : '2px', transition: 'left 0.2s cubic-bezier(.4,0,.2,1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+    </div>
+    <span style={{ fontSize: '0.85rem', color: '#212529', margin: 0 }}>{label}</span>
+  </div>
+);
+
+const InputRow = ({ children }) => (
+  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+    {children}
+  </div>
+);
+
+const RemoveBtn = ({ onClick }) => (
+  <button type="button" onClick={onClick}
+    style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+    ×
+  </button>
+);
+
+const AddBtn = ({ onClick, children }) => (
+  <button type="button" onClick={onClick}
+    style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.75rem', cursor: 'pointer', marginBottom: '8px', marginRight: '6px', transition: 'all 0.15s' }}>
+    {children}
+  </button>
+);
+
+/* ── Componente principal ── */
+
 const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   const { semanaActiva } = useGestionSemanal('shared');
   const [formData, setFormData] = useState({
@@ -16,18 +62,11 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     transferencias: []
   });
   const [showSections, setShowSections] = useState({
-    ventas: false,
-    plataFavor: false,
-    deuda: false,
-    efectivo: false,
-    cheques: false,
-    transferencias: false
+    ventas: false, plataFavor: false, deuda: false,
+    efectivo: false, cheques: false, transferencias: false
   });
-  
-  // Estado para modal de vincular boletas de mercadería
   const [showMercaderiaModal, setShowMercaderiaModal] = useState(false);
 
-  // Cargar datos del cliente cuando se abre el modal
   useEffect(() => {
     if (isOpen && cliente) {
       setFormData({
@@ -51,570 +90,393 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     }
   }, [isOpen, cliente]);
 
-  // Funciones helper (reutilizadas del componente principal)
   const handleCurrencyBlur = (e) => {
-    let num = parseCurrencyValue(e.target.value);
-    if (!isNaN(num)) {
-      e.target.value = formatCurrencyNoSymbol(num);
-    }
+    const num = parseCurrencyValue(e.target.value);
+    if (!isNaN(num)) e.target.value = formatCurrencyNoSymbol(num);
   };
-
   const handleCurrencyFocus = (e) => {
-    let val = e.target.value.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').trim();
-    e.target.value = val;
+    e.target.value = e.target.value.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').trim();
   };
 
-  // Funciones para manejar arrays (DRY)
-  const addItem = (arrayName, defaultItem) => {
-    setFormData(prev => ({
-      ...prev,
-      [arrayName]: [...prev[arrayName], defaultItem]
-    }));
-  };
+  const addItem = (arrayName, defaultItem) =>
+    setFormData(prev => ({ ...prev, [arrayName]: [...prev[arrayName], defaultItem] }));
+  const removeItem = (arrayName, index) =>
+    setFormData(prev => ({ ...prev, [arrayName]: prev[arrayName].filter((_, i) => i !== index) }));
+  const updateItem = (arrayName, index, field, value) =>
+    setFormData(prev => ({ ...prev, [arrayName]: prev[arrayName].map((item, i) => i === index ? { ...item, [field]: value } : item) }));
 
-  const removeItem = (arrayName, index) => {
-    setFormData(prev => ({
-      ...prev,
-      [arrayName]: prev[arrayName].filter((_, i) => i !== index)
-    }));
-  };
-
-  const updateItem = (arrayName, index, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [arrayName]: prev[arrayName].map((item, i) => 
-        i === index ? { ...item, [field]: value } : item
-      )
-    }));
-  };
-
-  // Funciones específicas para cada tipo
-  const addBoleta = () => addItem('boletas', { date: getLocalDateString(), amount: '' });
-  const addVenta = () => addItem('ventas', { date: getLocalDateString(), amount: '' });
-  const addPlataFavor = () => addItem('plataFavor', { date: getLocalDateString(), amount: '' });
-  const addDeuda = () => addItem('deudas', { date: getLocalDateString(), amount: '' });
-  const addEfectivo = () => addItem('efectivo', { date: getLocalDateString(), amount: '' });
-  const addCheque = () => addItem('cheques', { date: getLocalDateString(), id: '', amount: '' });
+  const addBoleta      = () => addItem('boletas',       { date: getLocalDateString(), amount: '' });
+  const addVenta       = () => addItem('ventas',        { date: getLocalDateString(), amount: '' });
+  const addPlataFavor  = () => addItem('plataFavor',    { date: getLocalDateString(), amount: '' });
+  const addDeuda       = () => addItem('deudas',        { date: getLocalDateString(), amount: '' });
+  const addEfectivo    = () => addItem('efectivo',      { date: getLocalDateString(), amount: '' });
+  const addCheque      = () => addItem('cheques',       { date: getLocalDateString(), id: '', amount: '' });
   const addTransferencia = () => addItem('transferencias', { date: getLocalDateString(), amount: '' });
 
-  // Obtener boletas de mercadería disponibles para vincular
-  const obtenerBoletasMercaderia = () => {
-    if (!semanaActiva?.mercaderia || !formData.clientName.trim()) return [];
-    
-    const boletasMapeadas = semanaActiva.mercaderia
-      .filter(entrada => entrada.proveedor === formData.clientName.trim())
-      .map((entrada, index) => {
-        const costoTotal = entrada.cortes.reduce((sum, c) => 
-          sum + (c.kg * (c.precioKg || 0)), 0
-        );
-        
-        return {
-          id: `mercaderia-${index}`,
-          index,
-          dia: entrada.dia,
-          proveedor: entrada.proveedor,
-          costoTotal,
-          cortes: entrada.cortes,
-          timestamp: entrada.timestamp || new Date().toISOString()
-        };
-      });
-
-    // Ordenar de más nueva a más vieja (descendente por timestamp)
-    return boletasMapeadas.sort((a, b) => {
-      const fechaA = new Date(a.timestamp);
-      const fechaB = new Date(b.timestamp);
-      return fechaB - fechaA; // Descendente: más reciente primero
-    });
+  const toggleSection = (key, addFn, currentArray) => (val) => {
+    setShowSections(prev => ({ ...prev, [key]: val }));
+    if (val && currentArray.length === 0) addFn();
   };
 
-  // Vincular una boleta de mercadería
-  const vincularBoletaMercaderia = (boletaMercaderia) => {
-    // Verificar si ya existe esta boleta vinculada
-    const yaExiste = formData.boletas.some(b => 
-      b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boletaMercaderia.index
-    );
-    
-    if (yaExiste) {
+  const obtenerBoletasMercaderia = () => {
+    if (!semanaActiva?.mercaderia || !formData.clientName.trim()) return [];
+    return semanaActiva.mercaderia
+      .filter(e => e.proveedor === formData.clientName.trim())
+      .map((e, index) => ({
+        id: `mercaderia-${index}`, index,
+        dia: e.dia, proveedor: e.proveedor,
+        costoTotal: e.cortes.reduce((s, c) => s + (c.kg * (c.precioKg || 0)), 0),
+        cortes: e.cortes,
+        timestamp: e.timestamp || new Date().toISOString()
+      }))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  };
+
+  const vincularBoletaMercaderia = (boleta) => {
+    if (formData.boletas.some(b => b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index)) {
       alert('Esta boleta de mercadería ya está vinculada');
       return;
     }
-
-    // Agregar la boleta vinculada
-    const nuevaBoleta = {
-      date: boletaMercaderia.timestamp ? boletaMercaderia.timestamp.split('T')[0] : getLocalDateString(),
-      amount: formatCurrencyNoSymbol(boletaMercaderia.costoTotal),
-      mercaderiaIndex: boletaMercaderia.index,
-      esDeMercaderia: true
-    };
-    
     setFormData(prev => ({
       ...prev,
-      boletas: [...prev.boletas, nuevaBoleta]
+      boletas: [...prev.boletas, {
+        date: boleta.timestamp ? boleta.timestamp.split('T')[0] : getLocalDateString(),
+        amount: formatCurrencyNoSymbol(boleta.costoTotal),
+        mercaderiaIndex: boleta.index,
+        esDeMercaderia: true
+      }]
     }));
-    // No cerrar el modal para poder vincular múltiples boletas
+  };
+
+  // Calcular balance en tiempo real
+  const calcBalance = () => {
+    const totalBoletas       = formData.boletas.filter(b => b.date && b.amount).reduce((s, b) => s + parseCurrencyValue(b.amount), 0);
+    const totalVentas        = showSections.ventas        ? formData.ventas.filter(v => v.date && v.amount).reduce((s, v) => s + parseCurrencyValue(v.amount), 0) : 0;
+    const totalPlata         = showSections.plataFavor    ? formData.plataFavor.filter(p => p.amount).reduce((s, p) => s + parseCurrencyValue(p.amount), 0) : 0;
+    const totalDeuda         = showSections.deuda         ? formData.deudas.filter(d => d.amount).reduce((s, d) => s + parseCurrencyValue(d.amount), 0) : 0;
+    const totalEfectivo      = showSections.efectivo      ? formData.efectivo.filter(e => e.amount).reduce((s, e) => s + parseCurrencyValue(e.amount), 0) : 0;
+    const totalCheque        = showSections.cheques       ? formData.cheques.filter(c => c.id && c.amount).reduce((s, c) => s + parseCurrencyValue(c.amount), 0) : 0;
+    const totalTransferencia = showSections.transferencias? formData.transferencias.filter(t => t.amount).reduce((s, t) => s + parseCurrencyValue(t.amount), 0) : 0;
+    const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
+    return { totalBoletas, totalPagos, totalDeuda, finalBalance: totalPagos - totalBoletas - totalDeuda };
   };
 
   const handleSave = () => {
-    if (!formData.clientName.trim()) {
-      alert('Ingrese el nombre del cliente');
-      return;
-    }
-
-    // Filtrar datos válidos
-    const boletasFiltradas = formData.boletas.filter(b => b.date && b.amount);
-    const ventasFiltradas = showSections.ventas ? formData.ventas.filter(v => v.date && v.amount) : [];
-    const plataFiltrada = showSections.plataFavor ? formData.plataFavor.filter(p => p.amount) : [];
-    const deudasFiltradas = showSections.deuda ? formData.deudas.filter(d => d.amount) : [];
-    const efectivoFiltrado = showSections.efectivo ? formData.efectivo.filter(e => e.amount) : [];
-    const chequesFiltrados = showSections.cheques ? formData.cheques.filter(c => c.id && c.amount) : [];
+    if (!formData.clientName.trim()) { alert('Ingrese el nombre del cliente'); return; }
+    const boletasFiltradas        = formData.boletas.filter(b => b.date && b.amount);
+    const ventasFiltradas         = showSections.ventas         ? formData.ventas.filter(v => v.date && v.amount) : [];
+    const plataFiltrada           = showSections.plataFavor     ? formData.plataFavor.filter(p => p.amount) : [];
+    const deudasFiltradas         = showSections.deuda          ? formData.deudas.filter(d => d.amount) : [];
+    const efectivoFiltrado        = showSections.efectivo       ? formData.efectivo.filter(e => e.amount) : [];
+    const chequesFiltrados        = showSections.cheques        ? formData.cheques.filter(c => c.id && c.amount) : [];
     const transferenciasFiltradas = showSections.transferencias ? formData.transferencias.filter(t => t.amount) : [];
-
-    // Calcular totales (igual que en el componente principal)
-    const totalBoletas = boletasFiltradas.reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
-    const totalVentas = ventasFiltradas.reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0);
-    const totalPlata = plataFiltrada.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
-    const totalDeuda = deudasFiltradas.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0);
-    const totalEfectivo = efectivoFiltrado.reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0);
-    const totalCheque = chequesFiltrados.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0);
-    const totalTransferencia = transferenciasFiltradas.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0);
+    const totalBoletas       = boletasFiltradas.reduce((s, b) => s + parseCurrencyValue(b.amount), 0);
+    const totalVentas        = ventasFiltradas.reduce((s, v) => s + parseCurrencyValue(v.amount), 0);
+    const totalPlata         = plataFiltrada.reduce((s, p) => s + parseCurrencyValue(p.amount), 0);
+    const totalDeuda         = deudasFiltradas.reduce((s, d) => s + parseCurrencyValue(d.amount), 0);
+    const totalEfectivo      = efectivoFiltrado.reduce((s, e) => s + parseCurrencyValue(e.amount), 0);
+    const totalCheque        = chequesFiltrados.reduce((s, c) => s + parseCurrencyValue(c.amount), 0);
+    const totalTransferencia = transferenciasFiltradas.reduce((s, t) => s + parseCurrencyValue(t.amount), 0);
     const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-    const finalBalance = totalPagos - totalBoletas - totalDeuda;
-
-    const clienteData = {
+    onSave(cliente.id, {
       clientName: formData.clientName.trim(),
-      boletas: boletasFiltradas,
-      ventas: ventasFiltradas,
-      plataFavor: plataFiltrada,
-      deudas: deudasFiltradas,
-      efectivo: efectivoFiltrado,
-      cheques: chequesFiltrados,
+      boletas: boletasFiltradas, ventas: ventasFiltradas, plataFavor: plataFiltrada,
+      deudas: deudasFiltradas, efectivo: efectivoFiltrado, cheques: chequesFiltrados,
       transferencias: transferenciasFiltradas,
-      totalBoletas,
-      totalVentas,
-      totalPlata,
-      totalDeuda,
-      totalEfectivo,
-      totalCheque,
-      totalTransferencia,
-      totalIngresos: totalPagos,
-      finalBalance,
+      totalBoletas, totalVentas, totalPlata, totalDeuda, totalEfectivo, totalCheque, totalTransferencia,
+      totalIngresos: totalPagos, finalBalance: totalPagos - totalBoletas - totalDeuda,
       date: getLocalDateString()
-    };
-
-
-    onSave(cliente.id, clienteData);
+    });
     onClose();
   };
 
   if (!isOpen) return null;
 
+  const { totalBoletas, totalPagos, totalDeuda, finalBalance } = calcBalance();
+  const esAFavor = finalBalance > 0;
+
   return (
-    <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
-      <div className="modal-dialog modal-lg">
-        <div className="modal-content">
-          <div className="modal-header">
-            <h5 className="modal-title">Editar Cliente: {cliente?.nombreCliente}</h5>
-            <button type="button" className="btn-close" onClick={onClose}></button>
+    <>
+      {/* Overlay */}
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }} />
+
+      {/* Panel modal */}
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 'min(640px, 95vw)',
+        maxHeight: '90vh',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+        zIndex: 1051,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+              Editar cliente
+            </div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
+              {cliente?.nombreCliente}
+            </div>
           </div>
-          
-          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-            {/* Nombre del Cliente */}
-            <div className="mb-3">
-              <label className="form-label">Nombre del Cliente</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                value={formData.clientName}
-                onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
-                required 
-              />
-            </div>
+          <button onClick={onClose}
+            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d', transition: 'background 0.15s' }}>
+            ✕
+          </button>
+        </div>
 
-            {/* Deuda */}
-            <div className="mb-3">
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  checked={showSections.deuda}
-                  onChange={(e) => {
-                    setShowSections(prev => ({ ...prev, deuda: e.target.checked }));
-                    if (e.target.checked && formData.deudas.length === 0) addDeuda();
-                  }}
-                />
-                <label className="form-check-label">Tiene Deuda pendiente</label>
+        {/* Body con scroll */}
+        <div style={{ overflowY: 'auto', padding: '20px 22px', flex: 1 }}>
+
+          {/* Nombre */}
+          <ModalSection label="Datos del cliente">
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
+              Nombre
+            </label>
+            <input type="text" className="form-control" value={formData.clientName}
+              onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
+              style={{ borderRadius: '8px', fontSize: '0.9rem' }} required />
+          </ModalSection>
+
+          {/* Deuda */}
+          <ModalSection label="Deuda">
+            <ToggleSwitch label="Tiene Deuda pendiente" checked={showSections.deuda}
+              onChange={toggleSection('deuda', addDeuda, formData.deudas)} />
+            {showSections.deuda && (
+              <div style={{ marginTop: '10px' }}>
+                {formData.deudas.map((item, i) => (
+                  <InputRow key={i}>
+                    <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateItem('deudas', i, 'date', e.target.value)} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('deudas', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <RemoveBtn onClick={() => removeItem('deudas', i)} />
+                  </InputRow>
+                ))}
+                <AddBtn onClick={addDeuda}>+ Agregar Deuda</AddBtn>
               </div>
-              {showSections.deuda && (
-                <div className="mt-2">
-                  {formData.deudas.map((item, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateItem('deudas', index, 'date', e.target.value)} />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('deudas', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('deudas', index)}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addDeuda}>Agregar Deuda</button>
-                </div>
-              )}
-            </div>
+            )}
+          </ModalSection>
 
-            {/* Boletas */}
-            <div className="mb-3">
-              <h6>Boletas</h6>
-              {formData.boletas.map((boleta, index) => (
-                <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                  <input 
-                    type="date" 
-                    className="form-control" 
-                    value={boleta.date}
-                    onChange={(e) => updateItem('boletas', index, 'date', e.target.value)}
-                    required 
-                    disabled={boleta.esDeMercaderia}
-                  />
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    placeholder="Monto (AR$)" 
-                    value={boleta.amount}
-                    onChange={(e) => updateItem('boletas', index, 'amount', e.target.value)}
-                    onBlur={handleCurrencyBlur}
-                    onFocus={handleCurrencyFocus}
-                    required 
-                    disabled={boleta.esDeMercaderia}
-                  />
-                  {boleta.esDeMercaderia && (
-                    <span className="badge bg-info" title="Boleta vinculada de Mercadería">📦</span>
-                  )}
-                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('boletas', index)}>×</button>
-                </div>
-              ))}
-              <div className="d-flex gap-2">
-                <button type="button" className="btn btn-secondary btn-sm" onClick={addBoleta}>Agregar Boleta Manual</button>
-                {formData.clientName.trim() && semanaActiva?.mercaderia && (
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-primary btn-sm" 
-                    onClick={() => setShowMercaderiaModal(true)}
-                  >
-                    📦 Vincular Boleta de Mercadería
-                  </button>
+          {/* Boletas */}
+          <ModalSection label="Boletas">
+            {formData.boletas.map((boleta, i) => (
+              <InputRow key={i}>
+                <input type="date" className="form-control" value={boleta.date} onChange={(e) => updateItem('boletas', i, 'date', e.target.value)} disabled={boleta.esDeMercaderia} />
+                <input type="text" className="form-control" placeholder="Monto (AR$)" value={boleta.amount} onChange={(e) => updateItem('boletas', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} disabled={boleta.esDeMercaderia} />
+                {boleta.esDeMercaderia && (
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(23,162,184,0.12)', color: '#17a2b8', padding: '3px 7px', borderRadius: '6px', flexShrink: 0 }}>📦</span>
                 )}
-              </div>
+                <RemoveBtn onClick={() => removeItem('boletas', i)} />
+              </InputRow>
+            ))}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <AddBtn onClick={addBoleta}>+ Boleta Manual</AddBtn>
+              {formData.clientName.trim() && semanaActiva?.mercaderia && (
+                <AddBtn onClick={() => setShowMercaderiaModal(true)}>📦 Vincular Mercadería</AddBtn>
+              )}
             </div>
+          </ModalSection>
 
-            {/* Ventas */}
-            <div className="mb-3">
-              <div className="form-check">
-                <input 
-                  type="checkbox" 
-                  className="form-check-input" 
-                  checked={showSections.ventas} 
-                  onChange={(e) => {
-                    setShowSections(prev => ({ ...prev, ventas: e.target.checked }));
-                    if (e.target.checked && formData.ventas.length === 0) addVenta();
-                  }} 
-                />
-                <label className="form-check-label">Le vendió algo</label>
+          {/* Ajustes */}
+          <ModalSection label="Ajustes">
+            <ToggleSwitch label="Le vendió algo" checked={showSections.ventas}
+              onChange={toggleSection('ventas', addVenta, formData.ventas)} />
+            {showSections.ventas && (
+              <div style={{ marginTop: '10px' }}>
+                {formData.ventas.map((v, i) => (
+                  <InputRow key={i}>
+                    <input type="date" className="form-control" value={v.date} onChange={(e) => updateItem('ventas', i, 'date', e.target.value)} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={v.amount} onChange={(e) => updateItem('ventas', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <RemoveBtn onClick={() => removeItem('ventas', i)} />
+                  </InputRow>
+                ))}
+                <AddBtn onClick={addVenta}>+ Agregar Venta</AddBtn>
               </div>
-              {showSections.ventas && (
-                <div className="mt-2">
-                  {formData.ventas.map((venta, index) => (
-                    <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                      <input type="date" className="form-control" value={venta.date} onChange={(e) => updateItem('ventas', index, 'date', e.target.value)} />
-                      <input type="text" className="form-control" placeholder="Monto (AR$)" value={venta.amount} onChange={(e) => updateItem('ventas', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                      <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('ventas', index)}>×</button>
-                    </div>
-                  ))}
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addVenta}>Agregar Venta</button>
+            )}
+          </ModalSection>
+
+          {/* Pagos recibidos */}
+          <ModalSection label="Pagos Recibidos">
+            <ToggleSwitch label="Plata a Favor" checked={showSections.plataFavor}
+              onChange={toggleSection('plataFavor', addPlataFavor, formData.plataFavor)} />
+            {showSections.plataFavor && (
+              <div style={{ marginTop: '10px' }}>
+                {formData.plataFavor.map((p, i) => (
+                  <InputRow key={i}>
+                    <input type="date" className="form-control" value={p.date} onChange={(e) => updateItem('plataFavor', i, 'date', e.target.value)} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={p.amount} onChange={(e) => updateItem('plataFavor', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <RemoveBtn onClick={() => removeItem('plataFavor', i)} />
+                  </InputRow>
+                ))}
+                <AddBtn onClick={addPlataFavor}>+ Agregar</AddBtn>
+              </div>
+            )}
+
+            <ToggleSwitch label="Pago en Efectivo" checked={showSections.efectivo}
+              onChange={toggleSection('efectivo', addEfectivo, formData.efectivo)} />
+            {showSections.efectivo && (
+              <div style={{ marginTop: '10px' }}>
+                {formData.efectivo.map((e, i) => (
+                  <InputRow key={i}>
+                    <input type="date" className="form-control" value={e.date} onChange={(ev) => updateItem('efectivo', i, 'date', ev.target.value)} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={e.amount} onChange={(ev) => updateItem('efectivo', i, 'amount', ev.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <RemoveBtn onClick={() => removeItem('efectivo', i)} />
+                  </InputRow>
+                ))}
+                <AddBtn onClick={addEfectivo}>+ Agregar</AddBtn>
+              </div>
+            )}
+
+            <ToggleSwitch label="Pago con Cheque" checked={showSections.cheques}
+              onChange={toggleSection('cheques', addCheque, formData.cheques)} />
+            {showSections.cheques && (
+              <div style={{ marginTop: '10px' }}>
+                {formData.cheques.map((c, i) => (
+                  <InputRow key={i}>
+                    <input type="date" className="form-control" value={c.date} onChange={(e) => updateItem('cheques', i, 'date', e.target.value)} />
+                    <input type="text" className="form-control" maxLength="4" placeholder="4 dígitos" value={c.id} onChange={(e) => updateItem('cheques', i, 'id', e.target.value)} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={c.amount} onChange={(e) => updateItem('cheques', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <RemoveBtn onClick={() => removeItem('cheques', i)} />
+                  </InputRow>
+                ))}
+                <AddBtn onClick={addCheque}>+ Agregar</AddBtn>
+              </div>
+            )}
+
+            <ToggleSwitch label="Pago por Transferencia" checked={showSections.transferencias}
+              onChange={toggleSection('transferencias', addTransferencia, formData.transferencias)} />
+            {showSections.transferencias && (
+              <div style={{ marginTop: '10px' }}>
+                {formData.transferencias.map((t, i) => (
+                  <InputRow key={i}>
+                    <input type="date" className="form-control" value={t.date} onChange={(e) => updateItem('transferencias', i, 'date', e.target.value)} />
+                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={t.amount} onChange={(e) => updateItem('transferencias', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <RemoveBtn onClick={() => removeItem('transferencias', i)} />
+                  </InputRow>
+                ))}
+                <AddBtn onClick={addTransferencia}>+ Agregar</AddBtn>
+              </div>
+            )}
+          </ModalSection>
+
+          {/* Balance en tiempo real */}
+          <div style={{ background: '#f8f9fa', borderRadius: '10px', padding: '14px 16px', borderLeft: `3px solid ${esAFavor ? '#28a745' : finalBalance < 0 ? '#dc3545' : '#dee2e6'}` }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+              Balance en tiempo real
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total Boletas</div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#e6a817' }}>{formatCurrency(totalBoletas)}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total Pagos</div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#28a745' }}>{formatCurrency(totalPagos)}</div>
+              </div>
+              {totalDeuda > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total Deuda</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#dc3545' }}>{formatCurrency(totalDeuda)}</div>
                 </div>
               )}
             </div>
-
-            {/* Plata a Favor */}
-            <div className="mb-3">
-              <div className="form-check">
-                <input 
-                  type="checkbox" 
-                  className="form-check-input" 
-                  checked={showSections.plataFavor} 
-                  onChange={(e) => {
-                    setShowSections(prev => ({ ...prev, plataFavor: e.target.checked }));
-                    if (e.target.checked && formData.plataFavor.length === 0) addPlataFavor();
-                  }} 
-                />
-                <label className="form-check-label">Plata a Favor</label>
-              </div>
-              {showSections.plataFavor && (
-                <div className="mt-2">
-              {formData.plataFavor.map((item, index) => (
-                <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                  <input type="date" className="form-control" value={item.date} onChange={(e) => updateItem('plataFavor', index, 'date', e.target.value)} />
-                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('plataFavor', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('plataFavor', index)}>×</button>
-                </div>
-              ))}
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addPlataFavor}>Agregar Plata a Favor</button>
-                </div>
-              )}
-            </div>
-
-            {/* Efectivo */}
-            <div className="mb-3">
-              <div className="form-check">
-                <input 
-                  type="checkbox" 
-                  className="form-check-input" 
-                  checked={showSections.efectivo} 
-                  onChange={(e) => {
-                    setShowSections(prev => ({ ...prev, efectivo: e.target.checked }));
-                    if (e.target.checked && formData.efectivo.length === 0) addEfectivo();
-                  }} 
-                />
-                <label className="form-check-label">Pago en Efectivo</label>
-              </div>
-              {showSections.efectivo && (
-                <div className="mt-2">
-              {formData.efectivo.map((item, index) => (
-                <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                  <input type="date" className="form-control" value={item.date} onChange={(e) => updateItem('efectivo', index, 'date', e.target.value)} />
-                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('efectivo', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('efectivo', index)}>×</button>
-                </div>
-              ))}
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addEfectivo}>Agregar Efectivo</button>
-                </div>
-              )}
-            </div>
-
-            {/* Cheques */}
-            <div className="mb-3">
-              <div className="form-check">
-                <input 
-                  type="checkbox" 
-                  className="form-check-input" 
-                  checked={showSections.cheques} 
-                  onChange={(e) => {
-                    setShowSections(prev => ({ ...prev, cheques: e.target.checked }));
-                    if (e.target.checked && formData.cheques.length === 0) addCheque();
-                  }} 
-                />
-                <label className="form-check-label">Pago con Cheque</label>
-              </div>
-              {showSections.cheques && (
-                <div className="mt-2">
-              {formData.cheques.map((cheque, index) => (
-                <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                  <input type="date" className="form-control" value={cheque.date} onChange={(e) => updateItem('cheques', index, 'date', e.target.value)} />
-                  <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateItem('cheques', index, 'id', e.target.value)} />
-                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateItem('cheques', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('cheques', index)}>×</button>
-                </div>
-              ))}
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addCheque}>Agregar Cheque</button>
-                </div>
-              )}
-            </div>
-
-            {/* Transferencias */}
-            <div className="mb-3">
-              <div className="form-check">
-                <input 
-                  type="checkbox" 
-                  className="form-check-input" 
-                  checked={showSections.transferencias} 
-                  onChange={(e) => {
-                    setShowSections(prev => ({ ...prev, transferencias: e.target.checked }));
-                    if (e.target.checked && formData.transferencias.length === 0) addTransferencia();
-                  }} 
-                />
-                <label className="form-check-label">Pago por Transferencia</label>
-              </div>
-              {showSections.transferencias && (
-                <div className="mt-2">
-              {formData.transferencias.map((transfer, index) => (
-                <div key={index} className="d-flex gap-2 align-items-center mb-2">
-                  <input type="date" className="form-control" value={transfer.date} onChange={(e) => updateItem('transferencias', index, 'date', e.target.value)} />
-                  <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateItem('transferencias', index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
-                  <button type="button" className="btn btn-link text-danger p-0" onClick={() => removeItem('transferencias', index)}>×</button>
-                </div>
-              ))}
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={addTransferencia}>Agregar Transferencia</button>
-                </div>
-              )}
-            </div>
-
-            {/* Resumen del Balance */}
-            <div className="card mt-3">
-              <div className="card-header bg-info text-white">
-                <h6 className="mb-0">Resumen del Balance</h6>
-              </div>
-              <div className="card-body">
-                {(() => {
-                  // Calcular totales en tiempo real
-                  const totalBoletas = formData.boletas
-                    .filter(b => b.date && b.amount)
-                    .reduce((sum, b) => sum + parseCurrencyValue(b.amount), 0);
-                  
-                  const totalVentas = showSections.ventas ? 
-                    formData.ventas
-                      .filter(v => v.date && v.amount)
-                      .reduce((sum, v) => sum + parseCurrencyValue(v.amount), 0) : 0;
-                  
-                  const totalPlata = showSections.plataFavor ? 
-                    formData.plataFavor
-                      .filter(p => p.amount)
-                      .reduce((sum, p) => sum + parseCurrencyValue(p.amount), 0) : 0;
-
-                  const totalDeuda = showSections.deuda ?
-                    formData.deudas
-                      .filter(d => d.amount)
-                      .reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0) : 0;
-                  
-                  const totalEfectivo = showSections.efectivo ? 
-                    formData.efectivo
-                      .filter(e => e.amount)
-                      .reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) : 0;
-                  
-                  const totalCheque = showSections.cheques ? 
-                    formData.cheques
-                      .filter(c => c.id && c.amount)
-                      .reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) : 0;
-                  
-                  const totalTransferencia = showSections.transferencias ? 
-                    formData.transferencias
-                      .filter(t => t.amount)
-                      .reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) : 0;
-                  
-                  const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
-                  const finalBalance = totalPagos - totalBoletas - totalDeuda;
-
-                  return (
-                    <div>
-                      <div className="row">
-                        <div className="col-6">
-                          <p><strong>Total Boletas:</strong> {formatCurrency(totalBoletas)}</p>
-                        </div>
-                        <div className="col-6">
-                          <p><strong>Total Pagos:</strong> {formatCurrency(totalPagos)}</p>
-                        </div>
-                      </div>
-                      {totalDeuda > 0 && (
-                        <div className="row">
-                          <div className="col-12">
-                            <p className="text-danger"><strong>Total Deuda:</strong> {formatCurrency(totalDeuda)}</p>
-                          </div>
-                        </div>
-                      )}
-                      <div className="row">
-                        <div className="col-12">
-                          <div className={`alert ${finalBalance > 0 ? 'alert-warning' : finalBalance < 0 ? 'alert-success' : 'alert-info'}`}>
-                            <strong>Balance Final: {formatCurrency(Math.abs(finalBalance))}</strong>
-                            <br />
-                            {finalBalance > 0 ? (
-                              <span>{formData.clientName || 'El cliente'} te debe {formatCurrency(finalBalance)}</span>
-                            ) : finalBalance < 0 ? (
-                              <span>Tú le debes {formatCurrency(Math.abs(finalBalance))} a {formData.clientName || 'el cliente'}</span>
-                            ) : (
-                              <span>Las cuentas están saldadas</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
+            <div style={{ paddingTop: '10px', borderTop: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                {esAFavor ? `${formData.clientName || 'El cliente'} te debe` : finalBalance < 0 ? `Le debés a ${formData.clientName || 'el cliente'}` : 'Saldado'}
+              </span>
+              <span style={{ fontWeight: 700, fontSize: '1rem', color: esAFavor ? '#28a745' : finalBalance < 0 ? '#dc3545' : '#6c757d',
+                background: esAFavor ? 'rgba(40,167,69,0.1)' : finalBalance < 0 ? 'rgba(220,53,69,0.1)' : '#e9ecef',
+                padding: '4px 12px', borderRadius: '999px' }}>
+                {formatCurrency(Math.abs(finalBalance))}
+              </span>
             </div>
           </div>
-          
-          <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button type="button" className="btn btn-primary" onClick={handleSave}>Guardar Cambios</button>
-          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '10px', flexShrink: 0 }}>
+          <button onClick={onClose}
+            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button onClick={handleSave}
+            style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', transition: 'background 0.15s' }}>
+            Guardar Cambios
+          </button>
         </div>
       </div>
 
-      {/* Modal para vincular boletas de mercadería */}
+      {/* Sub-modal mercadería */}
       {showMercaderiaModal && (
-        <div className="modal show d-block" tabIndex="-1" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1060 }}>
-          <div className="modal-dialog modal-lg">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">📦 Vincular Boletas de Mercadería</h5>
-                <button type="button" className="btn-close" onClick={() => setShowMercaderiaModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                {!formData.clientName.trim() ? (
-                  <div className="alert alert-warning">
-                    Por favor ingrese el nombre del cliente/proveedor primero
-                  </div>
-                ) : obtenerBoletasMercaderia().length === 0 ? (
-                  <div className="alert alert-info">
-                    No hay boletas de mercadería disponibles para <strong>{formData.clientName}</strong>
-                  </div>
-                ) : (
-                  <>
-                    <p className="mb-3">
-                      Seleccione las boletas de mercadería que desea vincular para <strong>{formData.clientName}</strong>:
-                    </p>
-                    <div className="list-group" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                      {obtenerBoletasMercaderia().map((boleta) => {
-                        const yaVinculada = formData.boletas.some(b => 
-                          b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
-                        );
-                        
-                        return (
-                          <div 
-                            key={boleta.id} 
-                            className={`list-group-item ${yaVinculada ? 'bg-light' : ''}`}
-                          >
-                            <div className="d-flex justify-content-between align-items-center">
-                              <div>
-                                <div className="d-flex align-items-center gap-2 mb-1">
-                                  <span className="badge bg-primary">{boleta.dia}</span>
-                                  <strong>{boleta.proveedor}</strong>
-                                  {yaVinculada && (
-                                    <span className="badge bg-success">✓ Ya vinculada</span>
-                                  )}
-                                </div>
-                                <div className="text-muted small">
-                                  {boleta.cortes.length} corte{boleta.cortes.length > 1 ? 's' : ''}
-                                </div>
-                              </div>
-                              <div className="text-end">
-                                <div className="fw-bold text-success fs-5">
-                                  {formatCurrency(boleta.costoTotal)}
-                                </div>
-                                <small className="text-muted">
-                                  {formatCurrencyNoSymbol(boleta.costoTotal)} AR$
-                                </small>
-                                {!yaVinculada && (
-                                  <button
-                                    className="btn btn-sm btn-primary mt-2"
-                                    onClick={() => vincularBoletaMercaderia(boleta)}
-                                  >
-                                    Vincular
-                                  </button>
-                                )}
-                              </div>
-                            </div>
+        <>
+          <div onClick={() => setShowMercaderiaModal(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 1060 }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: 'min(560px, 92vw)', maxHeight: '80vh', background: 'white',
+            borderRadius: '14px', boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
+            zIndex: 1061, display: 'flex', flexDirection: 'column', overflow: 'hidden'
+          }}>
+            <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#212529' }}>📦 Vincular Boleta de Mercadería</span>
+              <button onClick={() => setShowMercaderiaModal(false)}
+                style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '0.85rem', color: '#6c757d' }}>
+                ✕
+              </button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 20px', flex: 1 }}>
+              {!formData.clientName.trim() ? (
+                <div style={{ background: 'rgba(255,193,7,0.12)', borderLeft: '3px solid #ffc107', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#856404' }}>
+                  Ingresá el nombre del cliente primero
+                </div>
+              ) : obtenerBoletasMercaderia().length === 0 ? (
+                <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#6c757d' }}>
+                  No hay boletas disponibles para <strong>{formData.clientName}</strong>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {obtenerBoletasMercaderia().map((boleta) => {
+                    const yaVinculada = formData.boletas.some(b => b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index);
+                    return (
+                      <div key={boleta.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: yaVinculada ? '#f8f9fa' : 'white', border: `1px solid ${yaVinculada ? '#e9ecef' : '#f3f4f6'}` }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
+                            <span style={{ fontSize: '0.7rem', background: 'rgba(106,136,153,0.15)', color: '#3a5060', padding: '2px 7px', borderRadius: '999px', fontWeight: 600 }}>{boleta.dia}</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{boleta.proveedor}</span>
+                            {yaVinculada && <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 6px', borderRadius: '4px' }}>✓ Vinculada</span>}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowMercaderiaModal(false)}>
-                  Cerrar
-                </button>
-              </div>
+                          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{boleta.cortes.length} corte{boleta.cortes.length !== 1 ? 's' : ''}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#28a745', marginBottom: '6px' }}>{formatCurrency(boleta.costoTotal)}</div>
+                          {!yaVinculada && (
+                            <button onClick={() => vincularBoletaMercaderia(boleta)}
+                              style={{ border: '1px solid #6A8899', borderRadius: '8px', padding: '4px 12px', background: 'transparent', color: '#3a5060', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}>
+                              Vincular
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #f3f4f6' }}>
+              <button onClick={() => setShowMercaderiaModal(false)}
+                style={{ width: '100%', padding: '9px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+                Cerrar
+              </button>
             </div>
           </div>
-        </div>
+        </>
       )}
-    </div>
+    </>
   );
 };
 
