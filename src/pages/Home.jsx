@@ -21,6 +21,7 @@ const NAV_ITEMS = [
     icon: '💸',
   },
   {
+    path: '/gestion-semanal',
     key: 'gestion-semanal',
     label: 'Gestión Semanal',
     desc: 'Gestión semanal y cierre de caja',
@@ -65,6 +66,7 @@ const ChevronIcon = ({ open }) => (
 const NavCard = ({ item }) => {
   const [open, setOpen] = useState(false);
   const hasSubmenu = !!item.submenu;
+  const hasBoth = hasSubmenu && !!item.path; // tiene link directo Y submenú
 
   const cardStyle = {
     background: 'rgba(255,255,255,0.08)',
@@ -76,16 +78,7 @@ const NavCard = ({ item }) => {
     transition: 'box-shadow 0.2s, transform 0.2s',
   };
 
-  const headerStyle = {
-    display: 'flex', alignItems: 'center', gap: '12px',
-    padding: '16px 18px',
-    cursor: hasSubmenu ? 'pointer' : 'default',
-    userSelect: 'none',
-    textDecoration: 'none',
-    color: 'inherit',
-  };
-
-  const content = (
+  const mainContent = (
     <>
       <span style={{ fontSize: '1.4rem', flexShrink: 0 }}>{item.icon}</span>
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
@@ -96,29 +89,56 @@ const NavCard = ({ item }) => {
           {item.desc}
         </div>
       </div>
-      {hasSubmenu && <ChevronIcon open={open} />}
-      {!hasSubmenu && (
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(255,255,255,0.35)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="9 18 15 12 9 6" />
-        </svg>
-      )}
     </>
   );
+
+  const arrowIcon = (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="rgba(255,255,255,0.35)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="9 18 15 12 9 6" />
+    </svg>
+  );
+
+  const baseHeaderStyle = {
+    display: 'flex', alignItems: 'center', gap: '12px',
+    padding: '16px 18px',
+    textDecoration: 'none',
+    color: 'inherit',
+    userSelect: 'none',
+  };
 
   return (
     <div style={cardStyle}
       onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(0,0,0,0.3)'; }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
 
-      {hasSubmenu ? (
-        <div style={headerStyle} onClick={() => setOpen(o => !o)}>
-          {content}
-        </div>
-      ) : (
-        <Link to={item.path} style={headerStyle}>
-          {content}
+      {/* Caso: link directo SIN submenú */}
+      {!hasSubmenu && (
+        <Link to={item.path} style={{ ...baseHeaderStyle, cursor: 'pointer' }}>
+          {mainContent}
+          {arrowIcon}
         </Link>
+      )}
+
+      {/* Caso: SOLO submenú (sin path propio) */}
+      {hasSubmenu && !hasBoth && (
+        <div style={{ ...baseHeaderStyle, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+          {mainContent}
+          <ChevronIcon open={open} />
+        </div>
+      )}
+
+      {/* Caso: link directo + submenú (área izquierda navega, chevron expande) */}
+      {hasBoth && (
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <Link to={item.path} style={{ ...baseHeaderStyle, flex: 1, cursor: 'pointer' }}>
+            {mainContent}
+          </Link>
+          <button onClick={() => setOpen(o => !o)}
+            style={{ background: 'transparent', border: 'none', padding: '16px 18px', cursor: 'pointer', display: 'flex', alignItems: 'center', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.08)' }}>
+            <ChevronIcon open={open} />
+          </button>
+        </div>
       )}
 
       {/* Submenú con max-height transition */}
