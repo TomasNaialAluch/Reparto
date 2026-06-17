@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
 import { useAutoSavePrint } from '../hooks/useAutoSavePrint';
@@ -11,6 +12,15 @@ import PrintDocument from '../components/PrintDocument';
 import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString, formatDateSafe } from '../utils/date';
+import { IconPrinter, IconCalendar, IconDownload, IconInbox, IconX } from '../components/gestionSemanal/icons';
+
+const FILTER_OPTIONS = [
+  ['hoy', 'Hoy'],
+  ['semana', 'Semana'],
+  ['mes', 'Mes'],
+  ['año', 'Año'],
+  ['elegir_mes', null],
+];
 
 const SaldoClientes = () => {
   const { user } = useFirebase();
@@ -51,9 +61,9 @@ const SaldoClientes = () => {
   // Estados para filtros de fecha
   const [dateFilter, setDateFilter] = useState('semana');
   const [customMonth, setCustomMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
-  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
-  const filterContainerRef = useRef(null);
-  const filterButtonRefs = useRef({});
+  const saldoAnchorRef = useRef(null);
+  const clientesListRef = useRef(null);
+  const [clientesListMaxH, setClientesListMaxH] = useState(undefined);
   
   // Estados para el modal de edición
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -107,11 +117,8 @@ const SaldoClientes = () => {
       case 'elegir_mes':
         filtered = savedClientes.filter(cliente => cliente.fecha.startsWith(customMonth));
         break;
-      case 'todos':
-        filtered = savedClientes;
-        break;
       default:
-        filtered = savedClientes;
+        filtered = [];
     }
     
     return filtered;
@@ -673,14 +680,60 @@ const SaldoClientes = () => {
     }
   }, [balances]);
 
+  const getFilterLabel = () => {
+    const labels = {
+      hoy: 'hoy',
+      semana: 'esta semana',
+      mes: 'este mes',
+      año: 'este año',
+      elegir_mes: 'el mes seleccionado',
+    };
+    return labels[dateFilter] || 'el período';
+  };
+
+  const syncClientesListHeight = () => {
+    if (window.innerWidth < 992) {
+      setClientesListMaxH(undefined);
+      return;
+    }
+    const anchor = saldoAnchorRef.current;
+    const list = clientesListRef.current;
+    if (!anchor || !list) return;
+    const maxH = Math.floor(anchor.getBoundingClientRect().bottom - list.getBoundingClientRect().top);
+    setClientesListMaxH(maxH > 100 ? maxH : 100);
+  };
+
+  const filteredClientesCount = getFilteredClientes().length;
+
+  useEffect(() => {
+    syncClientesListHeight();
+    const afterTransition = setTimeout(syncClientesListHeight, 350);
+    const raf = requestAnimationFrame(() => {
+      syncClientesListHeight();
+      requestAnimationFrame(syncClientesListHeight);
+    });
+
+    const ro = new ResizeObserver(syncClientesListHeight);
+    if (saldoAnchorRef.current) ro.observe(saldoAnchorRef.current);
+    if (clientesListRef.current) ro.observe(clientesListRef.current);
+
+    window.addEventListener('resize', syncClientesListHeight);
+    return () => {
+      clearTimeout(afterTransition);
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('resize', syncClientesListHeight);
+    };
+  }, [showSummary, summaryData, dateFilter, savedClientes.length, filteredClientesCount, loading, showSaldoPrevio, customMonth, semanaActiva?.clientesCuenta?.length]);
+
   // Sub-componentes internos del formulario
   const FormSection = ({ label, children }) => (
     <div style={{ marginBottom: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
           {label}
         </span>
-        <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+        <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
       </div>
       {children}
     </div>
@@ -703,8 +756,9 @@ const SaldoClientes = () => {
 
   const RemoveBtn = ({ onClick }) => (
     <button type="button" onClick={onClick}
-      style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
-      ×
+      className="d-inline-flex align-items-center justify-content-center"
+      style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+      <IconX size={14} />
     </button>
   );
 
@@ -715,25 +769,12 @@ const SaldoClientes = () => {
     </button>
   );
 
-  // Actualizar posición del slider animado cuando cambia el filtro
-  useEffect(() => {
-    const activeBtn = filterButtonRefs.current[dateFilter];
-    const container = filterContainerRef.current;
-    if (activeBtn && container) {
-      const containerRect = container.getBoundingClientRect();
-      const btnRect = activeBtn.getBoundingClientRect();
-      setSliderStyle({
-        left: btnRect.left - containerRect.left,
-        width: btnRect.width,
-      });
-    }
-  }, [dateFilter, savedClientes]);
-
   return (
-    <div className="container mt-4 printable">
+    <div className="container mt-4 printable saldo-clientes-page">
       <div className="row align-items-stretch">
         {/* Formulario Principal - Izquierda */}
-        <div className="col-lg-7 col-md-12">
+        <div className="col-lg-7 col-md-12 saldo-main-col">
+          <div ref={saldoAnchorRef}>
           <div
             className="no-print mb-3"
             onDragOver={(e) => { e.preventDefault(); if (!clientName.trim()) setIsDragOver(true); }}
@@ -741,18 +782,17 @@ const SaldoClientes = () => {
             onDrop={handleDropCliente}
             style={{
               borderRadius: '12px',
-              background: 'white',
-              boxShadow: isDragOver ? 'none' : '0 2px 6px rgba(0,0,0,0.07)',
-              border: isDragOver ? '2px dashed #6A8899' : '2px solid transparent',
               background: isDragOver ? '#f0f8ff' : 'white',
+              boxShadow: 'none',
+              border: isDragOver ? '2px dashed #6A8899' : '1px solid #d3d9de',
               padding: '20px',
-              transition: 'border 0.2s, box-shadow 0.2s',
+              transition: 'border 0.2s',
             }}
           >
             <form>
               {/* Título de sección */}
               <div style={{ marginBottom: '20px' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Datos del Cliente
                 </span>
                 {isDragOver && (
@@ -802,7 +842,7 @@ const SaldoClientes = () => {
                       <button type="button" className="btn-close btn-sm" style={{ fontSize: '0.6rem' }}
                         onClick={() => { setShowSaldoPrevio(false); setSaldoPrevioDismissed(clientName.trim()); }} />
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.68rem', color: '#6c757d', marginBottom: '8px' }}>
                       Seleccioná los saldos que querés considerar:
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
@@ -973,7 +1013,7 @@ const SaldoClientes = () => {
                   Calcular Saldo
                 </button>
                 <button type="button" onClick={saveCurrentCliente} disabled={!clientName.trim() || !summaryData}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !clientName.trim() || !summaryData ? '#e9ecef' : '#28a745', color: !clientName.trim() || !summaryData ? '#9ca3af' : 'white', fontSize: '0.95rem', fontWeight: 700, cursor: !clientName.trim() || !summaryData ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !clientName.trim() || !summaryData ? '#e9ecef' : '#28a745', color: !clientName.trim() || !summaryData ? '#8a939c' : 'white', fontSize: '0.95rem', fontWeight: 700, cursor: !clientName.trim() || !summaryData ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
                   Guardar
                 </button>
               </div>
@@ -1092,11 +1132,14 @@ const SaldoClientes = () => {
                   setShowPrintModal(true);
                 }
               )}>
-                <i className="fas fa-print me-2"></i>
-                Imprimir
+                <span className="d-inline-flex align-items-center gap-2">
+                  <IconPrinter size={14} />
+                  Imprimir
+                </span>
               </button>
             </div>
           )}
+          </div>
         </div>
         <div className="col-lg-5 col-md-4 no-print clientes-sidebar">
           {/* Card de estado de conexión */}
@@ -1105,7 +1148,7 @@ const SaldoClientes = () => {
             style={{
               borderRadius: '12px',
               background: 'white',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+              border: '1px solid #d3d9de',
               padding: '10px 14px',
               marginBottom: '8px',
               borderLeft: `3px solid ${loading ? '#6c757d' : error ? '#dc3545' : '#28a745'}`,
@@ -1132,7 +1175,7 @@ const SaldoClientes = () => {
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc3545' }}>
                     Error de conexión
                   </div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginTop: '1px' }}>
                     Verificá la consola
                   </div>
                 </>
@@ -1141,7 +1184,7 @@ const SaldoClientes = () => {
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#212529' }}>
                     Firebase conectado
                   </div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginTop: '1px' }}>
                     {balances.length} {balances.length === 1 ? 'saldo guardado' : 'saldos guardados'}
                   </div>
                 </>
@@ -1151,41 +1194,41 @@ const SaldoClientes = () => {
           
           {/* Panel de Deudas de Gestión Semanal */}
           {semanaActiva && semanaActiva.clientesCuenta && semanaActiva.clientesCuenta.length > 0 && (
-            <div className="card p-3 mb-3 border-info">
-              <h6 className="text-info">
-                <i className="fas fa-calendar-week me-2"></i>
-                Deudas de Gestión Semanal
-              </h6>
-              <small className="text-muted d-block mb-3">
-                Importa boletas desde la gestión semanal activa
+            <div className="mb-3" style={{ background: 'white', borderRadius: '12px', border: '1px solid #d3d9de', padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span className="d-inline-flex" style={{ color: '#6A8899' }}><IconCalendar size={14} /></span>
+                <h6 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#3a5060' }}>Deudas de Gestión Semanal</h6>
+              </div>
+              <small style={{ color: '#6c757d', display: 'block', marginBottom: '12px', fontSize: '0.72rem' }}>
+                Importá boletas desde la gestión semanal activa
               </small>
-              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {semanaActiva.clientesCuenta.map((cliente, index) => {
                   const deudaTotal = cliente.boletas.reduce((sum, b) => sum + b.monto, 0);
                   return (
-                    <div key={index} className="card mb-2 border-primary">
-                      <div className="card-body p-2">
-                        <div className="d-flex justify-content-between align-items-start">
-                          <div>
-                            <strong className="d-block">{cliente.nombre}</strong>
-                            <small className="text-danger fw-bold">
-                              Debe: {formatCurrency(deudaTotal)}
+                    <div key={index} style={{ border: '1px solid #dde2e6', borderRadius: '10px', padding: '10px 12px', background: '#f8f9fa' }}>
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <strong className="d-block" style={{ fontSize: '0.85rem' }}>{cliente.nombre}</strong>
+                          <small style={{ color: '#dc3545', fontWeight: 700, fontSize: '0.75rem' }}>
+                            Debe: {formatCurrency(deudaTotal)}
+                          </small>
+                          <div className="mt-1">
+                            <small style={{ color: '#6c757d', fontSize: '0.68rem' }}>
+                              {cliente.boletas.length} {cliente.boletas.length === 1 ? 'boleta' : 'boletas'}
                             </small>
-                            <div className="mt-1">
-                              <small className="text-muted">
-                                {cliente.boletas.length} {cliente.boletas.length === 1 ? 'boleta' : 'boletas'}
-                              </small>
-                            </div>
                           </div>
-                          <button
-                            className="btn btn-sm btn-primary"
-                            onClick={() => importarBoletasDesdeGestion(cliente)}
-                            title="Importar boletas a Saldo Clientes"
-                          >
-                            <i className="fas fa-download me-1"></i>
-                            Importar
-                          </button>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => importarBoletasDesdeGestion(cliente)}
+                          title="Importar boletas a Saldo Clientes"
+                          className="d-inline-flex align-items-center gap-1"
+                          style={{ border: '1px solid #6A8899', borderRadius: '8px', padding: '5px 10px', background: 'transparent', color: '#3a5060', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          <IconDownload size={12} />
+                          Importar
+                        </button>
                       </div>
                     </div>
                   );
@@ -1193,76 +1236,96 @@ const SaldoClientes = () => {
               </div>
             </div>
           )}
-          
-          <div className="card p-3 mb-3 clientes-guardados-card">
-            <h6>Clientes Guardados</h6>
-            <div className="mb-3">
-              <div
-                ref={filterContainerRef}
-                style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}
-              >
-                {/* Slider animado */}
-                <div style={{
-                  position: 'absolute',
-                  top: '3px',
-                  bottom: '3px',
-                  left: sliderStyle.left + 'px',
-                  width: sliderStyle.width + 'px',
-                  background: 'white',
-                  borderRadius: '8px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
-                  transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
-                  pointerEvents: 'none',
-                  zIndex: 0,
-                }} />
-                {[['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['año','Año'],['elegir_mes','📅'],['todos','Todos']].map(([val, label]) => (
-                  <button
-                    key={val}
-                    ref={el => filterButtonRefs.current[val] = el}
-                    onClick={() => setDateFilter(val)}
-                    style={{
-                      position: 'relative',
-                      zIndex: 1,
-                      flex: 1,
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '5px 6px',
-                      fontSize: '0.75rem',
-                      fontWeight: dateFilter === val ? 600 : 400,
-                      background: 'transparent',
-                      color: dateFilter === val ? '#212529' : '#6c757d',
-                      transition: 'color 0.2s, font-weight 0.2s',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      minWidth: 0,
-                    }}
-                  >{label}</button>
-                ))}
-              </div>
-              {dateFilter === 'elegir_mes' && (
-                <div className="mt-2">
-                  <input type="month" className="form-control form-control-sm" value={customMonth} onChange={(e) => setCustomMonth(e.target.value)} />
-                </div>
-              )}
+
+          <div className="mb-3 clientes-guardados-card" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 2px' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Clientes Guardados
+              </span>
+              <span style={{ fontSize: '0.72rem', color: '#6c757d' }}>
+                {getFilteredClientes().length} {getFilteredClientes().length === 1 ? 'cliente' : 'clientes'}
+              </span>
             </div>
-            <div className="clientes-list-scroll">
-              {getFilteredClientes().length > 0 ? (
-                getFilteredClientes().map((cliente, index) => (
-                  <ClienteDeudorCard 
-                    key={cliente.id || index} 
-                    cliente={cliente} 
-                    onDelete={deleteCliente} 
-                    onEdit={openEditModal}
-                    onPrint={handlePrintCliente}
-                  />
-                ))
-              ) : (
-                <div className="text-center text-muted py-3">
-                  <i className="fas fa-inbox fa-2x mb-2"></i>
-                  <p className="mb-0">No hay clientes guardados</p>
-                  <small>Calcula y guarda un saldo para verlo aquí</small>
+
+            <div style={{ background: '#e9ecef', borderRadius: '12px', padding: '4px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ overflowX: 'auto' }}>
+                <div style={{ display: 'flex', gap: '4px', width: 'max-content', minWidth: '100%' }}>
+                  {FILTER_OPTIONS.map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setDateFilter(val)}
+                      style={{
+                        position: 'relative', zIndex: 1, flex: '1 0 auto',
+                        border: 'none', borderRadius: '9px',
+                        padding: '9px 12px', fontSize: '0.75rem',
+                        fontWeight: dateFilter === val ? 700 : 400,
+                        background: 'transparent', boxShadow: 'none',
+                        color: dateFilter === val ? '#212529' : '#6c757d',
+                        transition: 'color 0.2s, font-weight 0.2s',
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                      }}
+                    >
+                      {dateFilter === val && (
+                        <motion.div
+                          layoutId="saldo-filter-indicator"
+                          style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: '9px 9px 0 0', zIndex: 0 }}
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                        />
+                      )}
+                      <span style={{ position: 'relative', zIndex: 1 }}>
+                        {val === 'elegir_mes' ? <IconCalendar size={13} /> : label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
+
+              <div style={{
+                background: 'white', borderRadius: '0 0 9px 9px',
+                padding: '12px', flex: 1, minHeight: 0,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}>
+                {dateFilter === 'elegir_mes' && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <input type="month" className="form-control form-control-sm"
+                      value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
+                      style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
+                  </div>
+                )}
+
+                <div
+                  ref={clientesListRef}
+                  className="clientes-list-scroll"
+                  style={clientesListMaxH != null ? { maxHeight: clientesListMaxH, overflowY: 'auto' } : undefined}
+                >
+                  {getFilteredClientes().length > 0 ? (
+                    getFilteredClientes().map((cliente, index) => (
+                      <ClienteDeudorCard
+                        key={cliente.id || index}
+                        cliente={cliente}
+                        onDelete={deleteCliente}
+                        onEdit={openEditModal}
+                        onPrint={handlePrintCliente}
+                      />
+                    ))
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                      <div style={{ marginBottom: '6px', opacity: 0.35, display: 'flex', justifyContent: 'center', color: '#6c757d' }}>
+                        <IconInbox size={28} />
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#6c757d', fontWeight: 500 }}>
+                        {savedClientes.length === 0 ? 'Sin clientes guardados' : `Sin clientes en ${getFilterLabel()}`}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#8a939c', marginTop: '3px' }}>
+                        {savedClientes.length === 0 ? 'Calculá y guardá un saldo para verlo acá' : 'Cambiá el filtro para ver más'}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1311,18 +1374,19 @@ const SaldoClientes = () => {
           }}>
 
             {/* Header */}
-            <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+            <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #dde2e6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
                   Vincular mercadería
                 </div>
                 <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
                   {clientName.trim() || 'Sin cliente'}
                 </div>
               </div>
-              <button onClick={() => setShowMercaderiaModal(false)}
-                style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d' }}>
-                ✕
+              <button type="button" onClick={() => setShowMercaderiaModal(false)}
+                className="d-inline-flex align-items-center justify-content-center"
+                style={{ border: 'none', background: '#e9ecef', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: '#6c757d' }}>
+                <IconX size={14} />
               </button>
             </div>
 
@@ -1338,14 +1402,14 @@ const SaldoClientes = () => {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '4px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginBottom: '4px' }}>
                     Seleccioná las boletas que querés vincular para <strong style={{ color: '#212529' }}>{clientName}</strong>
                   </div>
                   {obtenerBoletasMercaderia().map((boleta) => {
                     const yaVinculada = boletas.some(b =>
                       b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
                     );
-                    const accentColor = boleta.estaPagada ? '#28a745' : yaVinculada ? '#6A8899' : '#f3f4f6';
+                    const accentColor = boleta.estaPagada ? '#28a745' : yaVinculada ? '#6A8899' : '#dde2e6';
 
                     return (
                       <div key={boleta.id} style={{
@@ -1361,7 +1425,7 @@ const SaldoClientes = () => {
                             <span style={{ fontSize: '0.7rem', background: 'rgba(106,136,153,0.15)', color: '#3a5060', padding: '2px 8px', borderRadius: '999px', fontWeight: 600, flexShrink: 0 }}>
                               {boleta.dia}
                             </span>
-                            <span style={{ fontSize: '0.72rem', color: '#9ca3af', flexShrink: 0 }}>
+                            <span style={{ fontSize: '0.72rem', color: '#6c757d', flexShrink: 0 }}>
                               {formatDateSafe(boleta.timestamp?.split('T')[0])}
                             </span>
                             <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#212529' }}>{boleta.proveedor}</span>
@@ -1369,10 +1433,10 @@ const SaldoClientes = () => {
                               <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>✓ Vinculada</span>
                             )}
                             {boleta.estaPagada && (
-                              <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>💰 Pagada</span>
+                              <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 7px', borderRadius: '4px', flexShrink: 0 }}>Pagada</span>
                             )}
                           </div>
-                          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>
+                          <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>
                             {boleta.cortes.length} corte{boleta.cortes.length !== 1 ? 's' : ''}
                             {boleta.estaPagada && (
                               <span style={{ color: '#28a745', marginLeft: '6px' }}>· Registrada en Pagos a Proveedores</span>
@@ -1399,7 +1463,7 @@ const SaldoClientes = () => {
             </div>
 
             {/* Footer */}
-            <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', flexShrink: 0 }}>
+            <div style={{ padding: '14px 22px', borderTop: '1px solid #dde2e6', flexShrink: 0 }}>
               <button onClick={() => setShowMercaderiaModal(false)}
                 style={{ width: '100%', padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
                 Cerrar

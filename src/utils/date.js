@@ -61,3 +61,21 @@ export const formatDateSafe = (dateString) => {
   });
 };
 
+/** Día de la semana + fecha, ej. "Miércoles 17/06/2026" */
+export const formatDateWithWeekday = (dateString) => {
+  if (!dateString) return '';
+
+  let year, month, day;
+  if (dateString.includes('/')) {
+    [day, month, year] = dateString.split('/').map(Number);
+  } else {
+    [year, month, day] = dateString.split('-').map(Number);
+  }
+
+  const date = new Date(year, month - 1, day);
+  const weekday = date.toLocaleDateString('es-AR', { weekday: 'long' });
+  const capitalized = weekday.charAt(0).toUpperCase() + weekday.slice(1);
+
+  return `${capitalized} ${formatDateSafe(dateString)}`;
+};
+

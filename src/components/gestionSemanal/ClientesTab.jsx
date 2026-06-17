@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { DIAS_SEMANA, getDiaActual } from './constants';
 import { formatCurrency } from '../../utils/money';
+import { IconCheck, IconX, IconEdit, IconTrash, IconPlus } from './icons';
 
 export default function ClientesTab({ 
   semanaActiva, 
@@ -171,10 +172,10 @@ export default function ClientesTab({
             </div>
 
             <button 
-              className="btn btn-success btn-lg w-100"
+              className="btn btn-success btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2"
               onClick={handleAgregarBoleta}
             >
-              ✅ Agregar Boleta
+              <IconCheck size={16} /> Agregar Boleta
             </button>
           </div>
         </div>
@@ -208,11 +209,11 @@ export default function ClientesTab({
                                 <strong>{cliente.nombre}</strong>
                               </h6>
                               <button 
-                                className="btn btn-sm btn-danger"
+                                className="btn btn-sm btn-danger d-inline-flex align-items-center"
                                 onClick={(e) => handleEliminarCliente(e, clienteIndex)}
                                 title="Eliminar cliente"
                               >
-                                ✕
+                                <IconX size={13} />
                               </button>
                             </div>
                             <h5 className="text-danger mb-1">
@@ -244,41 +245,41 @@ export default function ClientesTab({
                                 {editingClientes === clienteIndex ? (
                                   <>
                                     <button 
-                                      className="btn btn-sm btn-success"
+                                      className="btn btn-sm btn-success d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         saveEditingClientes(clienteIndex);
                                       }}
                                     >
-                                      ✓
+                                      <IconCheck size={13} />
                                     </button>
                                     <button 
-                                      className="btn btn-sm btn-secondary"
+                                      className="btn btn-sm btn-secondary d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         cancelEditingClientes();
                                       }}
                                     >
-                                      ✕
+                                      <IconX size={13} />
                                     </button>
                                   </>
                                 ) : (
                                   <>
                                     <button 
-                                      className="btn btn-sm btn-warning"
+                                      className="btn btn-sm btn-warning d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         startEditingClientes(clienteIndex, cliente);
                                       }}
                                     >
-                                      ✏️
+                                      <IconEdit size={13} />
                                     </button>
                                     <button 
-                                      className="btn btn-sm btn-danger"
+                                      className="btn btn-sm btn-danger d-inline-flex align-items-center"
                                       onClick={(e) => handleEliminarCliente(e, clienteIndex)}
                                       title="Eliminar cliente"
                                     >
-                                      🗑️
+                                      <IconTrash size={13} />
                                     </button>
                                   </>
                                 )}
@@ -328,13 +329,13 @@ export default function ClientesTab({
                                         </td>
                                         <td>
                                           <button 
-                                            className="btn btn-sm btn-danger"
+                                            className="btn btn-sm btn-danger d-inline-flex align-items-center"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               eliminarBoletaEnEdicion(i);
                                             }}
                                           >
-                                            ✕
+                                            <IconX size={12} />
                                           </button>
                                         </td>
                                       </tr>
@@ -342,13 +343,13 @@ export default function ClientesTab({
                                   </tbody>
                                 </table>
                                 <button 
-                                  className="btn btn-sm btn-outline-primary mt-2 w-100"
+                                  className="btn btn-sm btn-outline-primary mt-2 w-100 d-inline-flex align-items-center justify-content-center gap-2"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     agregarBoletaEnEdicion();
                                   }}
                                 >
-                                  + Agregar Boleta
+                                  <IconPlus size={13} /> Agregar Boleta
                                 </button>
                               </div>
                             ) : (
@@ -368,13 +369,13 @@ export default function ClientesTab({
                                         <td className="text-end">{formatCurrency(boleta.monto)}</td>
                                         <td>
                                           <button 
-                                            className="btn btn-sm btn-danger"
+                                            className="btn btn-sm btn-danger d-inline-flex align-items-center"
                                             onClick={(e) => {
                                               e.stopPropagation();
                                               eliminarBoletaCliente(cliente.nombre, boletaIndex);
                                             }}
                                           >
-                                            ✕
+                                            <IconX size={12} />
                                           </button>
                                         </td>
                                       </tr>

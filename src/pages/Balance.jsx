@@ -4,6 +4,12 @@ import { useFirebase } from '../contexts/FirebaseContext';
 import { useGestionSemanal } from '../firebase/hooks';
 import { formatCurrency } from '../utils/money';
 import ConfirmModal from '../components/ConfirmModal';
+import { styles } from '../components/gestionSemanal/styles';
+import {
+  IconMoney, IconUsers, IconCheque, IconBox, IconChart, IconWarning, IconCheck,
+  IconSettings, IconRefresh, IconChevronDown, IconLock, IconHistory, IconEye,
+  IconFilter, IconArrowLeft, IconInfo, IconX, IconCalendar
+} from '../components/gestionSemanal/icons';
 
 export default function Balance() {
   const navigate = useNavigate();
@@ -383,17 +389,18 @@ export default function Balance() {
   }
 
   return (
-    <div className="container-fluid mt-4 px-lg-5" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="container-fluid mt-4 px-lg-5 gs-content" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      <style>{styles}</style>
       <div className="row mb-4">
         <div className="col-12">
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <button 
-                className="btn btn-primary btn-lg me-3"
+                className="btn btn-primary btn-lg me-3 d-inline-flex align-items-center gap-2"
                 onClick={volverAtras}
                 style={{ fontSize: '1.1rem', padding: '10px 20px' }}
               >
-                ← Volver a Gestión Semanal
+                <IconArrowLeft size={18} /> Volver a Gestión Semanal
               </button>
             </div>
             <h2 className="mb-0 text-center flex-grow-1">Balance Semanal</h2>
@@ -413,8 +420,10 @@ export default function Balance() {
                   padding: '0.5rem 1rem'
                 }}
               >
-                <i className="fas fa-history me-1"></i>
-                {mostrarHistorial ? 'Ocultar' : 'Historial'}
+                <span className="d-inline-flex align-items-center gap-2">
+                  <IconHistory size={14} />
+                  {mostrarHistorial ? 'Ocultar' : 'Historial'}
+                </span>
               </button>
             </div>
           </div>
@@ -426,10 +435,10 @@ export default function Balance() {
             {semanaSeleccionada && (
               <span className="ms-2">
                 <button 
-                  className="btn btn-sm btn-outline-secondary"
+                  className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2"
                   onClick={volverASemanaActual}
                 >
-                  <i className="fas fa-arrow-left me-1"></i>
+                  <IconArrowLeft size={13} />
                   Volver a semana actual
                 </button>
               </span>
@@ -444,8 +453,8 @@ export default function Balance() {
           <div className="col-12">
             <div className="card">
               <div className="card-header">
-                <h5 className="mb-0">
-                  <i className="fas fa-history me-2"></i>
+                <h5 className="mb-0 d-inline-flex align-items-center gap-2">
+                  <IconHistory size={13} />
                   Historial de Semanas Cerradas
                 </h5>
               </div>
@@ -457,33 +466,30 @@ export default function Balance() {
                     {historialSemanas.map((semana) => (
                       <div key={semana.id} className="col-lg-4 col-md-6 mb-3">
                         <div 
-                          className="card h-100 cursor-pointer border-primary"
+                          className="card h-100 border-primary"
                           onClick={() => seleccionarSemana(semana.id)}
                           style={{ 
                             cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            border: '2px solid #007bff'
+                            transition: 'all 0.2s ease'
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'translateY(-2px)';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = 'none';
                           }}
                         >
                           <div className="card-body">
-                            <h6 className="card-title text-primary">
-                              <i className="fas fa-calendar-week me-2"></i>
+                            <h6 className="card-title text-primary d-inline-flex align-items-center gap-2">
+                              <IconCalendar size={14} />
                               Semana del {new Date(semana.fechaInicio).toLocaleDateString('es-AR')}
                             </h6>
-                            <p className="card-text small text-muted mb-2">
+                            <p className="card-text small text-muted mb-2 mt-1">
                               <strong>Cerrada:</strong> {new Date(semana.fechaCierre).toLocaleDateString('es-AR')}
                             </p>
                             <div className="d-flex justify-content-between align-items-center">
-                              <span className="badge bg-secondary">
-                                <i className="fas fa-eye me-1"></i>
+                              <span className="badge bg-secondary d-inline-flex align-items-center gap-1">
+                                <IconEye size={12} />
                                 Ver Balance
                               </span>
                               <small className="text-muted">
@@ -508,7 +514,7 @@ export default function Balance() {
           <div className="col-lg-3 col-md-6 mb-3">
             <div className="card border-danger">
               <div className="card-header bg-danger text-white py-1">
-                <h6 className="mb-0">💰 Gastos</h6>
+                <h6 className="mb-0 d-inline-flex align-items-center gap-2"><IconMoney size={13} /> Gastos</h6>
               </div>
               <div className="card-body text-center py-2">
                 <h5 className="text-danger mb-0">
@@ -522,16 +528,16 @@ export default function Balance() {
           <div className="col-lg-3 col-md-6 mb-3">
             <div className={`card ${balanceData.saldoPendiente > 0 ? 'border-warning' : 'border-success'}`}>
               <div className={`card-header ${balanceData.saldoPendiente > 0 ? 'bg-warning text-dark' : 'bg-success text-white'} py-1`}>
-                <h6 className="mb-0">👨‍💼 Empleados</h6>
+                <h6 className="mb-0 d-inline-flex align-items-center gap-2"><IconUsers size={13} /> Empleados</h6>
               </div>
               <div className="card-body text-center py-2">
                 {balanceData.saldoPendiente > 0 ? (
-                  <h5 className="text-warning mb-0">
-                    <strong>⚠️ {formatCurrency(balanceData.saldoPendiente)}</strong>
+                  <h5 className="text-warning mb-0 d-inline-flex align-items-center justify-content-center gap-2">
+                    <IconWarning size={16} /> <strong>{formatCurrency(balanceData.saldoPendiente)}</strong>
                   </h5>
                 ) : (
-                  <h5 className="text-success mb-0">
-                    <strong>✅ Pagado</strong>
+                  <h5 className="text-success mb-0 d-inline-flex align-items-center justify-content-center gap-2">
+                    <IconCheck size={16} /> <strong>Pagado</strong>
                   </h5>
                 )}
               </div>
@@ -542,7 +548,7 @@ export default function Balance() {
           <div className="col-lg-3 col-md-6 mb-3">
             <div className="card border-primary">
               <div className="card-header bg-primary text-white py-1">
-                <h6 className="mb-0">🧾 Deudas por Cobrar</h6>
+                <h6 className="mb-0 d-inline-flex align-items-center gap-2"><IconCheque size={13} /> Deudas por Cobrar</h6>
               </div>
               <div className="card-body text-center py-2">
                 <h5 className="text-primary mb-0">
@@ -556,7 +562,7 @@ export default function Balance() {
           <div className="col-lg-3 col-md-6 mb-3">
             <div className="card border-secondary">
               <div className="card-header bg-secondary text-white py-1">
-                <h6 className="mb-0">📦 Inventario</h6>
+                <h6 className="mb-0 d-inline-flex align-items-center gap-2"><IconBox size={13} /> Inventario</h6>
               </div>
               <div className="card-body text-center py-2">
                 <h5 className="text-secondary mb-0">
@@ -574,7 +580,7 @@ export default function Balance() {
           <div className="col-12">
             <div className="card border-dark">
               <div className="card-header bg-dark text-white py-2">
-                <h6 className="mb-0">📊 Resumen Ejecutivo</h6>
+                <h6 className="mb-0 d-inline-flex align-items-center gap-2"><IconChart size={13} /> Resumen Ejecutivo</h6>
               </div>
               <div className="card-body py-3">
                 <div className="row">
@@ -588,24 +594,21 @@ export default function Balance() {
                             <h6 className="text-muted mb-0">Costo Promedio de Mercadería</h6>
                             <div className="d-flex gap-2">
                               <button 
-                                className="btn btn-sm"
+                                className="btn btn-sm btn-primary d-inline-flex align-items-center gap-2"
                                 onClick={() => setMostrarModalProveedores(true)}
                                 title="Seleccionar proveedores para el promedio"
-                                style={{
-                                  backgroundColor: '#A9D6E5',
-                                  color: 'white',
-                                  border: 'none',
-                                  fontWeight: '600'
-                                }}
                               >
-                                <i className="fas fa-filter me-1"></i>
+                                <IconFilter size={13} />
                                 Proveedores
                               </button>
                               <button 
-                                className="btn btn-outline-primary btn-sm"
+                                className="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-2"
                                 onClick={() => setExpandirResumen(!expandirResumen)}
                               >
-                                {expandirResumen ? '📉 Contraer' : '📈 Expandir'}
+                                <span className="d-inline-flex" style={{ transform: expandirResumen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)' }}>
+                                  <IconChevronDown size={13} />
+                                </span>
+                                {expandirResumen ? 'Contraer' : 'Expandir'}
                               </button>
                             </div>
                           </div>
@@ -613,16 +616,16 @@ export default function Balance() {
                           {/* Indicador de proveedores seleccionados */}
                           {proveedoresSeleccionados.length > 0 && (
                             <div className="mb-2">
-                              <small className="text-info">
-                                <i className="fas fa-filter me-1"></i>
+                              <small className="text-info d-inline-flex align-items-center gap-1 flex-wrap">
+                                <IconFilter size={12} />
                                 Filtrado por {proveedoresSeleccionados.length} proveedor{proveedoresSeleccionados.length !== 1 ? 'es' : ''}: 
                                 <strong className="ms-1">{proveedoresSeleccionados.join(', ')}</strong>
                                 <button 
-                                  className="btn btn-link btn-sm p-0 ms-2"
+                                  className="btn btn-link btn-sm p-0 ms-2 d-inline-flex align-items-center text-danger"
                                   onClick={() => setProveedoresSeleccionados([])}
                                   title="Limpiar filtro"
                                 >
-                                  <i className="fas fa-times text-danger"></i>
+                                  <IconX size={13} />
                                 </button>
                               </small>
                             </div>
@@ -724,7 +727,7 @@ export default function Balance() {
                     {/* CONFIGURACIÓN DE VALORES POR DEFECTO */}
                     <div className="mb-4">
                       <div className="bg-light border rounded p-3">
-                        <h6 className="text-muted mb-3">⚙️ Configuración de Ganancia por Defecto</h6>
+                        <h6 className="text-muted mb-3 d-inline-flex align-items-center gap-2"><IconSettings size={14} /> Configuración de Ganancia por Defecto</h6>
                         <div className="row">
                           <div className="col-6">
                             <label className="form-label small">
@@ -769,10 +772,10 @@ export default function Balance() {
                         </div>
                         <div className="mt-2">
                           <button 
-                            className="btn btn-outline-secondary btn-sm"
+                            className="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-2"
                             onClick={() => setCoeficientes(valoresDefecto)}
                           >
-                            🔄 Aplicar Valores por Defecto
+                            <IconRefresh size={13} /> Aplicar Valores por Defecto
                           </button>
                         </div>
                       </div>
@@ -891,11 +894,11 @@ export default function Balance() {
       <div className="row mb-5">
         <div className="col-12 text-center">
           <button 
-            className="btn btn-danger btn-lg"
+            className="btn btn-danger btn-lg d-inline-flex align-items-center gap-2"
             style={{ fontSize: '1.3rem', padding: '15px 50px' }}
             onClick={handleCerrarSemanaClick}
           >
-            🔒 CERRAR SEMANA Y GUARDAR
+            <IconLock size={20} /> CERRAR SEMANA Y GUARDAR
           </button>
         </div>
       </div>
@@ -937,10 +940,10 @@ export default function Balance() {
             >
               <div 
                 className="modal-header border-0 pb-0 text-white"
-                style={{ backgroundColor: '#A9D6E5' }}
+                style={{ backgroundColor: '#6A8899' }}
               >
-                <h5 className="modal-title fw-bold">
-                  <i className="fas fa-filter me-2"></i>
+                <h5 className="modal-title fw-bold d-inline-flex align-items-center gap-2">
+                  <IconFilter size={17} />
                   Seleccionar Proveedores
                 </h5>
                 <button 
@@ -959,17 +962,17 @@ export default function Balance() {
                 {/* Botones de selección masiva */}
                 <div className="d-flex gap-2 mb-3">
                   <button 
-                    className="btn btn-success btn-sm flex-fill"
+                    className="btn btn-success btn-sm flex-fill d-inline-flex align-items-center justify-content-center gap-2"
                     onClick={seleccionarTodosProveedores}
                   >
-                    <i className="fas fa-check-double me-1"></i>
+                    <IconCheck size={14} />
                     Todos
                   </button>
                   <button 
-                    className="btn btn-danger btn-sm flex-fill"
+                    className="btn btn-danger btn-sm flex-fill d-inline-flex align-items-center justify-content-center gap-2"
                     onClick={deseleccionarTodosProveedores}
                   >
-                    <i className="fas fa-times me-1"></i>
+                    <IconX size={14} />
                     Ninguno
                   </button>
                 </div>
@@ -1014,8 +1017,8 @@ export default function Balance() {
                 {/* Resumen de selección */}
                 {proveedoresSeleccionados.length > 0 && (
                   <div className="alert alert-info mt-3 mb-0">
-                    <small className="fw-bold d-block mb-1">
-                      <i className="fas fa-info-circle me-1"></i>
+                    <small className="fw-bold d-flex align-items-center gap-1 mb-1">
+                      <IconInfo size={13} />
                       Seleccionados ({proveedoresSeleccionados.length}):
                     </small>
                     <div className="d-flex flex-wrap gap-1">
@@ -1030,7 +1033,7 @@ export default function Balance() {
 
                 {obtenerProveedoresDisponibles().length === 0 && (
                   <div className="text-center py-4">
-                    <i className="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+                    <div className="text-warning mb-2 d-flex justify-content-center"><IconWarning size={32} /></div>
                     <p className="text-muted mb-0">No hay proveedores disponibles</p>
                   </div>
                 )}
@@ -1046,16 +1049,10 @@ export default function Balance() {
                 </button>
                 <button 
                   type="button" 
-                  className="btn"
+                  className="btn btn-primary d-inline-flex align-items-center gap-2"
                   onClick={() => setMostrarModalProveedores(false)}
-                  style={{
-                    backgroundColor: '#A9D6E5',
-                    color: 'white',
-                    border: 'none',
-                    fontWeight: '600'
-                  }}
                 >
-                  <i className="fas fa-check me-1"></i>
+                  <IconCheck size={14} />
                   Aplicar
                 </button>
               </div>

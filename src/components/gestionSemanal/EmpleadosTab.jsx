@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { DIAS_SEMANA, EMPLEADOS_DEFAULT, getDiaActual } from './constants';
 import { formatCurrency } from '../../utils/money';
 import PrintDocument from '../PrintDocument';
+import { IconCheck, IconX, IconCalendar, IconCash, IconPrinter } from './icons';
 
 export default function EmpleadosTab({ 
   semanaActiva, 
@@ -273,10 +274,10 @@ export default function EmpleadosTab({
               </div>
 
               <button 
-                className="btn btn-success btn-lg w-100"
+                className="btn btn-success btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2"
                 onClick={handleAgregarEmpleado}
               >
-                ✅ Configurar
+                <IconCheck size={16} /> Configurar
               </button>
             </div>
           </div>
@@ -342,10 +343,10 @@ export default function EmpleadosTab({
 
               <button 
                 ref={botonAdelantoRef}
-                className="btn btn-warning btn-lg w-100"
+                className="btn btn-warning btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2"
                 onClick={handleAgregarAdelanto}
               >
-                💵 Registrar Adelanto
+                <IconCash size={16} /> Registrar Adelanto
               </button>
             </div>
           </div>
@@ -405,16 +406,15 @@ export default function EmpleadosTab({
                               <div className="d-flex align-items-center gap-2">
                                 <strong>{emp.nombre}</strong>
                                 <button
-                                  className="btn btn-sm btn-outline-secondary"
+                                  className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
                                   onClick={() => abrirModalAsistencia(emp)}
                                   title="Configurar días trabajados"
                                   style={{ 
-                                    fontSize: '0.7rem',
-                                    padding: '2px 6px',
+                                    padding: '3px 6px',
                                     lineHeight: '1'
                                   }}
                                 >
-                                  📅
+                                  <IconCalendar size={13} />
                                 </button>
                                 {(emp.diasTrabajados && emp.diasTrabajados.length < DIAS_SEMANA.length) && (
                                   <span className="badge bg-warning text-dark" style={{ fontSize: '0.65rem' }}>
@@ -442,18 +442,18 @@ export default function EmpleadosTab({
                                     autoFocus
                                   />
                                   <button
-                                    className="btn btn-sm btn-success"
+                                    className="btn btn-sm btn-success d-inline-flex align-items-center"
                                     onClick={() => guardarSueldoEditado(emp)}
                                     title="Guardar"
                                   >
-                                    ✓
+                                    <IconCheck size={13} />
                                   </button>
                                   <button
-                                    className="btn btn-sm btn-secondary"
+                                    className="btn btn-sm btn-secondary d-inline-flex align-items-center"
                                     onClick={cancelarEdicionSueldo}
                                     title="Cancelar"
                                   >
-                                    ✕
+                                    <IconX size={13} />
                                   </button>
                                 </div>
                               ) : (
@@ -572,12 +572,12 @@ export default function EmpleadosTab({
                             <div className={`card-header ${pagoCompleto ? 'bg-success' : 'bg-warning'} text-dark py-3`}>
                               <div className="d-flex justify-content-between align-items-start">
                                 <div className="flex-grow-1">
-                                  <h6 className="mb-2 fw-bold">
+                                  <h6 className="mb-2 fw-bold d-inline-flex align-items-center gap-2">
                                     {empleado}
-                                    {pagoCompleto && <span className="ms-2">✅</span>}
+                                    {pagoCompleto && <span className="text-success d-inline-flex"><IconCheck size={15} /></span>}
                                   </h6>
                                   <button 
-                                    className="btn btn-sm btn-light"
+                                    className="btn btn-sm btn-light d-inline-flex align-items-center gap-1"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleImprimirEmpleado(empleado);
@@ -588,7 +588,7 @@ export default function EmpleadosTab({
                                       padding: '4px 8px'
                                     }}
                                   >
-                                    <i className="fas fa-print me-1"></i>
+                                    <IconPrinter size={13} />
                                     Imprimir
                                   </button>
                                 </div>
@@ -596,7 +596,7 @@ export default function EmpleadosTab({
                                   <div className="fw-bold small">
                                     {adelantosPorEmpleado[empleado].length} adelanto{adelantosPorEmpleado[empleado].length !== 1 ? 's' : ''}
                                   </div>
-                                  <div className="fw-bold small" style={{ color: '#fff' }}>
+                                  <div className="fw-bold small" style={{ color: '#2b3a42' }}>
                                     Total: {formatCurrency(totalAdelantos)}
                                   </div>
                                 </div>
@@ -636,14 +636,14 @@ export default function EmpleadosTab({
                                           {formatCurrency(adelanto.monto)}
                                         </div>
                                         <button 
-                                          className="btn btn-sm btn-danger"
-                                          style={{ fontSize: '0.7rem', padding: '2px 6px' }}
+                                          className="btn btn-sm btn-danger d-inline-flex align-items-center"
+                                          style={{ padding: '3px 6px' }}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             eliminarAdelanto(adelanto.originalIndex);
                                           }}
                                         >
-                                          ✕
+                                          <IconX size={12} />
                                         </button>
                                       </div>
                                     </div>
@@ -708,7 +708,7 @@ export default function EmpleadosTab({
                     return (
                       <button
                         key={dia}
-                        className={`btn ${estaTrabajado ? 'btn-success' : 'btn-danger'}`}
+                        className={`btn ${estaTrabajado ? 'btn-success' : 'btn-danger'} d-inline-flex align-items-center gap-2`}
                         onClick={() => {
                           if (estaTrabajado) {
                             setDiasTrabajadosTemp(prev => prev.filter(d => d !== dia));
@@ -717,7 +717,7 @@ export default function EmpleadosTab({
                           }
                         }}
                       >
-                        {dia} {estaTrabajado ? '✓' : '✕'}
+                        {dia} {estaTrabajado ? <IconCheck size={14} /> : <IconX size={14} />}
                       </button>
                     );
                   })}

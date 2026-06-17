@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { formatCurrency } from '../utils/money';
 import { getLocalDateString, dateToLocalString } from '../utils/date';
 import { useRepartos } from '../firebase/hooks';
@@ -10,6 +11,7 @@ import EditRepartoModal from '../components/EditRepartoModal';
 import ReportesGraficos from '../components/ReportesGraficos';
 import PrintDocument from '../components/PrintDocument';
 import NotificationContainer from '../components/NotificationContainer';
+import { IconSave, IconPrinter, IconPlus, IconClipboard, IconCalendar, IconCheck, IconChevronDown } from '../components/gestionSemanal/icons';
 
 const MiReparto = () => {
   const [clientName, setClientName] = useState('');
@@ -17,10 +19,9 @@ const MiReparto = () => {
   const [validationErrors, setValidationErrors] = useState({});
   
   const clientNameInputRef = useRef(null);
-  const filterContainerRef = useRef(null);
-  const filterButtonRefs = useRef({});
-  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
-  
+  const deudoresSectionRef = useRef(null);
+  const repartosListRef = useRef(null);
+  const [repartosListMaxH, setRepartosListMaxH] = useState(undefined);
 
   // Estados para el reparto actual (React puro)
   const [clientes, setClientes] = useState([]);
@@ -108,12 +109,16 @@ const MiReparto = () => {
         filtered = savedRepartos.filter(reparto => reparto.date.startsWith(customMonth));
         break;
       
-      case 'todos':
-        filtered = savedRepartos;
-        break;
-      
-      default:
-        filtered = savedRepartos;
+      default: {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        const weekStartStr = dateToLocalString(weekStart);
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const weekEndStr = dateToLocalString(weekEnd);
+        filtered = savedRepartos.filter(reparto => 
+          reparto.date >= weekStartStr && reparto.date <= weekEndStr
+        );
+      }
     }
     
     return filtered;
@@ -142,7 +147,7 @@ const MiReparto = () => {
       case 'elegir_mes':
         return `Mes Seleccionado (${customMonth})`;
       default:
-        return 'Todos los Repartos';
+        return 'Esta semana';
     }
   };
 
@@ -181,7 +186,7 @@ const MiReparto = () => {
         setBillAmount('');
         setValidationErrors({});
         setShowDebtors(false);
-        showSuccess('✓ Reparto guardado exitosamente - Lista limpiada');
+        showSuccess('Reparto guardado exitosamente - Lista limpiada');
         setTimeout(() => setIsManuallyCleared(false), 2000);
       } catch (error) {
         console.error('❌ Error al guardar reparto como card:', error);
@@ -200,7 +205,7 @@ const MiReparto = () => {
         setBillAmount('');
         setValidationErrors({});
         setShowDebtors(false);
-        showSuccess('✓ Reparto guardado localmente - Lista limpiada');
+        showSuccess('Reparto guardado localmente - Lista limpiada');
       }
     }
   };
@@ -506,31 +511,57 @@ const MiReparto = () => {
     }
   }, [lastProcessedDate]);
 
-  // Slider del segmented control de filtros
-  useEffect(() => {
-    const activeBtn = filterButtonRefs.current[dateFilter];
-    const container = filterContainerRef.current;
-    if (activeBtn && container) {
-      const containerRect = container.getBoundingClientRect();
-      const btnRect = activeBtn.getBoundingClientRect();
-      setSliderStyle({ left: btnRect.left - containerRect.left, width: btnRect.width });
+  const FILTER_OPTIONS = [
+    ['hoy', 'Hoy'],
+    ['semana', 'Semana'],
+    ['mes', 'Mes'],
+    ['año', 'Año'],
+    ['elegir_mes', null],
+  ];
+
+  const syncRepartosListHeight = () => {
+    if (window.innerWidth < 992) {
+      setRepartosListMaxH(undefined);
+      return;
     }
-  }, [dateFilter, savedRepartos]);
+    const deudores = deudoresSectionRef.current;
+    const list = repartosListRef.current;
+    if (!deudores || !list) return;
+    const maxH = Math.floor(deudores.getBoundingClientRect().bottom - list.getBoundingClientRect().top);
+    setRepartosListMaxH(maxH > 100 ? maxH : 100);
+  };
+
+  useEffect(() => {
+    syncRepartosListHeight();
+    const afterTransition = setTimeout(syncRepartosListHeight, 350);
+
+    const mainCol = deudoresSectionRef.current?.closest('.reparto-main-col');
+    const ro = new ResizeObserver(syncRepartosListHeight);
+    if (mainCol) ro.observe(mainCol);
+    if (deudoresSectionRef.current) ro.observe(deudoresSectionRef.current);
+
+    window.addEventListener('resize', syncRepartosListHeight);
+    return () => {
+      clearTimeout(afterTransition);
+      ro.disconnect();
+      window.removeEventListener('resize', syncRepartosListHeight);
+    };
+  }, [showDebtors, deudores.length, clientes.length, dateFilter, savedRepartos.length, loading]);
 
   return (
-    <div className="container mt-4 printable">
+    <div className="container mt-4 printable reparto-page">
       <div className="row justify-content-start">
-        <div className="col-lg-7 col-md-8">
+        <div className="col-lg-7 col-md-8 reparto-main-col">
       {/* Formulario para agregar cliente */}
-      <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+      <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', border: '1px solid #d3d9de', boxShadow: 'none', padding: '20px' }}>
         <form onSubmit={handleSubmit}>
 
           {/* Título de sección */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
               Agregar Cliente
             </span>
-            <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+            <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
           </div>
 
           {/* Nombre */}
@@ -581,35 +612,37 @@ const MiReparto = () => {
           <button
             type="submit"
             disabled={!clientName.trim() || !billAmount}
+            className="d-inline-flex align-items-center justify-content-center gap-2"
             style={{
               width: '100%', padding: '11px', borderRadius: '10px', border: 'none',
               background: !clientName.trim() || !billAmount ? '#e9ecef' : '#6A8899',
-              color: !clientName.trim() || !billAmount ? '#9ca3af' : 'white',
+              color: !clientName.trim() || !billAmount ? '#8a939c' : 'white',
               fontSize: '0.9rem', fontWeight: 700,
               cursor: !clientName.trim() || !billAmount ? 'not-allowed' : 'pointer',
               transition: 'all 0.15s',
             }}
           >
-            + Agregar Cliente
+            <IconPlus size={15} /> Agregar Cliente
           </button>
         </form>
       </div>
       
       {/* Sección de Clientes del Día */}
-      <div className="mb-3 printable" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+      <div className="mb-3 printable" style={{ background: 'white', borderRadius: '12px', border: '1px solid #d3d9de', boxShadow: 'none', padding: '20px' }}>
 
         {/* Header */}
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
             Clientes del Día
           </span>
-          <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+          <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
           {/* Acciones */}
           <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
             {currentReparto.clients.length > 0 && (
               <button onClick={saveCurrentReparto}
-                style={{ border: 'none', borderRadius: '8px', padding: '6px 14px', background: '#28a745', color: 'white', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <i className="fas fa-save" style={{ fontSize: '0.72rem' }}></i> Guardar
+                className="d-inline-flex align-items-center gap-2"
+                style={{ border: 'none', borderRadius: '8px', padding: '6px 14px', background: '#28a745', color: 'white', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>
+                <IconSave size={13} /> Guardar
               </button>
             )}
             <button
@@ -617,8 +650,9 @@ const MiReparto = () => {
                 (data) => ({ clientes: data.clientes, fecha: data.date }),
                 (pd) => { setPrintData(pd); setShowPrintModal(true); }
               )}
-              style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '6px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <i className="fas fa-print" style={{ fontSize: '0.72rem' }}></i> Imprimir
+              className="d-inline-flex align-items-center gap-2"
+              style={{ border: '1px solid #ccd3d9', borderRadius: '8px', padding: '6px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>
+              <IconPrinter size={13} /> Imprimir
             </button>
           </div>
         </div>
@@ -633,17 +667,19 @@ const MiReparto = () => {
 
         {/* Lista de clientes */}
         {clientes.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '28px 0', color: '#9ca3af' }}>
-            <div style={{ fontSize: '1.8rem', marginBottom: '8px', opacity: 0.3 }}>📋</div>
+          <div style={{ textAlign: 'center', padding: '28px 0', color: '#6c757d' }}>
+            <div style={{ marginBottom: '8px', opacity: 0.3, display: 'flex', justifyContent: 'center' }}>
+              <IconClipboard size={32} />
+            </div>
             <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>Sin clientes agregados</div>
-            <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>Usá el formulario de arriba para comenzar</div>
+            <div style={{ fontSize: '0.72rem', color: '#8a939c', marginTop: '3px' }}>Usá el formulario de arriba para comenzar</div>
           </div>
         ) : (
           <>
             {/* Cabecera de tabla minimalista */}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr auto', gap: '8px', padding: '0 8px 6px', marginBottom: '4px' }}>
               {['Cliente','Dirección','Boleta','Pago',''].map((h, i) => (
-                <div key={i} style={{ fontSize: '0.65rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
+                <div key={i} style={{ fontSize: '0.65rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
               ))}
             </div>
 
@@ -659,13 +695,13 @@ const MiReparto = () => {
             </div>
 
             {/* Totales */}
-            <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #f3f4f6', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px 12px' }}>
-                <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '2px' }}>Subtotal</div>
+            <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid #dde2e6', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px 12px', border: '1px solid #dde2e6' }}>
+                <div style={{ fontSize: '0.68rem', color: '#6c757d', marginBottom: '2px' }}>Subtotal</div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#212529' }}>{formatCurrency(subtotal)}</div>
               </div>
               <div style={{ background: totalPendiente > 0 ? 'rgba(220,53,69,0.07)' : 'rgba(40,167,69,0.07)', borderRadius: '8px', padding: '8px 12px', borderLeft: `3px solid ${totalPendiente > 0 ? '#dc3545' : '#28a745'}` }}>
-                <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginBottom: '2px' }}>Pendiente</div>
+                <div style={{ fontSize: '0.68rem', color: '#6c757d', marginBottom: '2px' }}>Pendiente</div>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', color: totalPendiente > 0 ? '#dc3545' : '#28a745' }}>{formatCurrency(totalPendiente)}</div>
               </div>
             </div>
@@ -674,22 +710,23 @@ const MiReparto = () => {
       </div>
 
       {/* Sección de Deudores */}
-      <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '16px 20px' }}>
+      <div ref={deudoresSectionRef} className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', border: '1px solid #d3d9de', boxShadow: 'none', padding: '16px 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={handleShowDebtors}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
             Deudores {deudores.length > 0 && <span style={{ background: 'rgba(230,168,23,0.15)', color: '#e6a817', padding: '1px 7px', borderRadius: '999px', fontSize: '0.65rem', fontWeight: 700, marginLeft: '4px' }}>{deudores.length}</span>}
           </span>
-          <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            style={{ transform: showDebtors ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)', flexShrink: 0 }}>
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
+          <span className="d-inline-flex" style={{ transform: showDebtors ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)', flexShrink: 0, color: '#6c757d' }}>
+            <IconChevronDown size={14} />
+          </span>
         </div>
 
         <div style={{ maxHeight: showDebtors ? '400px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(.4,0,.2,1)' }}>
           <div style={{ paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {deudores.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: '#9ca3af' }}>Sin deudores 🎉</div>
+              <div style={{ textAlign: 'center', padding: '12px', fontSize: '0.78rem', color: '#6c757d', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <IconCheck size={14} /> Sin deudores
+              </div>
             ) : deudores.map(deudor => {
               const pendiente = deudor.billAmount - (deudor.paymentAmount || 0);
               return (
@@ -710,7 +747,7 @@ const MiReparto = () => {
             className={!loading && !error ? 'status-connected-pulse' : ''}
             style={{
               borderRadius: '12px', background: 'white',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+              border: '1px solid #d3d9de', boxShadow: 'none',
               padding: '10px 14px', marginBottom: '8px',
               borderLeft: `3px solid ${loading ? '#6c757d' : error ? '#dc3545' : '#28a745'}`,
               display: 'flex', alignItems: 'center', gap: '10px',
@@ -729,12 +766,12 @@ const MiReparto = () => {
               ) : error ? (
                 <>
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc3545' }}>Error de conexión</div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>Verificá la consola</div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginTop: '1px' }}>Verificá la consola</div>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#212529' }}>Firebase conectado</div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginTop: '1px' }}>
                     {repartos.length} {repartos.length === 1 ? 'reparto guardado' : 'repartos guardados'}
                   </div>
                 </>
@@ -743,79 +780,99 @@ const MiReparto = () => {
           </div>
 
           {/* Panel Repartos Guardados */}
-          <div className="card p-3 mb-3 clientes-guardados-card">
+          <div className="mb-3 clientes-guardados-card">
 
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 2px' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Repartos Guardados
               </span>
-              <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+              <span style={{ fontSize: '0.72rem', color: '#6c757d' }}>
                 {getFilteredRepartos().length} {getFilteredRepartos().length === 1 ? 'reparto' : 'repartos'}
               </span>
             </div>
 
-            {/* Segmented control filtros */}
-            <div style={{ marginBottom: '12px' }}>
-              <div
-                ref={filterContainerRef}
-                style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}
-              >
-                <div style={{
-                  position: 'absolute', top: '3px', bottom: '3px',
-                  left: sliderStyle.left + 'px', width: sliderStyle.width + 'px',
-                  background: 'white', borderRadius: '8px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
-                  transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
-                  pointerEvents: 'none', zIndex: 0,
-                }} />
-                {[['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['año','Año'],['elegir_mes','📅'],['todos','Todos']].map(([val, label]) => (
-                  <button
-                    key={val}
-                    ref={el => filterButtonRefs.current[val] = el}
-                    onClick={() => setDateFilter(val)}
-                    style={{
-                      position: 'relative', zIndex: 1, flex: 1, border: 'none',
-                      borderRadius: '8px', padding: '5px 6px', fontSize: '0.75rem',
-                      fontWeight: dateFilter === val ? 600 : 400, background: 'transparent',
-                      color: dateFilter === val ? '#212529' : '#6c757d',
-                      transition: 'color 0.2s', cursor: 'pointer', whiteSpace: 'nowrap', minWidth: 0,
-                    }}
-                  >{label}</button>
-                ))}
-              </div>
-              {dateFilter === 'elegir_mes' && (
-                <div style={{ marginTop: '8px' }}>
-                  <input type="month" className="form-control form-control-sm"
-                    value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
-                    style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
-                </div>
-              )}
-            </div>
+            {/* Filtros + lista — bloque gris unificado (patrón Gestión Semanal) */}
+            <div style={{ background: '#e9ecef', borderRadius: '12px', padding: '4px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
 
-            {/* Lista */}
-            <div className="clientes-list-scroll">
-              {getFilteredRepartos().length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                  <div style={{ fontSize: '1.4rem', marginBottom: '6px', opacity: 0.3 }}>📭</div>
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 500 }}>
-                    {savedRepartos.length === 0 ? 'Sin repartos guardados' : `Sin repartos en ${getFilterTitle().toLowerCase()}`}
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>
-                    {savedRepartos.length === 0 ? 'Guardá el reparto del día para verlo acá' : 'Cambiá el filtro para ver más'}
-                  </div>
+              {/* Fila de filtros */}
+              <div style={{ overflowX: 'auto' }}>
+                <div style={{ display: 'flex', gap: '4px', width: 'max-content', minWidth: '100%' }}>
+                  {FILTER_OPTIONS.map(([val, label]) => (
+                    <button
+                      key={val}
+                      onClick={() => setDateFilter(val)}
+                      style={{
+                        position: 'relative', zIndex: 1, flex: '1 0 auto',
+                        border: 'none', borderRadius: '9px',
+                        padding: '9px 12px', fontSize: '0.75rem',
+                        fontWeight: dateFilter === val ? 700 : 400,
+                        background: 'transparent', boxShadow: 'none',
+                        color: dateFilter === val ? '#212529' : '#6c757d',
+                        transition: 'color 0.2s, font-weight 0.2s',
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                      }}
+                    >
+                      {dateFilter === val && (
+                        <motion.div
+                          layoutId="reparto-filter-indicator"
+                          style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: '9px 9px 0 0', zIndex: 0 }}
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                        />
+                      )}
+                      <span style={{ position: 'relative', zIndex: 1 }}>
+                        {val === 'elegir_mes' ? <IconCalendar size={13} /> : label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                getFilteredRepartos().map(reparto => (
-                  <RepartoCard
-                    key={reparto.id}
-                    reparto={reparto}
-                    onDelete={deleteSavedReparto}
-                    onEdit={openEditModal}
-                    onPrint={handlePrintReparto}
-                  />
-                ))
-              )}
+              </div>
+
+              {/* Contenido — blanco conectado al filtro activo */}
+              <div style={{
+                background: 'white', borderRadius: '0 0 9px 9px',
+                padding: '12px', flex: 1, minHeight: 0,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}>
+                {dateFilter === 'elegir_mes' && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <input type="month" className="form-control form-control-sm"
+                      value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
+                      style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
+                  </div>
+                )}
+
+                <div
+                  ref={repartosListRef}
+                  className="clientes-list-scroll"
+                  style={repartosListMaxH != null ? { maxHeight: repartosListMaxH } : undefined}
+                >
+                  {getFilteredRepartos().length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                      <div style={{ marginBottom: '6px', opacity: 0.3, display: 'flex', justifyContent: 'center' }}>
+                        <IconClipboard size={28} />
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#6c757d', fontWeight: 500 }}>
+                        {savedRepartos.length === 0 ? 'Sin repartos guardados' : `Sin repartos en ${getFilterTitle().toLowerCase()}`}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#8a939c', marginTop: '3px' }}>
+                        {savedRepartos.length === 0 ? 'Guardá el reparto del día para verlo acá' : 'Cambiá el filtro para ver más'}
+                      </div>
+                    </div>
+                  ) : (
+                    getFilteredRepartos().map(reparto => (
+                      <RepartoCard
+                        key={reparto.id}
+                        reparto={reparto}
+                        onDelete={deleteSavedReparto}
+                        onEdit={openEditModal}
+                        onPrint={handlePrintReparto}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 

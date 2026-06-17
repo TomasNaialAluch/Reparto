@@ -57,7 +57,9 @@ El rediseño se basa en tres principios:
 
 ### 1. Segmented Control (filtros de fecha)
 
-**Dónde:** `SaldoClientes.jsx` → sección "Clientes Guardados"
+> **Actualización 17/06/2026 — patrón superseded:** El slider manual con `getBoundingClientRect` (documentado abajo) quedó **obsoleto**. El estándar actual es el **bloque gris unificado** filtros + lista con `motion.div` + `layoutId` (secciones 2–3 GS, secciones 13–15). Sin opción **Todos** en listas guardadas (riesgo de carga masiva). Filtro por defecto: **Semana**.
+
+**Dónde (histórico):** `SaldoClientes.jsx` → sección "Clientes Guardados"
 
 **Antes:** Botones Bootstrap sueltos (`btn btn-sm btn-outline-primary`) con `flex-wrap`.
 
@@ -694,6 +696,9 @@ En orden de impacto visual sugerido:
 6. ~~**Modal de mercadería** en `SaldoClientes.jsx`~~ ✅ Hecho — mismo patrón de modal: overlay blur, panel `borderRadius: 16px`, header label+nombre, fila de boleta con `borderLeft` dinámico por estado (vinculada/pagada/libre), footer botón ancho completo.
 7. ~~**Modal de impresión** (`PrintDocument`)~~ ✅ Hecho — mismo shell de modal, segmented control para ancho, indicadores de scroll como pills semitransparentes sticky.
 8. **Navbar** — rediseño mobile-first pendiente.
+9. ~~**Página Mi Reparto** (`MiReparto.jsx` + sidebar)~~ ✅ Hecho — íconos SVG, contraste, bloque gris unificado filtros+lista, títulos con día de semana, altura de lista alineada a Deudores. Ver sección 13.
+10. ~~**Página Saldo Clientes** (`SaldoClientes.jsx` + `ClienteDeudorCard` + `EditClienteModal`)~~ ✅ Hecho — alineación completa con GS/Mi Reparto: fondo tinte, bloque filtros+lista, sin "Todos", íconos SVG, cards flat, `.saldo-clientes-page`, altura de lista alineada a columna izquierda. Ver sección 14.
+11. ~~**Página Transferencias** (`Transferencias.jsx` + `TransferenciaCard` + `EditTransferenciaModal`)~~ ✅ Hecho — mismo paquete que Saldo Clientes: fondo tinte, bloque filtros+lista con `layoutId="transferencias-filter-indicator"`, filtros de fecha unificados, íconos SVG, cards flat, `.transferencias-page`, altura de lista con ancla de contenido izquierdo. Ver sección 15.
 
 ---
 
@@ -743,3 +748,695 @@ handleScroll(); // estado inicial
 ```
 
 > **Regla:** Los indicadores de scroll usan `position: sticky` (no `absolute`) para que siempre estén visibles en el borde del área scrolleable. Color `rgba(169,214,229,0.9)` con `backdropFilter: blur(4px)` para que no tapen el contenido. `pointerEvents: none` para que no bloqueen el scroll.
+
+---
+
+## Gestión Semanal — Rediseño del Segmented Control + Contenido (17/06/2026)
+
+### Contexto
+
+La página `GestionSemanal.jsx` es el corazón de la app. Las pestañas (Mercadería, Embutidos, Empleados, Gastos, Clientes, Pagos Proveedores) se rediseñaron para funcionar como una unidad visual cohesiva en lugar de un selector flotante desconectado del contenido.
+
+---
+
+### 1. Fondo de página con tinte de marca
+
+El fondo de la ruta `/gestion-semanal` usa un tinte muy sutil del color primario sobre blanco:
+
+```jsx
+// App.jsx
+<div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+```
+
+> **Regla:** El fondo de página de Gestión Semanal **no** es blanco puro (`#FAFBFF`) sino `rgba(106,136,153,0.08)` — suficiente para dar temperatura fría sin competir con el contenido. Esto permite que el bloque de tabs/contenido destaque sobre el fondo. La misma regla aplica a **`/saldo-clientes`**, **`/transferencias`**, **`/mi-reparto`**, **`/reparto`** y **`/balance`** (ver secciones 13–15).
+
+---
+
+### 2. Bloque unificado: tabs + contenido en un solo contenedor gris
+
+En lugar de que la barra de pestañas y el contenido sean elementos separados, ambos están envueltos en un único contenedor gris:
+
+```jsx
+<div style={{ background: '#e9ecef', borderRadius: '12px', padding: '4px', marginBottom: '20px' }}>
+
+  {/* Fila de pestañas */}
+  <div style={{ overflowX: 'auto' }}>
+    <div style={{ display: 'flex', gap: '4px', width: 'max-content', minWidth: '100%' }}>
+      {/* botones de tab */}
+    </div>
+  </div>
+
+  {/* Área de contenido */}
+  <div style={{ background: 'white', borderRadius: '0 0 9px 9px', padding: '16px', overflow: 'hidden' }}>
+    {/* contenido del tab activo */}
+  </div>
+
+</div>
+```
+
+El gris `#e9ecef` (mismo token `--color-slider-bg`) actúa como "marco" que unifica tabs y contenido visualmente. El contenido tiene fondo blanco con bordes redondeados solo abajo.
+
+> **Regla:** El bloque tabs+contenido es **un solo contenedor** con `background: #e9ecef` y `borderRadius: 12px`. No hay `marginBottom` entre la fila de tabs y el panel de contenido — el gris fluye continuo de arriba a abajo.
+
+---
+
+### 3. Pestaña activa sin radio en bordes inferiores
+
+El botón activo tiene `borderRadius: '9px 9px 0 0'` para que sus esquinas inferiores empaten perfectamente con el borde superior del panel de contenido blanco:
+
+```jsx
+borderRadius: activeTab === tab.key ? '9px 9px 0 0' : '9px',
+```
+
+El panel de contenido tiene `borderRadius: '0 0 9px 9px'` — solo redondea abajo.
+
+> **Regla:** Tab activo → radio solo arriba (`9px 9px 0 0`). Panel de contenido → radio solo abajo (`0 0 9px 9px`). Los bordes interiores se tocan sin gap, formando un bloque continuo.
+
+---
+
+### 4. Cards sin sombra dentro del bloque
+
+Las cards Bootstrap (`.card`) dentro del contenido no usan `box-shadow`:
+
+```css
+/* index.css */
+.card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.card:hover {
+  box-shadow: none;
+}
+```
+
+```js
+/* styles.js — smooth-hover */
+.smooth-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: none;
+}
+```
+
+> **Regla:** Dentro del bloque de contenido de Gestión Semanal, las cards **no tienen sombra**. El efecto hover usa solo `translateY(-2px)` sin `box-shadow`. Las sombras quedan reservadas para elementos flotantes (modales, dropdowns).
+
+---
+
+### 5. Indicador deslizante animado con Framer Motion (`layoutId`)
+
+El fondo blanco del tab activo no es el `background` del botón sino un `motion.div` absolutamente posicionado con `layoutId="tab-indicator"`. Framer Motion lo anima automáticamente entre tabs:
+
+```jsx
+{activeTab === tab.key && (
+  <motion.div
+    layoutId="tab-indicator"
+    style={{
+      position: 'absolute', inset: 0,
+      background: 'white',
+      borderRadius: '9px 9px 0 0',
+      zIndex: 0,
+    }}
+    transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+  />
+)}
+```
+
+El contenido del botón (ícono, label, badge) usa `position: relative; zIndex: 1` para quedar sobre el indicador.
+
+> **Regla:** El indicador de tab activo es siempre un `motion.div` con `layoutId`. **Nunca** cambiar el `background` del botón directamente para lograr este efecto — el `layoutId` es lo que produce la animación de deslizamiento fluida entre pestañas. En **Mi Reparto**: `layoutId="reparto-filter-indicator"`; **Saldo Clientes**: `saldo-filter-indicator`; **Transferencias**: `transferencias-filter-indicator` (ids distintos para no colisionar). Ver secciones 13–15.
+
+---
+
+### 6. Animación de contenido con dirección (slide left/right)
+
+Al cambiar de tab, el contenido entra deslizándose desde el costado correcto según la dirección del cambio:
+
+```jsx
+// Constantes fuera del componente
+const TAB_KEYS = ['mercaderia', 'embutidos', 'empleados', 'gastos', 'clientes', 'pagos-proveedores'];
+
+const contentVariants = {
+  initial: (dir) => ({ x: dir * 40, opacity: 0 }),
+  animate: { x: 0, opacity: 1 },
+  exit:    (dir) => ({ x: dir * -40, opacity: 0 }),
+};
+
+// Dentro del componente
+const [tabDirection, setTabDirection] = useState(1);
+const prevTabIndexRef = useRef(0);
+
+const handleTabChange = (tabName) => {
+  const newIndex = TAB_KEYS.indexOf(tabName);
+  setTabDirection(newIndex >= prevTabIndexRef.current ? 1 : -1);
+  prevTabIndexRef.current = newIndex;
+  setActiveTab(tabName);
+};
+
+// En el render
+<AnimatePresence mode="wait" custom={tabDirection}>
+  <motion.div
+    key={activeTab}
+    custom={tabDirection}
+    variants={contentVariants}
+    initial="initial"
+    animate="animate"
+    exit="exit"
+    transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+  >
+    {/* contenido del tab */}
+  </motion.div>
+</AnimatePresence>
+```
+
+- Avanzar (derecha en la barra) → contenido entra por la derecha.
+- Retroceder (izquierda en la barra) → contenido entra por la izquierda.
+- `mode="wait"` asegura que el contenido anterior salga antes de que entre el nuevo.
+
+> **Regla:** El contenido de tabs usa `AnimatePresence mode="wait"` con `custom` para pasar la dirección a las variantes. El `key` del `motion.div` es el `activeTab` para que React/Framer detecte el cambio. Desplazamiento de `40px` con `opacity` — suficiente para orientar al usuario sin ser exagerado.
+
+---
+
+### 7. Íconos SVG planos con `currentColor`
+
+Los emojis de las pestañas fueron reemplazados por SVGs inline estilo Heroicons (stroke, 24×24 viewBox, `strokeWidth: 2`):
+
+| Tab | Ícono |
+|---|---|
+| Mercadería | `package` — cubo con líneas de perspectiva |
+| Embutidos | `layers` — polígono apilado en 3 capas |
+| Empleados | `users` — dos siluetas de persona |
+| Gastos | `credit-card` simplificado con línea interior |
+| Clientes | `file-text` — documento con líneas |
+| Pagos Proveedores | `credit-card` — rect + línea horizontal |
+
+Todos usan `stroke="currentColor"` para heredar automáticamente el color del botón:
+- Tab activo → `color: #212529` → ícono oscuro
+- Tab inactivo → `color: #6c757d` → ícono gris
+
+```jsx
+icon: (
+  <svg width="14" height="14" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor"
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    {/* paths del ícono */}
+  </svg>
+),
+```
+
+> **Regla:** Todos los íconos de tabs (y en general de la app) deben ser SVG inline con `stroke="currentColor"`. **Nunca emojis** en controles de UI — los emojis no respetan el color del tema, tienen tamaño inconsistente entre plataformas y no se pueden animar. El tamaño estándar para tabs es `14×14`.
+
+---
+
+### 8. Capa de reskin scopeada para tabs legacy (`gs-content`)
+
+#### Contexto
+
+El contenido de los seis tabs (`MercaderiaTab`, `EmbutidosTab`, `EmpleadosTab`, `GastosTab`, `ClientesTab`, `PagosProveedoresTab`) está construido con Bootstrap clásico: `card-header bg-primary text-white`, `btn btn-success btn-lg`, badges sólidos (`bg-danger`), bordes de color completos (`border-primary`), tablas `table-bordered`, etc. Son miles de líneas de JSX con lógica compleja (sincronización con Firebase, cálculos de pagos, edición inline).
+
+En lugar de reescribir cada componente con estilos inline —alto riesgo de romper la lógica— se aplicó una **capa de reskin con CSS scopeado** a un contenedor `.gs-content` que envuelve el área de contenido en `GestionSemanal.jsx`. Las reglas viven en el template string `styles` de `src/components/gestionSemanal/styles.js`, que se inyecta una sola vez vía `<style>{styles}</style>`.
+
+```jsx
+// GestionSemanal.jsx
+<div className="gs-content" style={{ background: 'white', borderRadius: '0 0 9px 9px', padding: '16px', overflow: 'hidden' }}>
+  {/* tabs Bootstrap legacy, sin modificar */}
+</div>
+```
+
+#### Qué transforma la capa
+
+| Elemento Bootstrap | Antes | Después (reskin) |
+|---|---|---|
+| `.card` | sombra, borde | `border: 1px solid #eef1f3`, sin sombra, `radius 12px` |
+| `.card.border-*` | borde de color en los 4 lados | `border-left: 3px solid <semántico>` (regla de acento izquierdo) |
+| `.card-header.bg-*` | fondo sólido de color + texto blanco | fondo blanco, **estilo eyebrow** (ver sección 11) — sin barra de acento |
+| `.btn-primary` | azul Bootstrap `#0d6efd` | acero de marca `#6A8899` |
+| `.btn:hover` | `scale(1.05)` | `translateY(-1px)` |
+| `.badge.bg-*` | pill sólido de color | pill semitransparente (8–25% opacidad) + texto oscuro del mismo tono |
+| `.text-primary` | azul Bootstrap | `#3a5060` (acero oscuro) |
+| `.table-bordered` | bordes en todas las celdas | sin bordes, solo línea inferior `#f1f3f5`; `thead` uppercase gris `0.66rem` |
+| `.alert-*` | borde + fondo Bootstrap | caja redondeada sin borde, fondo del color al 10–15% |
+| `.form-control:focus` | halo azul | borde + halo acero `rgba(106,136,153,0.15)` |
+| `.form-check-input:checked` | azul Bootstrap | acero de marca |
+| `.form-label.fw-bold` | bold negro | uppercase `0.7rem` gris (label de campo) |
+
+#### Mapa de acentos izquierdos por semántica (solo cards, no headers)
+
+| Clase de card | Color acento |
+|---|---|
+| `border-primary` | `#6A8899` (acero, neutro/principal) |
+| `border-success` | `#28a745` (positivo) |
+| `border-danger` | `#dc3545` (deuda/negativo) |
+| `border-warning` | `#FFD166` (alerta) |
+| `border-secondary` | sin acento (solo borde sutil) |
+
+> Nota: los **headers** de card ya no usan acento izquierdo (era repetitivo). Ver sección 11 (estilo eyebrow). El acento izquierdo se conserva solo en `.card.border-*` para comunicar estado.
+
+#### Notas de especificidad
+
+Bootstrap usa `!important` en utilidades como `.text-white` y `.bg-primary`. Para ganarles, las reglas de reskin usan selectores de mayor especificidad (`.gs-content .card-header.text-white`) y/o `!important`. Por eso el texto blanco de los headers originales se vuelve oscuro correctamente al cambiar el fondo a blanco.
+
+#### Paleta de bordes (contraste calibrado)
+
+La primera versión usaba bordes demasiado claros (`#eef1f3`, `#f1f3f5`) y al usuario le costaba distinguir las divisiones — la pantalla "cansaba el ojo". Se recalibraron a un neutro frío más presente pero todavía suave:
+
+| Token | Hex | Uso |
+|---|---|---|
+| Borde de card / divisor fuerte | `#d3d9de` | contorno de cards, separador entre grupos, `thead` |
+| Divisor suave | `#dde2e6` | `border-bottom` de headers, `hr`, `.border-bottom/top` |
+| Divisor de fila de tabla | `#e1e5e9` | líneas entre filas (`td`) |
+| Borde de input | `#ccd3d9` | `form-control`, `form-select`, `input-group-text` |
+
+> **Regla:** Los bordes/divisores en superficies blancas usan **`#d3d9de`** (estructura) o **`#dde2e6`** (divisores suaves). Evitar valores por encima de `#e6...` para líneas estructurales: se vuelven invisibles y obligan al ojo a esforzarse. El mínimo legible sobre blanco en esta app es ~`#dde2e6`.
+
+#### Divisor entre grupos de proveedor
+
+En `PagosProveedoresTab`, los proveedores se separan con una línea divisoria (no solo espacio en blanco) vía la clase `gs-prov-group`:
+
+```css
+.gs-content .gs-prov-group:not(:last-child) {
+  border-bottom: 1px solid #d3d9de;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+}
+```
+
+> **Regla:** Cuando una lista repite bloques del mismo tipo (grupos por proveedor, secciones apiladas), separarlos con una línea `1px #d3d9de` + padding, no solo con margen. La línea da estructura escaneable sin agregar peso.
+
+> **Regla:** Para modernizar pantallas legacy con mucho Bootstrap y lógica frágil, preferir una **capa de reskin CSS scopeada** a un contenedor raíz (`.gs-content`) en vez de reescribir el JSX. Mantiene intacta la funcionalidad, aplica la estética NEWLOOK de forma consistente a todos los sub-componentes de una vez, y es reversible quitando una sola clase. Las reglas se centralizan en `styles.js` y se documentan aquí.
+
+> **Regla:** La capa de reskin **siempre** va scopeada bajo `.gs-content` (o el contenedor equivalente de la pantalla). Nunca escribir estas reglas como selectores globales, porque `styles` se inyecta en el `<head>` del documento y afectaría otras pantallas montadas.
+
+---
+
+### 9. Borde verde giratorio — info "siempre a la vista" (`gs-totales-glow`)
+
+#### Contexto
+
+Algunos datos son tan importantes que el usuario debería mirarlos siempre (ej. el card **"Totales Semanales"** de `MercaderiaTab`). Para esto se usa un borde verde que **gira alrededor** de todo el perímetro de la card — mismo lenguaje cromático que el indicador de "Firebase conectado" (`connectedPulse`), pero recorriendo todo el contorno en vez de solo el borde izquierdo.
+
+#### Técnica: conic-gradient rotando detrás de la card
+
+El patrón usa un wrapper con `padding` (que se convierte en el grosor del borde) y un pseudo-elemento `::before` con un `conic-gradient` que gira. La card interior se monta encima tapando el centro y dejando visible solo el anillo:
+
+```css
+.gs-totales-glow {
+  position: relative;
+  border-radius: 14px;
+  padding: 2.5px;            /* grosor del borde animado */
+  overflow: hidden;          /* recorta el gradiente gigante a las esquinas redondeadas */
+  isolation: isolate;        /* contiene el z-index del ::before */
+  box-shadow: 0 2px 14px rgba(40,167,69,0.16);
+}
+.gs-totales-glow::before {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 230%; height: 230%;               /* más grande que el wrapper para cubrir las esquinas al rotar */
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    #1f8a3a 0deg,
+    #28a745 170deg,
+    #8ff0ab 300deg,    /* sweep brillante que da la sensación de giro */
+    #28a745 340deg,
+    #1f8a3a 360deg
+  );
+  animation: gsTotalesSpin 3.2s linear infinite;
+  z-index: -1;
+}
+.gs-totales-glow > .card {
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 11px !important;          /* 2-3px menos que el wrapper */
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes gsTotalesSpin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gs-totales-glow::before { animation: none; }   /* accesibilidad */
+}
+```
+
+Uso en JSX — el wrapper toma el margen (`mt-3`); la card pierde su `border-success` porque el anillo animado reemplaza el borde estático:
+
+```jsx
+<div className="gs-totales-glow mt-3">
+  <div className="card">
+    <div className="card-header bg-success text-white">
+      <h5 className="mb-0">Totales Semanales</h5>
+    </div>
+    <div className="card-body">{/* totales */}</div>
+  </div>
+</div>
+```
+
+> **Regla:** El borde verde giratorio (`gs-totales-glow`) se reserva para **información crítica de monitoreo permanente** (totales clave, estado de sistema). No abusar: si todo gira, nada llama la atención. El verde mantiene la asociación con "activo / OK" del status de conexión.
+
+> **Detalle técnico:** El gradiente cónico se anima rotando un `::before` sobredimensionado (`230%`) con `transform: rotate()` en vez de animar el ángulo del `conic-gradient` directamente. Esto evita depender de `@property --angle` (soporte más limitado) y funciona con `transform`, que es acelerado por GPU. El `overflow: hidden` + `border-radius` del wrapper recorta el gradiente a la forma de la card. Siempre incluir el fallback de `prefers-reduced-motion`.
+
+---
+
+### 10. Set de íconos SVG compartido (`gestionSemanal/icons.jsx`)
+
+#### Contexto
+
+El contenido de los tabs estaba lleno de **emojis** usados como íconos de UI: `✅`/`✓` (confirmar), `✕`/`✗` (cerrar/eliminar), `✏️` (editar), `🗑️` (borrar), `➕` (agregar), `📅` (calendario), `💵`/`💰` (efectivo/dinero), `🏦` (transferencia), `📝` (cheques), `📊` (resumen), `📋` (lista), `💳` (tarjeta), `🔄` (recalcular), `⚠️` (alerta), más un `<i class="fas fa-print">` de FontAwesome. Esto viola la regla NEWLOOK de "nunca emojis en controles de UI".
+
+#### Solución
+
+Se centralizó un set de íconos SVG en `src/components/gestionSemanal/icons.jsx`. Todos comparten una base común (`viewBox 0 0 24 24`, `fill: none`, `stroke: currentColor`, `strokeWidth: 2`, `strokeLinecap/Linejoin: round`) y aceptan una prop `size` (default `14`):
+
+```jsx
+import { IconCheck, IconX, IconEdit, IconTrash, IconPlus } from './icons';
+
+<button className="btn btn-success d-inline-flex align-items-center gap-2">
+  <IconCheck size={16} /> Agregar Entrada
+</button>
+```
+
+Íconos disponibles: `IconPlus`, `IconX`, `IconCheck`, `IconEdit`, `IconTrash`, `IconCalendar`, `IconCash`, `IconMoney`, `IconBank`, `IconCheque`, `IconChart`, `IconClipboard`, `IconCreditCard`, `IconRefresh`, `IconWarning`, `IconPrinter`, `IconUsers`, `IconBox`, `IconSettings`, `IconChevronDown`, `IconLock`, `IconHistory`, `IconEye`, `IconFilter`, `IconArrowLeft`, `IconInfo`, `IconSave`, `IconTrophy`, `IconTrendDown`, `IconDownload`, `IconInbox`.
+
+> `IconUsers` … `IconInfo` se agregaron con **Balance Semanal** (sección 12). `IconSave`, `IconTrophy`, `IconTrendDown` con **Mi Reparto** (sección 13). `IconDownload`, `IconInbox` con **Saldo Clientes** (sección 14). Todos son de propósito general — reutilizar en futuras pantallas.
+
+#### Mapa de reemplazo emoji → ícono
+
+| Emoji | Ícono | Uso |
+|---|---|---|
+| ✅ ✓ | `IconCheck` | confirmar, guardar, pagado, completo |
+| ✕ ✗ 🗑️ | `IconX` / `IconTrash` | cerrar/deseleccionar vs borrar definitivo |
+| ✏️ | `IconEdit` | editar |
+| ➕ + | `IconPlus` | agregar ítem |
+| 📅 | `IconCalendar` | días trabajados |
+| 💵 | `IconCash` | efectivo |
+| 💰 | `IconMoney` | dinero/total |
+| 🏦 | `IconBank` | transferencia |
+| 📝 | `IconCheque` | cheques |
+| 📊 | `IconChart` | resumen |
+| 📋 | `IconClipboard` | seleccionar boletas |
+| 💳 | `IconCreditCard` | configurar pagos |
+| 🔄 | `IconRefresh` | auto-distribuir |
+| ⚠️ | `IconWarning` | alertas inline |
+| `fa-print` | `IconPrinter` | imprimir |
+| 👨‍💼 | `IconUsers` | empleados |
+| 📦 | `IconBox` | inventario |
+| ⚙️ | `IconSettings` | configuración |
+| 📈 📉 | `IconChevronDown` (rota 180°) | expandir / contraer |
+| 🔒 | `IconLock` | cerrar semana |
+| `fa-history` | `IconHistory` | historial |
+| `fa-eye` | `IconEye` | ver |
+| `fa-filter` | `IconFilter` | filtrar proveedores |
+| `fa-arrow-left` ← | `IconArrowLeft` | volver |
+| `fa-info-circle` | `IconInfo` | nota informativa |
+| `fa-calendar-week` | `IconCalendar` | semana |
+| `fa-check-double` | `IconCheck` | seleccionar todos |
+| `fa-exclamation-triangle` | `IconWarning` | estado vacío |
+| `fa-save` | `IconSave` | guardar reparto |
+| 🏆 | `IconTrophy` | mejor día (reportes) |
+| 📉 | `IconTrendDown` | peor día (reportes) |
+
+> **Regla:** Los íconos que acompañan texto en botones/labels se alinean con `d-inline-flex align-items-center gap-2` (o `gap-1` para tamaños chicos). Como usan `stroke="currentColor"`, heredan el color del botón/label automáticamente y respetan los estados de la capa de reskin.
+
+> **Regla:** Centralizar los íconos en un único módulo (`icons.jsx`) por pantalla/feature en vez de pegar SVGs inline repetidos. Garantiza consistencia de trazo, tamaño y estilo, y permite cambiar un ícono en un solo lugar.
+
+> **Excepción documentada:** Los emojis que se pasan como **prop string** a un componente (ej. `title="⚠️ Faltan los precios"` en `ConfirmModal`) no se reemplazan por SVG porque el prop espera texto plano, no JSX. Si en el futuro `ConfirmModal` acepta un ícono como prop, migrarlos.
+
+---
+
+### 11. Headers de card estilo "eyebrow / overline" (kicker)
+
+#### Contexto
+
+La primera versión del reskin (sección 8) le daba a cada `card-header` una **barra de acento izquierdo** de color según la semántica. Al haber muchas cards en cada tab, el patrón se volvió **repetitivo**: todos los títulos se veían igual y competían visualmente con el acento izquierdo que usan las propias cards (`.card.border-*`).
+
+Decisión: mantener las cards como están y rediseñar **solo los títulos** con una estética más moderna y silenciosa.
+
+#### Investigación
+
+Patrón dominante en dashboards modernos (Linear, Stripe, Notion; design systems como cladd, Create UI, Pure Admin): el **eyebrow / section kicker / overline**.
+
+- Label en **mayúsculas**, tamaño chico (`10–12px`), con **tracking amplio** (`letter-spacing` ~`0.08–0.1em`), color **tenue**.
+- Layout `flex` con `align-items: baseline/center` para anclar un chip/badge/acción a la derecha (`ml-auto`).
+- Borde inferior opcional de `1px` muy sutil para separar del cuerpo, sin peso visual.
+- Clave: **consistencia silenciosa** — todos los headers se leen igual y el ojo los identifica al instante en UIs densas, sin gritar.
+
+> Fuentes: cladd `SectionTitle`, Create UI `ui-overline-*`, Pure Admin `pa-section-title`, Twill `DESIGN_SYSTEM.md` (section labels uppercase `letter-spacing: .05–.06em`).
+
+#### Implementación (en `styles.js`, scopeada a `.gs-content`)
+
+```css
+.gs-content .card-header {
+  background: #ffffff !important;
+  color: #6A8899 !important;            /* acero de marca, tenue */
+  border-bottom: 1px solid #f1f3f5;     /* divisor sutil */
+  border-left: none !important;         /* se elimina la barra de acento repetitiva */
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  padding: 14px 16px 11px;
+}
+.gs-content .card-header h5,
+.gs-content .card-header h6 {
+  color: #6A8899 !important;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  margin: 0;
+}
+.gs-content .card-header h5 svg,
+.gs-content .card-header h6 svg {
+  width: 13px !important;               /* ícono proporcional al label chico */
+  height: 13px !important;
+  opacity: 0.85;
+}
+```
+
+#### Decisiones de color
+
+- En vez de mantener un color por semántica (que reintroduciría la repetición), **todos** los eyebrows usan el **acero de marca** `#6A8899`. Da identidad de marca, se distingue del texto del cuerpo y no compite con el acento izquierdo de las cards.
+- Los íconos del header (SVG `currentColor`) heredan ese acero automáticamente y se reducen a `13px` para acompañar al label chico.
+
+> **Regla:** Los títulos de card en pantallas densas usan el patrón **eyebrow**: mayúsculas, `0.7rem`, `font-weight 700`, `letter-spacing 0.09em`, color de marca tenue, sin barra de acento. El acento izquierdo de color se reserva para **estado** en el cuerpo de las cards (`.card.border-*`), no para los títulos. Esto evita la repetición y crea jerarquía: el título "susurra" la categoría, el contenido es el protagonista.
+
+> **Cuidado al reskinear headers a fondo blanco:** revisar textos con `color: '#fff'` **inline** dentro de headers (ej. el "Total" del header de adelantos en `EmpleadosTab`). El blanco inline gana sobre el CSS y queda invisible sobre el nuevo fondo blanco — cambiarlo a un color legible (`#2b3a42`).
+
+---
+
+### 12. Balance Semanal + Historial adoptan la capa de reskin (`gs-content`)
+
+#### Contexto
+
+`src/pages/Balance.jsx` (que incluye el **Historial de semanas cerradas** y el modal de selección de proveedores) seguía en la estética vieja: headers de color sólido (`bg-danger text-white`, `bg-dark text-white`, etc.), emojis y FontAwesome como íconos, y la **paleta celeste antigua** (`#A9D6E5`, bordes `#007bff`) en lugar del acero de marca.
+
+#### Solución — reutilizar la infraestructura existente, no reinventar
+
+1. **Inyectar el mismo `styles`** de `gestionSemanal/styles.js` en la página: `import { styles } from '../components/gestionSemanal/styles'` y `<style>{styles}</style>`. Las reglas conviven sin chocar porque están scopeadas a `.gs-content`.
+2. **Envolver el contenedor raíz** con la clase `gs-content` (`<div className="container-fluid ... gs-content">`). Con eso, todas las cards, headers, botones, badges, alerts, inputs, tablas y bordes heredan el reskin NEWLOOK de una sola vez — incluidos el modal y el historial, que son descendientes del contenedor.
+3. **Íconos:** reemplazo de todos los emojis y FontAwesome por el set SVG compartido (sección 10), agregando los 10 íconos faltantes al módulo.
+4. **Paleta:** los colores inline `#A9D6E5` → `#6A8899` (acero); los botones con estilo inline pasan a clases (`btn-primary`, etc.) para heredar el rebranding; los bordes `#007bff` del historial se eliminan en favor del `.card.border-primary` (acento izquierdo acero) del reskin.
+
+#### Detalles
+
+- **KPI cards** (Gastos / Empleados / Deudas / Inventario): conservan `border-*` y `bg-* text-white` en el JSX, pero el reskin convierte el header a **eyebrow** blanco con acero y deja el valor de color (rojo, ámbar, acero, gris) como protagonista. No hace falta tocar el markup de color.
+- **Expandir/Contraer:** se usa un solo `IconChevronDown` envuelto en un `<span>` que rota `180°` con transición, en vez de dos emojis distintos (📈/📉).
+- **Cards del historial:** el `onMouseEnter/Leave` ya no agrega `box-shadow` (la regla NEWLOOK es flat); solo queda el `translateY(-2px)`.
+- **Badge `bg-info`** y **`text-info`** se sumaron al reskin (`styles.js`) mapeados al acero, porque el cyan default de Bootstrap desentona con la marca.
+
+> **Regla:** Para pantallas legacy nuevas, el camino es **(a)** inyectar `styles`, **(b)** envolver en `.gs-content`, **(c)** cambiar emojis/FA por el set SVG, **(d)** limpiar paleta vieja inline. No reescribir la lógica ni duplicar CSS. La clase `gs-content` no es exclusiva de Gestión Semanal: es el contenedor estándar para aplicar la estética NEWLOOK a cualquier pantalla con Bootstrap legacy.
+
+---
+
+### 13. Mi Reparto — rediseño NEWLOOK (17/06/2026)
+
+#### Contexto
+
+`src/pages/MiReparto.jsx` y sus componentes (`RepartoCard`, `ClienteRow`, `EditRepartoModal`, `ReportesGraficos`, `PrintDocument` en modo reparto) tenían estética legacy: emojis y FontAwesome, cards con sombra, textos y bordes muy claros (`#9ca3af`, `#f3f4f6`), filtro de repartos guardados como segmented control aislado (pill blanco redondeado sin conectar al contenido), y títulos genéricos "Reparto DD/MM/AAAA".
+
+A diferencia de Balance (sección 12), **Mi Reparto no usa `.gs-content`**: el markup es mayormente custom con estilos inline + clase scopeada `.reparto-page` en `index.css`. La paleta y reglas visuales son las mismas que `gs-content`.
+
+#### Fondo de página
+
+Rutas `/mi-reparto` y `/reparto` en `App.jsx`:
+
+```jsx
+<div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+```
+
+El blanco queda reservado para las cards de contenido (formulario, clientes del día, deudores, bloque de repartos guardados).
+
+#### Íconos
+
+Todos los controles de UI migrados a `gestionSemanal/icons.jsx` (ver sección 10). Archivos tocados: `MiReparto.jsx`, `RepartoCard.jsx`, `ClienteRow.jsx`, `EditRepartoModal.jsx`, `ReportesGraficos.jsx`, modal de impresión en `PrintDocument.jsx`.
+
+Íconos nuevos por esta pantalla: `IconSave`, `IconTrophy`, `IconTrendDown`.
+
+#### Contraste y cards flat
+
+Tokens alineados con la paleta de bordes de la sección 8 (aplicados inline y en `.reparto-page`):
+
+| Token | Uso en Mi Reparto |
+|---|---|
+| `#d3d9de` | borde de cards blancas |
+| `#dde2e6` | divisores de sección, `border-top` |
+| `#ccd3d9` | bordes de botones outline e inputs |
+| `#6c757d` | labels uppercase, texto muted (antes `#9ca3af`) |
+| `#8a939c` | hints secundarios (antes `#c4c9d4`) |
+
+```css
+/* index.css */
+.reparto-page .form-control {
+  border-color: #ccd3d9;
+}
+.reparto-page .form-control:focus {
+  border-color: #6A8899;
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.15);
+}
+```
+
+Cards: `border: 1px solid #d3d9de`, `box-shadow: none` (sin sombra en hover).
+
+#### Bloque unificado filtros + lista (patrón Gestión Semanal)
+
+El panel **Repartos Guardados** replica las secciones 2, 3 y 5 de Gestión Semanal:
+
+```jsx
+{/* Header "Repartos Guardados" — fuera del bloque gris */}
+<div style={{ background: '#e9ecef', borderRadius: '12px', padding: '4px' }}>
+  {/* Fila de filtros: Hoy | Semana | Mes | Año | 📅 */}
+  {dateFilter === val && (
+    <motion.div
+      layoutId="reparto-filter-indicator"
+      style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: '9px 9px 0 0', zIndex: 0 }}
+      transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+    />
+  )}
+  {/* Contenido blanco conectado */}
+  <div style={{ background: 'white', borderRadius: '0 0 9px 9px', padding: '12px' }}>
+    {/* lista de RepartoCard */}
+  </div>
+</div>
+```
+
+> **Regla:** No implementar el filtro como barra gris **aislada** dentro de una card blanca con `borderRadius: '9px'` en el indicador. El patrón correcto es **bloque gris único** + tab activo con radio **solo arriba** + panel blanco **solo abajo**, sin gap entre ambos.
+
+> **Anti-patrón documentado:** calcular `left`/`width` del slider con `getBoundingClientRect` + `useEffect` fue el primer intento; se reemplazó por `layoutId` de Framer Motion al unificar el bloque visual.
+
+#### Títulos de RepartoCard — día de la semana + fecha
+
+Helper en `src/utils/date.js`:
+
+```js
+formatDateWithWeekday('2026-06-17') // → "Miércoles 17/06/2026"
+```
+
+Usado en `RepartoCard` (título de card), `EditRepartoModal` (subtítulo) y mensaje de confirmación al eliminar. Parseo seguro sin UTC (misma lógica que `formatDateSafe`).
+
+#### Altura de lista alineada con Deudores (desktop)
+
+Con filtro **Año** (muchos repartos), la lista no debe extender la columna derecha infinitamente. En desktop (`≥992px`):
+
+- `deudoresSectionRef` en la card Deudores (columna izquierda).
+- `repartosListRef` en `.clientes-list-scroll`.
+- `ResizeObserver` + `resize` calculan `maxHeight` = borde inferior de Deudores − tope de la lista.
+- Se recalcula al cambiar filtro, expandir deudores, cantidad de clientes o tamaño de ventana.
+
+En mobile: `max-height: 50vh` en `.clientes-list-scroll` (scroll interno).
+
+> **Regla:** Listas laterales largas en layout de dos columnas deben **alinearse verticalmente** con el ancla de la columna opuesta (aquí: Deudores), no crecer sin límite. Preferir medición dinámica (`ResizeObserver`) sobre un `px` fijo cuando el contenido izquierdo es variable.
+
+---
+
+### 14. Saldo Clientes — rediseño NEWLOOK (17/06/2026)
+
+#### Contexto
+
+`SaldoClientes.jsx` fue el **origen** del NEWLOOK (sección 1 del README), pero quedó atrás respecto a Gestión Semanal y Mi Reparto: slider manual de filtros, opción **Todos**, FontAwesome, cards con sombra, fondo `#FAFBFF`, textos `#9ca3af`.
+
+#### Fondo de página
+
+Ruta `/saldo-clientes` en `App.jsx`:
+
+```jsx
+<div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+```
+
+#### Clase scopeada
+
+```css
+/* index.css */
+.saldo-clientes-page .form-control { border-color: #ccd3d9; }
+.saldo-clientes-page .form-control:focus {
+  border-color: #6A8899;
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.15);
+}
+```
+
+Contenedor raíz: `className="... saldo-clientes-page"`.
+
+#### Bloque unificado Clientes Guardados
+
+Mismo patrón que Mi Reparto (sección 13) con `layoutId="saldo-filter-indicator"`. Header eyebrow **fuera** del bloque gris. Filtros: Hoy | Semana | Mes | Año | 📅 (`IconCalendar`). **Sin "Todos"**. Default: `semana`.
+
+#### Íconos
+
+Migrados a `gestionSemanal/icons.jsx` en `SaldoClientes.jsx`, `ClienteDeudorCard.jsx`, `EditClienteModal.jsx`. Nuevos: `IconDownload`, `IconInbox`.
+
+#### Cards flat y contraste
+
+- Formulario, status Firebase, panel Gestión Semanal, `ClienteDeudorCard`: `border: 1px solid #d3d9de`, sin sombra.
+- Divisores `#dde2e6`, muted `#6c757d` (reemplaza `#9ca3af`).
+
+#### Altura de lista (desktop)
+
+- `saldoAnchorRef` envolviendo formulario + resumen (`saldo-main-col` con `align-self: flex-start`).
+- `clientesListRef` en `.clientes-list-scroll`.
+- `ResizeObserver` calcula `maxHeight` = borde inferior de la columna izquierda − tope de la lista.
+
+> **Regla:** En Saldo Clientes el ancla es el **contenido** del formulario/resumen (wrapper interno), no la columna Bootstrap estirada por flexbox — igual que en Transferencias (sección 15).
+
+---
+
+### 15. Transferencias — rediseño NEWLOOK (17/06/2026)
+
+#### Contexto
+
+`Transferencias.jsx` compartía el patrón legacy de Saldo Clientes: slider manual de filtros, FontAwesome, cards con sombra, fondo `#FAFBFF`, filtro `mes` mezclado con picker de mes, `default` devolviendo todo el histórico, y lista sin límite de altura en desktop.
+
+#### Fondo de página
+
+Ruta `/transferencias` en `App.jsx`:
+
+```jsx
+<div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+```
+
+#### Clase scopeada
+
+```css
+.transferencias-page .form-control { border-color: #ccd3d9; }
+.transferencias-main-col { align-self: flex-start; }
+```
+
+#### Bloque unificado Transferencias Guardadas
+
+`layoutId="transferencias-filter-indicator"`. Filtros: Hoy | Semana | Mes | Año | `IconCalendar` (`elegir_mes`). Default: `semana`.
+
+#### Filtros de fecha (alineados con Saldo Clientes)
+
+- `semana` = semana calendario (domingo–sábado), no últimos 7 días.
+- `mes` = mes actual.
+- `elegir_mes` = `customMonth`.
+- `default` = `[]`.
+
+#### Altura de lista (desktop)
+
+- `transferenciasAnchorRef` envuelve formulario + resumen.
+- `transferenciasListRef` en `.clientes-list-scroll`.
+- `ResizeObserver` + `align-self: flex-start` en `.transferencias-main-col`.
+
+#### Archivos
+
+`Transferencias.jsx`, `TransferenciaCard.jsx`, `EditTransferenciaModal.jsx`, `App.jsx`, `index.css`.

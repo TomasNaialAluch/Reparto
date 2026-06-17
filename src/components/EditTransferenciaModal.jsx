@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
+import { IconX } from './gestionSemanal/icons';
 
 const ModalSection = ({ label, children, action }) => (
   <div style={{ marginBottom: '18px' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-      <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+      <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
       {action}
     </div>
     {children}
@@ -24,8 +25,9 @@ const AddBtn = ({ onClick, label }) => (
 
 const RemoveBtn = ({ onClick }) => (
   <button type="button" onClick={onClick}
-    style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
-    ×
+    className="d-inline-flex align-items-center justify-content-center"
+    style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+    <IconX size={14} />
   </button>
 );
 
@@ -98,18 +100,19 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
       <div style={{ background: 'white', borderRadius: '16px', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', width: '100%', maxWidth: '580px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', margin: '0 16px', transform: 'translateY(0)' }}>
 
         {/* Header */}
-        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
+        <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #dde2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
               Editar transferencia
             </div>
             <div style={{ fontSize: '1rem', fontWeight: 700, color: '#212529' }}>
               {transferencia?.nombreCliente}
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#6c757d', fontSize: '1rem', flexShrink: 0 }}>
-            ×
+          <button type="button" onClick={onClose}
+            className="d-inline-flex align-items-center justify-content-center"
+            style={{ border: 'none', background: '#e9ecef', borderRadius: '50%', width: '30px', height: '30px', cursor: 'pointer', color: '#6c757d', flexShrink: 0 }}>
+            <IconX size={14} />
           </button>
         </div>
 
@@ -126,7 +129,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
 
           {/* Transferencias */}
           <ModalSection label="Transferencias Recibidas" action={<AddBtn onClick={addTransferenciaRow} label="Agregar" />}>
-            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: '8px' }}>Dinero que el cliente te envió</div>
+            <div style={{ fontSize: '0.7rem', color: '#6c757d', marginBottom: '8px' }}>Dinero que el cliente te envió</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {formData.transferencias.map((t, i) => (
                 <div key={i} style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px', borderLeft: '2px solid rgba(106,136,153,0.35)', display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -145,7 +148,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
 
           {/* Boletas */}
           <ModalSection label="Boletas Vendidas" action={<AddBtn onClick={addBoleta} label="Agregar" />}>
-            <div style={{ fontSize: '0.7rem', color: '#9ca3af', marginBottom: '8px' }}>Dinero que le debés al cliente</div>
+            <div style={{ fontSize: '0.7rem', color: '#6c757d', marginBottom: '8px' }}>Dinero que le debés al cliente</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {formData.boletas.map((b, i) => (
                 <div key={i} style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px', borderLeft: '2px solid rgba(230,168,23,0.35)', display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -164,7 +167,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
 
           {/* Resumen en tiempo real */}
           <div style={{ background: '#f8f9fa', borderRadius: '10px', borderLeft: `3px solid ${accentColor}`, padding: '12px 14px' }}>
-            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Resumen</div>
+            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Resumen</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1px', background: '#e9ecef', borderRadius: '8px', overflow: 'hidden', marginBottom: '10px' }}>
               {[
                 { label: 'Transferencias', value: formatCurrency(totalTransferencias), color: '#3a5060' },
@@ -172,7 +175,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
                 { label: 'Saldo',          value: formatCurrency(Math.abs(saldoFinal)), color: pillColor },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{ background: 'white', padding: '8px 4px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.6rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>{label}</div>
+                  <div style={{ fontSize: '0.6rem', color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>{label}</div>
                   <div style={{ fontSize: '0.78rem', fontWeight: 700, color }}>{value}</div>
                 </div>
               ))}
@@ -189,7 +192,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 20px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '10px', flexShrink: 0 }}>
+        <div style={{ padding: '14px 20px', borderTop: '1px solid #dde2e6', display: 'flex', gap: '10px', flexShrink: 0 }}>
           <button onClick={onClose}
             style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer' }}>
             Cancelar

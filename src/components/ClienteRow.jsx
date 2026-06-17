@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { formatCurrency } from '../utils/money';
+import { IconCheck, IconX } from './gestionSemanal/icons';
 
 const paymentStyle = (status) => ({
   paid:    { bg: 'rgba(40,167,69,0.07)',   border: '#28a745' },
   partial: { bg: 'rgba(230,168,23,0.08)',  border: '#e6a817' },
-  pending: { bg: 'white',                  border: '#f3f4f6' },
-})[status] || { bg: 'white', border: '#f3f4f6' };
+  pending: { bg: 'white',                  border: '#dde2e6' },
+})[status] || { bg: 'white', border: '#dde2e6' };
 
 const ClienteRow = ({ cliente, onUpdate, onDelete }) => {
   const [isEditingAmount, setIsEditingAmount] = useState(false);
@@ -61,7 +62,7 @@ const ClienteRow = ({ cliente, onUpdate, onDelete }) => {
       </div>
 
       {/* Dirección */}
-      <div style={{ fontSize: '0.75rem', color: '#9ca3af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <div style={{ fontSize: '0.75rem', color: '#6c757d', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {cliente.address || '—'}
       </div>
 
@@ -91,7 +92,9 @@ const ClienteRow = ({ cliente, onUpdate, onDelete }) => {
         style={{ cursor: 'pointer', textAlign: 'center' }}
       >
         {paymentStatus === 'paid' ? (
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '3px 8px', borderRadius: '999px' }}>✓ Pagado</span>
+          <span className="d-inline-flex align-items-center gap-1" style={{ fontSize: '0.75rem', fontWeight: 700, background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '3px 8px', borderRadius: '999px' }}>
+            <IconCheck size={11} /> Pagado
+          </span>
         ) : paymentStatus === 'partial' ? (
           <span style={{ fontSize: '0.72rem', fontWeight: 700, background: 'rgba(230,168,23,0.12)', color: '#e6a817', padding: '3px 8px', borderRadius: '999px' }}>{formatCurrency(paymentAmount)}</span>
         ) : (
@@ -102,10 +105,10 @@ const ClienteRow = ({ cliente, onUpdate, onDelete }) => {
       {/* Eliminar */}
       <button
         onClick={() => onDelete(cliente.id)}
-        className="no-print"
+        className="no-print d-inline-flex align-items-center justify-content-center"
         title="Eliminar"
-        style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1rem', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>
-        ×
+        style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 2px', lineHeight: 1 }}>
+        <IconX size={16} />
       </button>
     </div>
   );

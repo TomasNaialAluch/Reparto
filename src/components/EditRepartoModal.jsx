@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../utils/money';
-import { getLocalDateString, formatDateSafe } from '../utils/date';
+import { getLocalDateString, formatDateWithWeekday } from '../utils/date';
+import { IconX, IconUsers, IconPlus } from './gestionSemanal/icons';
 
 /* ── Sub-componentes ── */
 
 const ModalSection = ({ label, children, action }) => (
   <div style={{ marginBottom: '20px' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+      <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
       {action}
     </div>
     {children}
@@ -95,18 +96,19 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
       }}>
 
         {/* Header */}
-        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #dde2e6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
               Editar reparto
             </div>
             <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
-              {formatDateSafe(reparto?.date)}
+              {formatDateWithWeekday(reparto?.date)}
             </div>
           </div>
           <button onClick={onClose}
-            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d' }}>
-            ✕
+            className="d-inline-flex align-items-center justify-content-center"
+            style={{ border: 'none', background: '#dde2e6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: '#6c757d' }}>
+            <IconX size={16} />
           </button>
         </div>
 
@@ -130,16 +132,19 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
             label={`Clientes (${formData.clients.length})`}
             action={
               <button onClick={addCliente}
-                style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '3px 10px', background: 'transparent', color: '#6c757d', fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                + Agregar
+                className="d-inline-flex align-items-center gap-1"
+                style={{ border: '1px dashed #ccd3d9', borderRadius: '8px', padding: '3px 10px', background: 'transparent', color: '#6c757d', fontSize: '0.72rem', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <IconPlus size={11} /> Agregar
               </button>
             }
           >
             {formData.clients.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af' }}>
-                <div style={{ fontSize: '1.6rem', marginBottom: '6px', opacity: 0.4 }}>👥</div>
+              <div style={{ textAlign: 'center', padding: '24px 0', color: '#6c757d' }}>
+                <div style={{ marginBottom: '6px', opacity: 0.4, display: 'flex', justifyContent: 'center' }}>
+                  <IconUsers size={28} />
+                </div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 500 }}>Sin clientes</div>
-                <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>Usá "+ Agregar" para sumar clientes</div>
+                <div style={{ fontSize: '0.72rem', color: '#8a939c', marginTop: '3px' }}>Usá "+ Agregar" para sumar clientes</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -165,15 +170,16 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
                           placeholder="Dirección (opcional)"
                           style={{ borderRadius: '7px', flex: 2 }} />
                         <button onClick={() => removeCliente(index)}
-                          style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
-                          ×
+                          className="d-inline-flex align-items-center justify-content-center"
+                          style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+                          <IconX size={16} />
                         </button>
                       </div>
 
                       {/* Fila 2: monto + estado */}
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Monto</label>
+                          <label style={{ fontSize: '0.65rem', color: '#6c757d', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Monto</label>
                           <input type="number" step="0.01" className="form-control form-control-sm"
                             value={cliente.billAmount}
                             onChange={(e) => updateCliente(index, 'billAmount', parseFloat(e.target.value) || 0)}
@@ -181,7 +187,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
                             style={{ borderRadius: '7px' }} />
                         </div>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: '0.65rem', color: '#9ca3af', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Estado</label>
+                          <label style={{ fontSize: '0.65rem', color: '#6c757d', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Estado</label>
                           <select className="form-control form-control-sm"
                             value={cliente.paymentStatus}
                             onChange={(e) => updateCliente(index, 'paymentStatus', e.target.value)}
@@ -202,21 +208,21 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
           {/* Resumen en tiempo real */}
           {formData.clients.length > 0 && (
             <div style={{ background: '#f8f9fa', borderRadius: '10px', padding: '12px 16px', borderLeft: '3px solid #6A8899' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
                 Resumen
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 <div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total</div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Total</div>
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#6A8899' }}>{formatCurrency(totalReparto)}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Pagados</div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Pagados</div>
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#28a745' }}>{pagados}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Pendientes</div>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: pendientes > 0 ? '#e6a817' : '#9ca3af' }}>{pendientes}</div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Pendientes</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: pendientes > 0 ? '#e6a817' : '#6c757d' }}>{pendientes}</div>
                 </div>
               </div>
             </div>
@@ -224,9 +230,9 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '10px', flexShrink: 0 }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #dde2e6', display: 'flex', gap: '10px', flexShrink: 0 }}>
           <button onClick={onClose}
-            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
+            style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #ccd3d9', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
             Cancelar
           </button>
           <button onClick={handleSave}

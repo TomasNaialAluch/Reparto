@@ -5,6 +5,7 @@ import { formatCurrency } from '../../utils/money';
 import ConfirmModal from '../ConfirmModal';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
+import { IconCheck, IconX, IconEdit, IconTrash, IconPlus } from './icons';
 
 export default function MercaderiaTab({
   semanaActiva,
@@ -493,10 +494,12 @@ export default function MercaderiaTab({
               <div className="d-flex justify-content-between align-items-center mb-2">
                 <label className="form-label fw-bold mb-0">Cortes (kg y precio por kg):</label>
                 <button
-                  className="btn btn-sm btn-outline-success"
+                  className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2"
                   onClick={() => setMostrarInputNuevoCorte(!mostrarInputNuevoCorte)}
                 >
-                  {mostrarInputNuevoCorte ? '✕ Cancelar' : '➕ Agregar Corte'}
+                  {mostrarInputNuevoCorte
+                    ? <><IconX size={13} /> Cancelar</>
+                    : <><IconPlus size={13} /> Agregar Corte</>}
                 </button>
               </div>
 
@@ -518,10 +521,10 @@ export default function MercaderiaTab({
                         }}
                       />
                       <button
-                        className="btn btn-success"
+                        className="btn btn-success d-inline-flex align-items-center gap-2"
                         onClick={agregarNuevoCorte}
                       >
-                        ✅ Agregar
+                        <IconCheck size={15} /> Agregar
                       </button>
                     </div>
                   </div>
@@ -550,12 +553,12 @@ export default function MercaderiaTab({
                             </label>
                             {esPersonalizado && (
                               <button
-                                className="btn btn-sm btn-outline-danger"
-                                style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
+                                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center"
+                                style={{ padding: '0.15rem 0.3rem' }}
                                 onClick={() => eliminarCorteDelFormulario(corte)}
                                 title="Eliminar corte"
                               >
-                                ✕
+                                <IconX size={12} />
                               </button>
                             )}
                           </div>
@@ -614,10 +617,10 @@ export default function MercaderiaTab({
             <button 
               ref={agregarEntradaBtnRef}
               type="button"
-              className="btn btn-success btn-lg w-100"
+              className="btn btn-success btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2"
               onClick={handleAgregarMercaderia}
             >
-              ✅ Agregar Entrada
+              <IconCheck size={16} /> Agregar Entrada
             </button>
           </div>
         </div>
@@ -655,13 +658,13 @@ export default function MercaderiaTab({
                                 <strong>{entrada.proveedor}</strong>
                               </h6>
                               <button 
-                                className="btn btn-sm btn-danger"
+                                className="btn btn-sm btn-danger d-inline-flex align-items-center"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   eliminarMercaderia(index);
                                 }}
                               >
-                                ✕
+                                <IconX size={13} />
                               </button>
                             </div>
                             <h5 className="text-primary mb-1">
@@ -717,43 +720,43 @@ export default function MercaderiaTab({
                                 {editingMercaderia === index ? (
                                   <>
                                     <button 
-                                      className="btn btn-sm btn-success"
+                                      className="btn btn-sm btn-success d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         saveEditingMercaderia(index);
                                       }}
                                     >
-                                      ✓
+                                      <IconCheck size={13} />
                                     </button>
                                     <button 
-                                      className="btn btn-sm btn-secondary"
+                                      className="btn btn-sm btn-secondary d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         cancelEditingMercaderia();
                                       }}
                                     >
-                                      ✕
+                                      <IconX size={13} />
                                     </button>
                                   </>
                                 ) : (
                                   <>
                                     <button 
-                                      className="btn btn-sm btn-warning"
+                                      className="btn btn-sm btn-warning d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         startEditingMercaderia(index, entrada);
                                       }}
                                     >
-                                      ✏️
+                                      <IconEdit size={13} />
                                     </button>
                                     <button 
-                                      className="btn btn-sm btn-danger"
+                                      className="btn btn-sm btn-danger d-inline-flex align-items-center"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         eliminarMercaderia(index);
                                       }}
                                     >
-                                      🗑️
+                                      <IconTrash size={13} />
                                     </button>
                                   </>
                                 )}
@@ -767,15 +770,15 @@ export default function MercaderiaTab({
                                     <div key={i} className="col-md-3 col-sm-6">
                                       <div className="border rounded p-2 position-relative">
                                         <button 
-                                          className="btn btn-sm btn-danger position-absolute"
-                                          style={{ top: '2px', right: '2px', padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
+                                          className="btn btn-sm btn-danger position-absolute d-inline-flex align-items-center"
+                                          style={{ top: '2px', right: '2px', padding: '0.15rem 0.3rem' }}
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             eliminarCorteEnEdicion(i);
                                           }}
                                           title="Eliminar corte"
                                         >
-                                          ✕
+                                          <IconX size={11} />
                                         </button>
                                         <input 
                                           type="text" 
@@ -861,15 +864,15 @@ export default function MercaderiaTab({
                                         ) : null}
                                       </div>
                                       <button
-                                        className="btn btn-sm btn-outline-danger"
-                                        style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
+                                        className="btn btn-sm btn-outline-danger d-inline-flex align-items-center"
+                                        style={{ padding: '0.15rem 0.3rem' }}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           confirmarEliminarCorte(index, i);
                                         }}
                                         title="Eliminar corte"
                                       >
-                                        ✕
+                                        <IconX size={11} />
                                       </button>
                                     </li>
                                   ))}
@@ -912,29 +915,31 @@ export default function MercaderiaTab({
         </div>
 
         {semanaActiva?.mercaderia && semanaActiva.mercaderia.length > 0 && (
-          <div className="card mt-3 border-success">
-            <div className="card-header bg-success text-white">
-              <h5 className="mb-0">Totales Semanales</h5>
-            </div>
-            <div className="card-body">
-              {(() => {
-                const { porCorte, total } = calcularTotalesMercaderia();
-                return (
-                  <>
-                    <div className="row">
-                      {Object.entries(porCorte).map(([corte, kg]) => (
-                        <div key={corte} className="col-6 mb-2">
-                          <strong>{corte}:</strong> {kg.toFixed(2)} kg
-                        </div>
-                      ))}
-                    </div>
-                    <hr />
-                    <h4 className="text-center mb-0">
-                      <strong>TOTAL: {total.toFixed(2)} kg</strong>
-                    </h4>
-                  </>
-                );
-              })()}
+          <div className="gs-totales-glow mt-3">
+            <div className="card">
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0">Totales Semanales</h5>
+              </div>
+              <div className="card-body">
+                {(() => {
+                  const { porCorte, total } = calcularTotalesMercaderia();
+                  return (
+                    <>
+                      <div className="row">
+                        {Object.entries(porCorte).map(([corte, kg]) => (
+                          <div key={corte} className="col-6 mb-2">
+                            <strong>{corte}:</strong> {kg.toFixed(2)} kg
+                          </div>
+                        ))}
+                      </div>
+                      <hr />
+                      <h4 className="text-center mb-0">
+                        <strong>TOTAL: {total.toFixed(2)} kg</strong>
+                      </h4>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
           </div>
         )}

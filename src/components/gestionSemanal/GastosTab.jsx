@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { formatCurrency } from '../../utils/money';
 import { getLocalDateString } from '../../utils/date';
+import { IconCheck, IconX } from './icons';
 
 export default function GastosTab({ 
   semanaActiva, 
@@ -85,10 +86,10 @@ export default function GastosTab({
             </div>
 
             <button 
-              className="btn btn-success btn-lg w-100"
+              className="btn btn-success btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2"
               onClick={handleAgregarGasto}
             >
-              ✅ Agregar Gasto
+              <IconCheck size={16} /> Agregar Gasto
             </button>
           </div>
         </div>
@@ -124,11 +125,11 @@ export default function GastosTab({
                             {new Date(gasto.fecha).toLocaleDateString('es-AR')}
                           </small>
                           <button 
-                            className="btn btn-sm btn-danger"
-                            style={{padding: '2px 6px', fontSize: '10px'}}
+                            className="btn btn-sm btn-danger d-inline-flex align-items-center"
+                            style={{padding: '3px 6px'}}
                             onClick={() => eliminarGasto(index)}
                           >
-                            ✕
+                            <IconX size={12} />
                           </button>
                         </div>
                         <h6 className="mb-1" style={{fontSize: '12px', lineHeight: '1.2'}}>

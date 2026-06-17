@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ConfirmModal from './ConfirmModal';
-import { formatDateSafe } from '../utils/date';
+import { formatDateWithWeekday } from '../utils/date';
+import { IconEdit, IconPrinter, IconTrash, IconChevronDown } from './gestionSemanal/icons';
 
 const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -41,8 +42,8 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
     <>
       <div style={{
         borderRadius: '12px', background: 'white',
+        border: '1px solid #d3d9de',
         borderLeft: `3px solid ${accentColor}`,
-        boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
         marginBottom: '8px', overflow: 'hidden',
         cursor: 'pointer',
         transition: 'box-shadow 0.2s ease',
@@ -54,7 +55,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
 
           <div style={{ minWidth: 0 }}>
             <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#212529', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Reparto {formatDateSafe(reparto.date)}
+              {formatDateWithWeekday(reparto.date)}
             </div>
             <div style={{ fontSize: '0.71rem', color: '#6c757d' }}>
               {cantidadClientes} {cantidadClientes === 1 ? 'cliente' : 'clientes'} · {formatCurrency(totalReparto)}
@@ -67,21 +68,20 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
                 {clientesPagados}/{cantidadClientes} pagados
               </div>
               {clientesPendientes > 0 && (
-                <div style={{ fontSize: '0.67rem', color: '#9ca3af', textAlign: 'center' }}>
+                <div style={{ fontSize: '0.67rem', color: '#6c757d', textAlign: 'center' }}>
                   {clientesPendientes} pendiente{clientesPendientes !== 1 ? 's' : ''}
                 </div>
               )}
             </div>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-              style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)', flexShrink: 0 }}>
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+            <span className="d-inline-flex" style={{ color: '#6c757d', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)', flexShrink: 0 }}>
+              <IconChevronDown size={14} />
+            </span>
           </div>
         </div>
 
         {/* ── Cuerpo expandible ── */}
         <div style={{ maxHeight: isExpanded ? '600px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(.4,0,.2,1)' }}>
-          <div style={{ padding: '0 14px 14px', borderTop: '1px solid #f3f4f6' }}>
+          <div style={{ padding: '0 14px 14px', borderTop: '1px solid #dde2e6' }}>
 
             {/* Stats */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '4px', margin: '12px 0' }}>
@@ -89,10 +89,10 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
                 { label: 'Total',      value: formatCurrency(totalReparto), color: '#212529', small: true },
                 { label: 'Clientes',   value: cantidadClientes,             color: '#212529' },
                 { label: 'Pagados',    value: clientesPagados,              color: '#28a745' },
-                { label: 'Pendientes', value: clientesPendientes,           color: clientesPendientes > 0 ? '#e6a817' : '#9ca3af' },
+                { label: 'Pendientes', value: clientesPendientes,           color: clientesPendientes > 0 ? '#e6a817' : '#6c757d' },
               ].map(({ label, value, color, small }, i) => (
-                <div key={i} style={{ textAlign: 'center', padding: '6px 0', borderRight: i < 3 ? '1px solid #f3f4f6' : 'none' }}>
-                  <div style={{ fontSize: '0.67rem', color: '#9ca3af', marginBottom: '2px' }}>{label}</div>
+                <div key={i} style={{ textAlign: 'center', padding: '6px 0', borderRight: i < 3 ? '1px solid #dde2e6' : 'none' }}>
+                  <div style={{ fontSize: '0.67rem', color: '#6c757d', marginBottom: '2px' }}>{label}</div>
                   <div style={{ fontWeight: 700, fontSize: small ? '0.72rem' : '0.85rem', color }}>{value}</div>
                 </div>
               ))}
@@ -100,7 +100,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
 
             {/* Lista de clientes */}
             <div style={{ marginBottom: '12px' }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
                 Clientes
               </div>
               <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -113,7 +113,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
                   }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '0.78rem', color: '#212529' }}>{client.clientName}</div>
-                      <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{formatCurrency(client.billAmount)}</div>
+                      <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>{formatCurrency(client.billAmount)}</div>
                     </div>
                     {paymentPill(client.paymentStatus)}
                   </div>
@@ -124,16 +124,19 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
             {/* Botones de acción */}
             <div style={{ display: 'flex', gap: '6px' }}>
               <button onClick={(e) => { e.stopPropagation(); onEdit(reparto); }}
-                style={{ flex: 1, border: '1px solid #6A8899', borderRadius: '8px', padding: '6px 10px', background: 'transparent', color: '#3a5060', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                <i className="fas fa-edit" style={{ fontSize: '0.72rem' }}></i> Editar
+                className="d-inline-flex align-items-center justify-content-center gap-1"
+                style={{ flex: 1, border: '1px solid #6A8899', borderRadius: '8px', padding: '6px 10px', background: 'transparent', color: '#3a5060', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+                <IconEdit size={12} /> Editar
               </button>
               <button onClick={(e) => { e.stopPropagation(); onPrint(reparto); }} title="Imprimir"
-                style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '6px 11px', background: 'transparent', color: '#6c757d', fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.15s' }}>
-                <i className="fas fa-print"></i>
+                className="d-inline-flex align-items-center justify-content-center"
+                style={{ border: '1px solid #ccd3d9', borderRadius: '8px', padding: '6px 11px', background: 'transparent', color: '#6c757d', fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.15s' }}>
+                <IconPrinter size={13} />
               </button>
               <button onClick={(e) => { e.stopPropagation(); setShowDeleteModal(true); }}
-                style={{ flex: 1, border: '1px solid #dc3545', borderRadius: '8px', padding: '6px 10px', background: 'transparent', color: '#dc3545', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                <i className="fas fa-trash" style={{ fontSize: '0.72rem' }}></i> Eliminar
+                className="d-inline-flex align-items-center justify-content-center gap-1"
+                style={{ flex: 1, border: '1px solid #dc3545', borderRadius: '8px', padding: '6px 10px', background: 'transparent', color: '#dc3545', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}>
+                <IconTrash size={12} /> Eliminar
               </button>
             </div>
           </div>
@@ -145,7 +148,7 @@ const RepartoCard = ({ reparto, onDelete, onEdit, onPrint }) => {
         onClose={() => setShowDeleteModal(false)}
         onConfirm={() => { onDelete(reparto.id); setShowDeleteModal(false); }}
         title="Eliminar Reparto"
-        message={`¿Eliminás el reparto del ${formatDateSafe(reparto.date)}? Esta acción no se puede deshacer.`}
+        message={`¿Eliminás el reparto del ${formatDateWithWeekday(reparto.date)}? Esta acción no se puede deshacer.`}
         confirmText="Eliminar"
         cancelText="Cancelar"
         confirmButtonClass="btn-danger"

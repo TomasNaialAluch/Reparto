@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
 import { useTransferenciasClientes } from '../firebase/hooks';
@@ -8,6 +9,15 @@ import PrintDocument from '../components/PrintDocument';
 import TransferenciaCard from '../components/TransferenciaCard';
 import NotificationContainer from '../components/NotificationContainer';
 import EditTransferenciaModal from '../components/EditTransferenciaModal';
+import { IconPrinter, IconCalendar, IconInbox, IconX } from '../components/gestionSemanal/icons';
+
+const FILTER_OPTIONS = [
+  ['hoy', 'Hoy'],
+  ['semana', 'Semana'],
+  ['mes', 'Mes'],
+  ['año', 'Año'],
+  ['elegir_mes', null],
+];
 
 const Transferencias = () => {
   const [clientName, setClientName] = useState('');
@@ -42,9 +52,9 @@ const Transferencias = () => {
   const [transferenciaToEdit, setTransferenciaToEdit] = useState(null);
   const [draggedOverIndex, setDraggedOverIndex] = useState(null);
   const [draggedOverType, setDraggedOverType] = useState(null);
-  const filterContainerRef = useRef(null);
-  const filterButtonRefs = useRef({});
-  const [sliderStyle, setSliderStyle] = useState({ left: 0, width: 0 });
+  const transferenciasAnchorRef = useRef(null);
+  const transferenciasListRef = useRef(null);
+  const [transferenciasListMaxH, setTransferenciasListMaxH] = useState(undefined);
 
   useEffect(() => {
     const today = getLocalDateString();
@@ -135,7 +145,7 @@ const Transferencias = () => {
 
     try {
       await guardarEnFirebase();
-      showSuccess('✓ Transferencia guardada exitosamente');
+      showSuccess('Transferencia guardada exitosamente');
 
       // Limpiar formulario
       setClientName('');
@@ -175,21 +185,31 @@ const Transferencias = () => {
     switch (dateFilter) {
       case 'hoy':
         return savedTransferencias.filter(t => t.fecha === todayStr);
-      
-      case 'semana':
-        const weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate() - 7);
-        return savedTransferencias.filter(t => new Date(t.fecha) >= weekAgo);
-      
-      case 'mes':
-        return savedTransferencias.filter(t => t.fecha?.startsWith(customMonth));
-      
-      case 'año':
+
+      case 'semana': {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay());
+        const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+        const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+        const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+        return savedTransferencias.filter(t => t.fecha >= weekStartStr && t.fecha <= weekEndStr);
+      }
+
+      case 'mes': {
+        const currentMonth = today.toISOString().slice(0, 7);
+        return savedTransferencias.filter(t => t.fecha?.startsWith(currentMonth));
+      }
+
+      case 'año': {
         const currentYear = today.getFullYear().toString();
         return savedTransferencias.filter(t => t.fecha?.startsWith(currentYear));
-      
+      }
+
+      case 'elegir_mes':
+        return savedTransferencias.filter(t => t.fecha?.startsWith(customMonth));
+
       default:
-        return savedTransferencias;
+        return [];
     }
   };
 
@@ -225,7 +245,7 @@ const Transferencias = () => {
   const handleSaveEdit = async (id, data) => {
     try {
       await updateTransferencia(id, data);
-      showSuccess('✓ Transferencia actualizada exitosamente');
+      showSuccess('Transferencia actualizada exitosamente');
       closeEditModal();
     } catch (error) {
       console.error('Error al actualizar:', error);
@@ -233,30 +253,65 @@ const Transferencias = () => {
     }
   };
 
-  useEffect(() => {
-    const activeBtn = filterButtonRefs.current[dateFilter];
-    const container = filterContainerRef.current;
-    if (activeBtn && container) {
-      const cr = container.getBoundingClientRect();
-      const br = activeBtn.getBoundingClientRect();
-      setSliderStyle({ left: br.left - cr.left, width: br.width });
+  const getFilterLabel = () => {
+    const labels = {
+      hoy: 'hoy',
+      semana: 'esta semana',
+      mes: 'este mes',
+      año: 'este año',
+      elegir_mes: 'el mes seleccionado',
+    };
+    return labels[dateFilter] || 'el período';
+  };
+
+  const filteredTransferenciasCount = getFilteredTransferencias().length;
+
+  const syncTransferenciasListHeight = () => {
+    if (window.innerWidth < 992) {
+      setTransferenciasListMaxH(undefined);
+      return;
     }
-  }, [dateFilter, savedTransferencias]);
+    const anchor = transferenciasAnchorRef.current;
+    const list = transferenciasListRef.current;
+    if (!anchor || !list) return;
+    const maxH = Math.floor(anchor.getBoundingClientRect().bottom - list.getBoundingClientRect().top);
+    setTransferenciasListMaxH(maxH > 100 ? maxH : 100);
+  };
+
+  useEffect(() => {
+    syncTransferenciasListHeight();
+    const afterTransition = setTimeout(syncTransferenciasListHeight, 350);
+    const raf = requestAnimationFrame(() => {
+      syncTransferenciasListHeight();
+      requestAnimationFrame(syncTransferenciasListHeight);
+    });
+
+    const ro = new ResizeObserver(syncTransferenciasListHeight);
+    if (transferenciasAnchorRef.current) ro.observe(transferenciasAnchorRef.current);
+    if (transferenciasListRef.current) ro.observe(transferenciasListRef.current);
+
+    window.addEventListener('resize', syncTransferenciasListHeight);
+    return () => {
+      clearTimeout(afterTransition);
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('resize', syncTransferenciasListHeight);
+    };
+  }, [showSummary, summaryData, dateFilter, savedTransferencias?.length, filteredTransferenciasCount, loading, customMonth]);
 
   return (
-    <div className="container mt-4">
-      <div className="row justify-content-start">
-        <div className="col-lg-7 col-md-8">
+    <div className="container mt-4 transferencias-page">
+      <div className="row align-items-stretch">
+        <div className="col-lg-7 col-md-8 transferencias-main-col">
+          <div ref={transferenciasAnchorRef}>
 
-          {/* Formulario */}
-          <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+          <div className="no-print mb-3" style={{ background: 'white', borderRadius: '12px', border: '1px solid #d3d9de', boxShadow: 'none', padding: '20px' }}>
 
-            {/* Título */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                 Transferencias
               </span>
-              <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+              <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
             </div>
 
             {/* Nombre */}
@@ -272,12 +327,12 @@ const Transferencias = () => {
             {/* Sección Transferencias Recibidas */}
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   Transferencias Recibidas
                 </span>
-                <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+                <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: '10px' }}>Dinero que el cliente te envió</div>
+              <div style={{ fontSize: '0.72rem', color: '#6c757d', marginBottom: '10px' }}>Dinero que el cliente te envió</div>
               {transferencias.map((t, index) => (
                 <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
                   <input type="text" className="form-control" placeholder="Descripción"
@@ -297,7 +352,10 @@ const Transferencias = () => {
                     title="Arrastrá un monto aquí" />
                   {transferencias.length > 1 && (
                     <button type="button" onClick={() => removeTransferenciaRow(index)}
-                      style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                      className="d-inline-flex align-items-center justify-content-center"
+                      style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+                      <IconX size={14} />
+                    </button>
                   )}
                 </div>
               ))}
@@ -310,12 +368,12 @@ const Transferencias = () => {
             {/* Sección Boletas */}
             <div style={{ marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   Boletas Vendidas
                 </span>
-                <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+                <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: '10px' }}>Dinero que le debés al cliente</div>
+              <div style={{ fontSize: '0.72rem', color: '#6c757d', marginBottom: '10px' }}>Dinero que le debés al cliente</div>
               {boletas.map((b, index) => (
                 <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
                   <input type="date" className="form-control"
@@ -335,7 +393,10 @@ const Transferencias = () => {
                     title="Arrastrá un monto aquí" />
                   {boletas.length > 1 && (
                     <button type="button" onClick={() => removeBoleta(index)}
-                      style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>×</button>
+                      className="d-inline-flex align-items-center justify-content-center"
+                      style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+                      <IconX size={14} />
+                    </button>
                   )}
                 </div>
               ))}
@@ -352,7 +413,7 @@ const Transferencias = () => {
                 Calcular Saldo
               </button>
               <button type="button" onClick={saveTransferencia} disabled={!summaryData}
-                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !summaryData ? '#e9ecef' : '#28a745', color: !summaryData ? '#9ca3af' : 'white', fontSize: '0.95rem', fontWeight: 700, cursor: !summaryData ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: !summaryData ? '#e9ecef' : '#28a745', color: !summaryData ? '#8a939c' : 'white', fontSize: '0.95rem', fontWeight: 700, cursor: !summaryData ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
                 Guardar
               </button>
             </div>
@@ -360,19 +421,18 @@ const Transferencias = () => {
 
           {/* Resumen */}
           {showSummary && summaryData && (
-            <div className="mb-3 printable" style={{ background: 'white', borderRadius: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.07)', padding: '20px' }}>
+            <div className="mb-3 printable" style={{ background: 'white', borderRadius: '12px', border: '1px solid #d3d9de', boxShadow: 'none', padding: '20px' }}>
 
-              {/* Header resumen */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                   Resumen · {summaryData.nombreCliente}
                 </span>
-                <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+                <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
               </div>
 
               {/* Transferencias */}
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Transferencias Recibidas</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Transferencias Recibidas</div>
                 {summaryData.transferencias.map((t, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '6px', background: 'rgba(106,136,153,0.07)', marginBottom: '3px' }}>
                     <span style={{ fontSize: '0.78rem', color: '#212529' }}>{t.descripcion || `Transferencia ${i + 1}`}</span>
@@ -386,7 +446,7 @@ const Transferencias = () => {
 
               {/* Boletas */}
               <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Boletas Vendidas</div>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Boletas Vendidas</div>
                 {summaryData.boletas.map((b, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '6px', background: 'rgba(230,168,23,0.08)', marginBottom: '3px' }}>
                     <span style={{ fontSize: '0.78rem', color: '#212529' }}>Boleta {i + 1} · {b.fecha}</span>
@@ -418,13 +478,15 @@ const Transferencias = () => {
               </div>
 
               {/* Botón imprimir */}
-              <button className="no-print"
+              <button type="button"
                 onClick={() => handlePrintWithAutoSave((data) => data, (pd) => { setPrintData(pd); setShowPrintModal(true); })}
-                style={{ border: '1px solid #dee2e6', borderRadius: '8px', padding: '8px 16px', background: 'transparent', color: '#6c757d', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <i className="fas fa-print" style={{ fontSize: '0.75rem' }}></i> Imprimir
+                className="no-print d-inline-flex align-items-center gap-2"
+                style={{ border: '1px solid #ccd3d9', borderRadius: '8px', padding: '8px 16px', background: 'transparent', color: '#6c757d', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
+                <IconPrinter size={14} /> Imprimir
               </button>
             </div>
           )}
+          </div>
         </div>
 
         {/* Panel Derecho */}
@@ -435,7 +497,7 @@ const Transferencias = () => {
             className={!loading && !error ? 'status-connected-pulse' : ''}
             style={{
               borderRadius: '12px', background: 'white',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.07)',
+              border: '1px solid #d3d9de', boxShadow: 'none',
               padding: '10px 14px', marginBottom: '8px',
               borderLeft: `3px solid ${loading ? '#6c757d' : error ? '#dc3545' : '#28a745'}`,
               display: 'flex', alignItems: 'center', gap: '10px',
@@ -452,12 +514,12 @@ const Transferencias = () => {
               ) : error ? (
                 <>
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#dc3545' }}>Error de conexión</div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>Verificá la consola</div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginTop: '1px' }}>Verificá la consola</div>
                 </>
               ) : (
                 <>
                   <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#212529' }}>Firebase conectado</div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: '1px' }}>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d', marginTop: '1px' }}>
                     {savedTransferencias?.length || 0} {(savedTransferencias?.length || 0) === 1 ? 'transferencia guardada' : 'transferencias guardadas'}
                   </div>
                 </>
@@ -465,72 +527,95 @@ const Transferencias = () => {
             </div>
           </div>
 
-          {/* Panel transferencias guardadas */}
-          <div className="card p-3 clientes-guardados-card">
+          <div className="mb-3 clientes-guardados-card" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
 
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 2px' }}>
+              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Transferencias Guardadas
               </span>
-              <span style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-                {getFilteredTransferencias().length} {getFilteredTransferencias().length === 1 ? 'registro' : 'registros'}
+              <span style={{ fontSize: '0.72rem', color: '#6c757d' }}>
+                {filteredTransferenciasCount} {filteredTransferenciasCount === 1 ? 'registro' : 'registros'}
               </span>
             </div>
 
-            {/* Segmented control filtros */}
-            <div style={{ marginBottom: '12px' }}>
-              <div ref={filterContainerRef}
-                style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}>
-                <div style={{
-                  position: 'absolute', top: '3px', bottom: '3px',
-                  left: sliderStyle.left + 'px', width: sliderStyle.width + 'px',
-                  background: 'white', borderRadius: '8px',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
-                  transition: 'left 0.22s cubic-bezier(.4,0,.2,1), width 0.22s cubic-bezier(.4,0,.2,1)',
-                  pointerEvents: 'none', zIndex: 0,
-                }} />
-                {[['hoy','Hoy'],['semana','Semana'],['mes','Mes'],['año','Año']].map(([val, label]) => (
-                  <button key={val}
-                    ref={el => filterButtonRefs.current[val] = el}
-                    onClick={() => setDateFilter(val)}
-                    style={{
-                      position: 'relative', zIndex: 1, flex: 1, border: 'none',
-                      borderRadius: '8px', padding: '5px 6px', fontSize: '0.75rem',
-                      fontWeight: dateFilter === val ? 600 : 400, background: 'transparent',
-                      color: dateFilter === val ? '#212529' : '#6c757d',
-                      transition: 'color 0.2s', cursor: 'pointer', whiteSpace: 'nowrap',
-                    }}>{label}</button>
-                ))}
+            <div style={{ background: '#e9ecef', borderRadius: '12px', padding: '4px', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <div style={{ overflowX: 'auto' }}>
+                <div style={{ display: 'flex', gap: '4px', width: 'max-content', minWidth: '100%' }}>
+                  {FILTER_OPTIONS.map(([val, label]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setDateFilter(val)}
+                      style={{
+                        position: 'relative', zIndex: 1, flex: '1 0 auto',
+                        border: 'none', borderRadius: '9px',
+                        padding: '9px 12px', fontSize: '0.75rem',
+                        fontWeight: dateFilter === val ? 700 : 400,
+                        background: 'transparent', boxShadow: 'none',
+                        color: dateFilter === val ? '#212529' : '#6c757d',
+                        transition: 'color 0.2s, font-weight 0.2s',
+                        cursor: 'pointer', whiteSpace: 'nowrap',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px',
+                      }}
+                    >
+                      {dateFilter === val && (
+                        <motion.div
+                          layoutId="transferencias-filter-indicator"
+                          style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: '9px 9px 0 0', zIndex: 0 }}
+                          transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                        />
+                      )}
+                      <span style={{ position: 'relative', zIndex: 1 }}>
+                        {val === 'elegir_mes' ? <IconCalendar size={13} /> : label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-              {dateFilter === 'mes' && (
-                <div style={{ marginTop: '8px' }}>
-                  <input type="month" className="form-control form-control-sm"
-                    value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
-                    style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
-                </div>
-              )}
-            </div>
 
-            {/* Lista */}
-            <div className="clientes-list-scroll">
-              {getFilteredTransferencias().length > 0 ? (
-                getFilteredTransferencias().map((trans, index) => (
-                  <TransferenciaCard
-                    key={trans.id || index}
-                    transferencia={trans}
-                    onDelete={deleteTransferenciaItem}
-                    onEdit={openEditModal}
-                    onPrint={handlePrintTransferencia}
-                  />
-                ))
-              ) : (
-                <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                  <div style={{ fontSize: '1.4rem', marginBottom: '6px', opacity: 0.3 }}>📭</div>
-                  <div style={{ fontSize: '0.8rem', color: '#9ca3af', fontWeight: 500 }}>Sin transferencias guardadas</div>
-                  <div style={{ fontSize: '0.72rem', color: '#c4c9d4', marginTop: '3px' }}>Calculá y guardá para verlas acá</div>
+              <div style={{
+                background: 'white', borderRadius: '0 0 9px 9px',
+                padding: '12px', flex: 1, minHeight: 0,
+                display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              }}>
+                {dateFilter === 'elegir_mes' && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <input type="month" className="form-control form-control-sm"
+                      value={customMonth} onChange={(e) => setCustomMonth(e.target.value)}
+                      style={{ borderRadius: '8px', fontSize: '0.8rem' }} />
+                  </div>
+                )}
+
+                <div
+                  ref={transferenciasListRef}
+                  className="clientes-list-scroll"
+                  style={transferenciasListMaxH != null ? { maxHeight: transferenciasListMaxH, overflowY: 'auto' } : undefined}
+                >
+                  {filteredTransferenciasCount > 0 ? (
+                    getFilteredTransferencias().map((trans, index) => (
+                      <TransferenciaCard
+                        key={trans.id || index}
+                        transferencia={trans}
+                        onDelete={deleteTransferenciaItem}
+                        onEdit={openEditModal}
+                        onPrint={handlePrintTransferencia}
+                      />
+                    ))
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                      <div style={{ marginBottom: '6px', opacity: 0.35, display: 'flex', justifyContent: 'center', color: '#6c757d' }}>
+                        <IconInbox size={28} />
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#6c757d', fontWeight: 500 }}>
+                        {(savedTransferencias?.length || 0) === 0 ? 'Sin transferencias guardadas' : `Sin transferencias en ${getFilterLabel()}`}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#8a939c', marginTop: '3px' }}>
+                        {(savedTransferencias?.length || 0) === 0 ? 'Calculá y guardá para verlas acá' : 'Cambiá el filtro para ver más'}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </div>

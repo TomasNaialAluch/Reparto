@@ -80,19 +80,19 @@ const AppContent = () => {
             <Route path="/" element={<Home />} />
             <Route path="/home-ai" element={<HomeAI />} />
             <Route path="/mi-reparto" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
                 <Navbar />
                 <MiReparto />
               </div>
             } />
             <Route path="/reparto" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
                 <Navbar />
                 <MiReparto />
               </div>
             } />
             <Route path="/saldo-clientes" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
                 <Navbar />
                 <SaldoClientes />
               </div>
@@ -104,7 +104,7 @@ const AppContent = () => {
             </div>
           } />
           <Route path="/transferencias" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
               <Navbar />
               <Transferencias />
             </div>
@@ -116,13 +116,13 @@ const AppContent = () => {
             </div>
           } />
           <Route path="/gestion-semanal" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
               <Navbar />
               <GestionSemanal />
             </div>
           } />
           <Route path="/balance" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
               <Navbar />
               <Balance />
             </div>

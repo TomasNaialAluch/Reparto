@@ -79,12 +79,12 @@ body {
 .card {
   border: none;
   border-radius: 12px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: none;
   transition: all 0.3s ease;
 }
 
 .card:hover {
-  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+  box-shadow: none;
 }
 
 /* Estilos para las tablas */
@@ -200,28 +200,35 @@ body {
 }
 
 /* Panel lateral de Clientes Guardados — misma altura que columna izquierda en desktop */
+.saldo-main-col {
+  align-self: flex-start;
+}
+
 .clientes-sidebar {
   display: flex;
   flex-direction: column;
 }
 
 .clientes-guardados-card {
-  flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
 
 .clientes-list-scroll {
-  flex: 1;
   overflow-y: auto;
   min-height: 80px;
+}
+
+@media (min-width: 992px) {
+  .clientes-list-scroll {
+    flex: none;
+  }
 }
 
 /* Mobile: altura limitada para no ocupar toda la pantalla */
 @media (max-width: 991.98px) {
   .clientes-list-scroll {
-    flex: none;
     max-height: 50vh;
   }
 }
@@ -303,6 +310,37 @@ body {
 
 .mireparto-text {
   color: #333;
+}
+
+/* Mi Reparto — contraste calibrado (alineado con gs-content) */
+.reparto-page .form-control {
+  border-color: #ccd3d9;
+}
+.reparto-page .form-control:focus {
+  border-color: #6A8899;
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.15);
+}
+
+/* Saldo Clientes — contraste calibrado (alineado con gs-content / reparto-page) */
+.saldo-clientes-page .form-control {
+  border-color: #ccd3d9;
+}
+.saldo-clientes-page .form-control:focus {
+  border-color: #6A8899;
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.15);
+}
+
+/* Transferencias — contraste calibrado */
+.transferencias-page .form-control {
+  border-color: #ccd3d9;
+}
+.transferencias-page .form-control:focus {
+  border-color: #6A8899;
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.15);
+}
+
+.transferencias-main-col {
+  align-self: flex-start;
 }
 
 /* Estilos para el spinner de carga */

@@ -2,6 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatCurrency, parseCurrencyValue } from '../../utils/money';
 import { getLocalDateString } from '../../utils/date';
 import { useSaldoProveedor, DescuentoSaldoProveedor } from '../saldoProveedor';
+import {
+  IconCheck, IconX, IconCash, IconBank, IconCheque, IconMoney,
+  IconChart, IconClipboard, IconCreditCard, IconRefresh, IconWarning
+} from './icons';
 
 export default function PagosProveedoresTab({ 
   semanaActiva, 
@@ -821,7 +825,7 @@ export default function PagosProveedoresTab({
       <div className="col-lg-4" data-tab="pagos-proveedores">
         <div className="card mb-3">
           <div className="card-header bg-success text-white">
-            <h5 className="mb-0">💰 Dinero Disponible</h5>
+            <h5 className="mb-0 d-inline-flex align-items-center gap-2"><IconMoney size={15} /> Dinero Disponible</h5>
           </div>
           <div className="card-body">
             <div className="mb-3">
@@ -890,7 +894,7 @@ export default function PagosProveedoresTab({
         {/* Resumen de pagos */}
         <div className="card mb-3">
           <div className="card-header bg-primary text-white">
-            <h5 className="mb-0">📊 Resumen</h5>
+            <h5 className="mb-0 d-inline-flex align-items-center gap-2"><IconChart size={15} /> Resumen</h5>
           </div>
           <div className="card-body">
             <div className="mb-3 pb-2 border-bottom">
@@ -913,13 +917,13 @@ export default function PagosProveedoresTab({
 
             {faltante.tieneFaltante ? (
               <div className="alert alert-danger mb-2">
-                <strong>⚠️ FALTA:</strong>
+                <strong className="d-inline-flex align-items-center gap-2"><IconWarning size={15} /> FALTA:</strong>
                 <div className="fs-3 fw-bold">{formatCurrency(faltante.faltante)}</div>
                 <small>No tienes suficiente dinero para pagar las boletas seleccionadas</small>
               </div>
             ) : (
               <div className="alert alert-success mb-2">
-                <strong>✓ Suficiente:</strong>
+                <strong className="d-inline-flex align-items-center gap-2"><IconCheck size={15} /> Suficiente:</strong>
                 <div className="fs-5">Tienes dinero suficiente para pagar las boletas seleccionadas</div>
                 {faltante.faltante < 0 && (
                   <small className="text-muted">
@@ -992,11 +996,11 @@ export default function PagosProveedoresTab({
 
         {/* Botón procesar */}
         <button 
-          className="btn btn-success btn-lg w-100"
+          className="btn btn-success btn-lg w-100 d-inline-flex align-items-center justify-content-center gap-2"
           onClick={procesarPagos}
           disabled={totales.totalAPagar === 0}
         >
-          ✅ Procesar Pagos
+          <IconCheck size={16} /> Procesar Pagos
         </button>
       </div>
 
@@ -1013,7 +1017,7 @@ export default function PagosProveedoresTab({
             {/* Sección superior: Todas las boletas en formato compacto */}
             <div className="card mb-4">
               <div className="card-header bg-secondary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h5 className="mb-0">📋 Seleccionar boletas a pagar</h5>
+                <h5 className="mb-0 d-inline-flex align-items-center gap-2"><IconClipboard size={15} /> Seleccionar boletas a pagar</h5>
                 {boletas.length > 0 && (() => {
                   const pendientes = boletas.filter(b => !boletasPagadas[b.id]).length;
                   return pendientes > 0 ? (
@@ -1021,8 +1025,8 @@ export default function PagosProveedoresTab({
                       {pendientes} de {boletas.length} pendientes
                     </span>
                   ) : (
-                    <span className="badge bg-success" title="Todas las boletas marcadas como pagadas">
-                      ✓ Todas pagadas
+                    <span className="badge bg-success d-inline-flex align-items-center gap-1" title="Todas las boletas marcadas como pagadas">
+                      <IconCheck size={12} /> Todas pagadas
                     </span>
                   );
                 })()}
@@ -1057,7 +1061,7 @@ export default function PagosProveedoresTab({
                   const todasPagadas = boletasProv.length > 0 && boletasProv.every(boleta => boletasPagadas[boleta.id]);
                   
                   return (
-                  <div key={proveedor} className="mb-3">
+                  <div key={proveedor} className="mb-3 gs-prov-group">
                     <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
                       <div className="d-flex align-items-center gap-2 flex-wrap">
                         <strong>{proveedor}</strong>
@@ -1067,18 +1071,22 @@ export default function PagosProveedoresTab({
                       </div>
                       <div className="d-flex align-items-center gap-2">
                         <button
-                          className="btn btn-sm btn-outline-primary"
+                          className="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-2"
                           onClick={() => seleccionarTodasProveedor(proveedor)}
                           title={todasSeleccionadas ? "Deseleccionar todas las boletas" : "Seleccionar todas las boletas de este proveedor"}
                         >
-                          {todasSeleccionadas ? '✗ Deseleccionar todas' : '✓ Seleccionar todas'}
+                          {todasSeleccionadas
+                            ? <><IconX size={13} /> Deseleccionar todas</>
+                            : <><IconCheck size={13} /> Seleccionar todas</>}
                         </button>
                         <button
-                          className="btn btn-sm btn-outline-success"
+                          className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2"
                           onClick={() => marcarTodasPagadasProveedor(proveedor)}
                           title={todasPagadas ? "Desmarcar todas las boletas como pagadas" : "Marcar todas las boletas como pagadas"}
                         >
-                          {todasPagadas ? '✗ Desmarcar todas pagadas' : '💰 Marcar todas pagadas'}
+                          {todasPagadas
+                            ? <><IconX size={13} /> Desmarcar todas pagadas</>
+                            : <><IconMoney size={13} /> Marcar todas pagadas</>}
                         </button>
                       </div>
                     </div>
@@ -1153,7 +1161,7 @@ export default function PagosProveedoresTab({
                                         title="Marcar como pagada"
                                       />
                                       <label className="form-check-label" htmlFor={`paid-${boleta.id}`} style={{ fontSize: '0.7rem', cursor: 'pointer' }}>
-                                        {estaPagada ? <span className="text-success">✓ Pagada</span> : 'Marcar pagada'}
+                                        {estaPagada ? <span className="text-success d-inline-flex align-items-center gap-1"><IconCheck size={12} /> Pagada</span> : 'Marcar pagada'}
                                       </label>
                                     </div>
                                   </div>
@@ -1178,7 +1186,7 @@ export default function PagosProveedoresTab({
             }).length > 0 && (
               <div className="card">
                 <div className="card-header bg-success text-white">
-                  <h5 className="mb-0">💳 Configurar pagos de boletas seleccionadas</h5>
+                  <h5 className="mb-0 d-inline-flex align-items-center gap-2"><IconCreditCard size={15} /> Configurar pagos de boletas seleccionadas</h5>
                 </div>
                 <div className="card-body">
                   <>
@@ -1191,7 +1199,7 @@ export default function PagosProveedoresTab({
                       if (boletasSeleccionadas.length === 0) return null;
                       
                       return (
-                        <div key={proveedor} className="mb-4">
+                        <div key={proveedor} className="mb-4 gs-prov-group">
                         <div className="d-flex justify-content-between align-items-center mb-3">
                           <h6 className="mb-0">
                             <strong>{proveedor}</strong>
@@ -1221,10 +1229,10 @@ export default function PagosProveedoresTab({
                                         <strong>{boleta.proveedor}</strong>
                                       </div>
                                       <button
-                                        className="btn btn-sm btn-outline-danger"
+                                        className="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-2"
                                         onClick={() => toggleSeleccionBoleta(boleta.id)}
                                       >
-                                        ✕ Deseleccionar
+                                        <IconX size={13} /> Deseleccionar
                                       </button>
                                     </div>
                                   </div>
@@ -1272,8 +1280,8 @@ export default function PagosProveedoresTab({
                                             onChange={() => toggleMedioPagoDisponible(boleta.id, 'efectivo')}
                                             id={`efectivo-${boleta.id}`}
                                           />
-                                          <label className="form-check-label" htmlFor={`efectivo-${boleta.id}`}>
-                                            💵 Efectivo
+                                          <label className="form-check-label d-inline-flex align-items-center gap-1" htmlFor={`efectivo-${boleta.id}`}>
+                                            <IconCash size={14} /> Efectivo
                                           </label>
                                         </div>
                                         <div className="form-check">
@@ -1284,8 +1292,8 @@ export default function PagosProveedoresTab({
                                             onChange={() => toggleMedioPagoDisponible(boleta.id, 'transferencia')}
                                             id={`transferencia-${boleta.id}`}
                                           />
-                                          <label className="form-check-label" htmlFor={`transferencia-${boleta.id}`}>
-                                            🏦 Transferencia
+                                          <label className="form-check-label d-inline-flex align-items-center gap-1" htmlFor={`transferencia-${boleta.id}`}>
+                                            <IconBank size={14} /> Transferencia
                                           </label>
                                         </div>
                                         <div className="form-check">
@@ -1296,8 +1304,8 @@ export default function PagosProveedoresTab({
                                             onChange={() => toggleMedioPagoDisponible(boleta.id, 'cheques')}
                                             id={`cheques-${boleta.id}`}
                                           />
-                                          <label className="form-check-label" htmlFor={`cheques-${boleta.id}`}>
-                                            📝 Cheques
+                                          <label className="form-check-label d-inline-flex align-items-center gap-1" htmlFor={`cheques-${boleta.id}`}>
+                                            <IconCheque size={14} /> Cheques
                                           </label>
                                         </div>
                                       </div>
@@ -1308,16 +1316,16 @@ export default function PagosProveedoresTab({
                                       <>
                                         <div className="mb-3">
                                           <button
-                                            className="btn btn-outline-primary w-100"
+                                            className="btn btn-outline-primary w-100 d-inline-flex align-items-center justify-content-center gap-2"
                                             onClick={() => autoDistribuirPago(boleta.id)}
                                           >
-                                            🔄 Auto-distribuir equitativamente
+                                            <IconRefresh size={15} /> Auto-distribuir equitativamente
                                           </button>
                                         </div>
 
                                         {pago.efectivoDisponible && (
                                           <div className="mb-3">
-                                            <label className="form-label fw-bold">💵 Efectivo:</label>
+                                            <label className="form-label fw-bold d-inline-flex align-items-center gap-1"><IconCash size={14} /> Efectivo:</label>
                                             <input
                                               type="number"
                                               className="form-control"
@@ -1332,7 +1340,7 @@ export default function PagosProveedoresTab({
 
                                         {pago.transferenciaDisponible && (
                                           <div className="mb-3">
-                                            <label className="form-label fw-bold">🏦 Transferencia:</label>
+                                            <label className="form-label fw-bold d-inline-flex align-items-center gap-1"><IconBank size={14} /> Transferencia:</label>
                                             <input
                                               type="number"
                                               className="form-control"
@@ -1347,7 +1355,7 @@ export default function PagosProveedoresTab({
 
                                         {pago.chequesDisponible && (
                                           <div className="mb-3">
-                                            <label className="form-label fw-bold">📝 Cheques:</label>
+                                            <label className="form-label fw-bold d-inline-flex align-items-center gap-1"><IconCheque size={14} /> Cheques:</label>
                                             <input
                                               type="number"
                                               className="form-control"
@@ -1374,13 +1382,13 @@ export default function PagosProveedoresTab({
                                             </div>
                                           )}
                                           {pendiente < 0 && (
-                                            <div className="text-danger">
-                                              ⚠️ Excede el monto de la boleta
+                                            <div className="text-danger d-inline-flex align-items-center gap-2">
+                                              <IconWarning size={14} /> Excede el monto de la boleta
                                             </div>
                                           )}
                                           {pendiente === 0 && totalPago > 0 && (
-                                            <div className="text-success">
-                                              ✓ Pago completo
+                                            <div className="text-success d-inline-flex align-items-center gap-2">
+                                              <IconCheck size={14} /> Pago completo
                                             </div>
                                           )}
                                         </div>

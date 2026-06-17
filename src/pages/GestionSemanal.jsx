@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { useGestionSemanal } from '../firebase/hooks';
@@ -11,11 +12,21 @@ import GastosTab from '../components/gestionSemanal/GastosTab';
 import ClientesTab from '../components/gestionSemanal/ClientesTab';
 import PagosProveedoresTab from '../components/gestionSemanal/PagosProveedoresTab';
 
+const TAB_KEYS = ['mercaderia', 'embutidos', 'empleados', 'gastos', 'clientes', 'pagos-proveedores'];
+
+const contentVariants = {
+  initial: (dir) => ({ x: dir * 40, opacity: 0 }),
+  animate: { x: 0, opacity: 1 },
+  exit:    (dir) => ({ x: dir * -40, opacity: 0 }),
+};
+
 export default function GestionSemanal() {
   const navigate = useNavigate();
   const { user } = useFirebase();
   const { addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState('mercaderia');
+  const [tabDirection, setTabDirection] = useState(1);
+  const prevTabIndexRef = useRef(0);
 
   const {
     semanaActiva,
@@ -45,6 +56,10 @@ export default function GestionSemanal() {
 
   // Función para cambiar tab y hacer scroll si es necesario
   const handleTabChange = (tabName) => {
+    const newIndex = TAB_KEYS.indexOf(tabName);
+    const prevIndex = prevTabIndexRef.current;
+    setTabDirection(newIndex >= prevIndex ? 1 : -1);
+    prevTabIndexRef.current = newIndex;
     setActiveTab(tabName);
     
     // Scroll automático según el tab seleccionado
@@ -125,12 +140,67 @@ export default function GestionSemanal() {
   const boletasPendientes = Math.max(0, totalBoletas - boletasPagadasCount);
 
   const TABS = [
-    { key: 'mercaderia',        label: 'Mercadería',         icon: '📦' },
-    { key: 'embutidos',         label: 'Embutidos',          icon: '🌭' },
-    { key: 'empleados',         label: 'Empleados',          icon: '👨‍💼' },
-    { key: 'gastos',            label: 'Gastos',             icon: '💰' },
-    { key: 'clientes',          label: 'Clientes',           icon: '🧾' },
-    { key: 'pagos-proveedores', label: 'Pagos Proveedores',  icon: '💳', badge: boletasPendientes },
+    {
+      key: 'mercaderia', label: 'Mercadería',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+          <line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      ),
+    },
+    {
+      key: 'embutidos', label: 'Embutidos',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/>
+          <polyline points="2 12 12 17 22 12"/>
+        </svg>
+      ),
+    },
+    {
+      key: 'empleados', label: 'Empleados',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      ),
+    },
+    {
+      key: 'gastos', label: 'Gastos',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="5" width="20" height="14" rx="2"/>
+          <line x1="2" y1="10" x2="22" y2="10"/>
+          <line x1="6" y1="15" x2="10" y2="15"/>
+        </svg>
+      ),
+    },
+    {
+      key: 'clientes', label: 'Clientes',
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+        </svg>
+      ),
+    },
+    {
+      key: 'pagos-proveedores', label: 'Pagos Proveedores', badge: boletasPendientes,
+      icon: (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"/>
+          <line x1="1" y1="10" x2="23" y2="10"/>
+        </svg>
+      ),
+    },
   ];
 
   if (loading) {
@@ -175,38 +245,59 @@ export default function GestionSemanal() {
           </div>
         )}
 
-        {/* Segmented tabs — scroll horizontal en mobile */}
-        <div style={{ overflowX: 'auto', marginBottom: '20px', paddingBottom: '2px' }}>
-          <div style={{ display: 'flex', gap: '4px', background: '#e9ecef', borderRadius: '12px', padding: '4px', width: 'max-content', minWidth: '100%' }}>
-            {TABS.map(tab => (
-              <button key={tab.key} onClick={() => handleTabChange(tab.key)}
-                style={{
-                  flex: '1 0 auto',
-                  border: 'none', borderRadius: '9px',
-                  padding: '9px 14px',
-                  background: activeTab === tab.key ? 'white' : 'transparent',
-                  boxShadow: activeTab === tab.key ? '0 1px 4px rgba(0,0,0,0.14)' : 'none',
-                  color: activeTab === tab.key ? '#212529' : '#6c757d',
-                  fontWeight: activeTab === tab.key ? 700 : 400,
-                  fontSize: '0.78rem', cursor: 'pointer',
-                  transition: 'all 0.2s cubic-bezier(.4,0,.2,1)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-                  whiteSpace: 'nowrap', position: 'relative',
-                }}>
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-                {tab.badge > 0 && (
-                  <span style={{ background: '#FFD166', color: '#856404', fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '999px', lineHeight: 1.4 }}>
-                    {tab.badge}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Segmented tabs + contenido — fondo gris unificado */}
+        <div style={{ background: '#e9ecef', borderRadius: '12px', padding: '4px', marginBottom: '20px' }}>
 
-        {/* Contenido tabs */}
-        <div>
+          {/* Tabs row */}
+          <div style={{ overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: '4px', width: 'max-content', minWidth: '100%' }}>
+              {TABS.map(tab => (
+                <button key={tab.key} onClick={() => handleTabChange(tab.key)}
+                  style={{
+                    flex: '1 0 auto',
+                    border: 'none',
+                    borderRadius: '9px',
+                    padding: '9px 14px',
+                    background: 'transparent',
+                    boxShadow: 'none',
+                    color: activeTab === tab.key ? '#212529' : '#6c757d',
+                    fontWeight: activeTab === tab.key ? 700 : 400,
+                    fontSize: '0.78rem', cursor: 'pointer',
+                    transition: 'color 0.2s, font-weight 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                    whiteSpace: 'nowrap', position: 'relative',
+                  }}>
+                  {activeTab === tab.key && (
+                    <motion.div
+                      layoutId="tab-indicator"
+                      style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: '9px 9px 0 0', zIndex: 0 }}
+                      transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                    />
+                  )}
+                  <span style={{ position: 'relative', zIndex: 1 }}>{tab.icon}</span>
+                  <span style={{ position: 'relative', zIndex: 1 }}>{tab.label}</span>
+                  {tab.badge > 0 && (
+                    <span style={{ position: 'relative', zIndex: 1, background: '#FFD166', color: '#856404', fontSize: '0.62rem', fontWeight: 700, padding: '1px 6px', borderRadius: '999px', lineHeight: 1.4 }}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Contenido tabs */}
+          <div className="gs-content" style={{ background: 'white', borderRadius: '0 0 9px 9px', padding: '16px', overflow: 'hidden' }}>
+          <AnimatePresence mode="wait" custom={tabDirection}>
+          <motion.div
+            key={activeTab}
+            custom={tabDirection}
+            variants={contentVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+          >
           {activeTab === 'mercaderia' && (
             <MercaderiaTab
               semanaActiva={semanaActiva}
@@ -267,7 +358,10 @@ export default function GestionSemanal() {
               addNotification={addNotification}
             />
           )}
-        </div>
+          </motion.div>
+          </AnimatePresence>
+          </div>{/* fin contenido tabs */}
+        </div>{/* fin wrapper gris */}
 
         {/* Botón balance al pie */}
         <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'center' }}>

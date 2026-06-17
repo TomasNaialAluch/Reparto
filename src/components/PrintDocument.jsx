@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue } from '../utils/money';
+import { IconX, IconPrinter } from './gestionSemanal/icons';
 
 const PrintDocument = ({ data, type, onClose }) => {
   const printRef = useRef();
@@ -1048,8 +1049,9 @@ const PrintDocument = ({ data, type, onClose }) => {
             </div>
           </div>
           <button onClick={onClose}
-            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d' }}>
-            ✕
+            className="d-inline-flex align-items-center justify-content-center"
+            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: '#6c757d' }}>
+            <IconX size={16} />
           </button>
         </div>
 
@@ -1127,8 +1129,9 @@ const PrintDocument = ({ data, type, onClose }) => {
               Cancelar
             </button>
             <button onClick={handlePrint}
-              style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <i className="fas fa-print" style={{ fontSize: '0.85rem' }}></i>
+              className="d-inline-flex align-items-center justify-content-center gap-2"
+              style={{ flex: 2, padding: '10px', borderRadius: '10px', border: 'none', background: '#6A8899', color: 'white', fontSize: '0.875rem', fontWeight: 700, cursor: 'pointer' }}>
+              <IconPrinter size={15} />
               Imprimir
             </button>
           </div>

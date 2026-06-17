@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
 import { useGestionSemanal } from '../firebase/hooks';
+import { IconX } from './gestionSemanal/icons';
 
 /* ── Sub-componentes (mismos patrones que FormSection del formulario principal) ── */
 
 const ModalSection = ({ label, children }) => (
   <div style={{ marginBottom: '20px' }}>
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
         {label}
       </span>
-      <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+      <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
     </div>
     {children}
   </div>
@@ -35,8 +36,9 @@ const InputRow = ({ children }) => (
 
 const RemoveBtn = ({ onClick }) => (
   <button type="button" onClick={onClick}
-    style={{ border: 'none', background: 'transparent', color: '#dc3545', fontSize: '1.1rem', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
-    ×
+    className="d-inline-flex align-items-center justify-content-center"
+    style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+    <IconX size={14} />
   </button>
 );
 
@@ -216,18 +218,19 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       }}>
 
         {/* Header */}
-        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #dde2e6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
               Editar cliente
             </div>
             <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
               {cliente?.nombreCliente}
             </div>
           </div>
-          <button onClick={onClose}
-            style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', color: '#6c757d', transition: 'background 0.15s' }}>
-            ✕
+          <button type="button" onClick={onClose}
+            className="d-inline-flex align-items-center justify-content-center"
+            style={{ border: 'none', background: '#e9ecef', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', color: '#6c757d', transition: 'background 0.15s' }}>
+            <IconX size={14} />
           </button>
         </div>
 
@@ -366,21 +369,21 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
 
           {/* Balance en tiempo real */}
           <div style={{ background: '#f8f9fa', borderRadius: '10px', padding: '14px 16px', borderLeft: `3px solid ${esAFavor ? '#28a745' : finalBalance < 0 ? '#dc3545' : '#dee2e6'}` }}>
-            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
               Balance en tiempo real
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
               <div>
-                <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total Boletas</div>
+                <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Total Boletas</div>
                 <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#e6a817' }}>{formatCurrency(totalBoletas)}</div>
               </div>
               <div>
-                <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total Pagos</div>
+                <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Total Pagos</div>
                 <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#28a745' }}>{formatCurrency(totalPagos)}</div>
               </div>
               {totalDeuda > 0 && (
                 <div>
-                  <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Total Deuda</div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Total Deuda</div>
                   <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#dc3545' }}>{formatCurrency(totalDeuda)}</div>
                 </div>
               )}
@@ -399,7 +402,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '14px 22px', borderTop: '1px solid #f3f4f6', display: 'flex', gap: '10px', flexShrink: 0 }}>
+        <div style={{ padding: '14px 22px', borderTop: '1px solid #dde2e6', display: 'flex', gap: '10px', flexShrink: 0 }}>
           <button onClick={onClose}
             style={{ flex: 1, padding: '10px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
             Cancelar
@@ -422,11 +425,12 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
             borderRadius: '14px', boxShadow: '0 16px 40px rgba(0,0,0,0.16)',
             zIndex: 1061, display: 'flex', flexDirection: 'column', overflow: 'hidden'
           }}>
-            <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid #dde2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#212529' }}>📦 Vincular Boleta de Mercadería</span>
-              <button onClick={() => setShowMercaderiaModal(false)}
-                style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', fontSize: '0.85rem', color: '#6c757d' }}>
-                ✕
+              <button type="button" onClick={() => setShowMercaderiaModal(false)}
+                className="d-inline-flex align-items-center justify-content-center"
+                style={{ border: 'none', background: '#e9ecef', borderRadius: '50%', width: '28px', height: '28px', cursor: 'pointer', color: '#6c757d' }}>
+                <IconX size={12} />
               </button>
             </div>
             <div style={{ overflowY: 'auto', padding: '16px 20px', flex: 1 }}>
@@ -443,14 +447,14 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                   {obtenerBoletasMercaderia().map((boleta) => {
                     const yaVinculada = formData.boletas.some(b => b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index);
                     return (
-                      <div key={boleta.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: yaVinculada ? '#f8f9fa' : 'white', border: `1px solid ${yaVinculada ? '#e9ecef' : '#f3f4f6'}` }}>
+                      <div key={boleta.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: yaVinculada ? '#f8f9fa' : 'white', border: `1px solid ${yaVinculada ? '#e9ecef' : '#dde2e6'}` }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
                             <span style={{ fontSize: '0.7rem', background: 'rgba(106,136,153,0.15)', color: '#3a5060', padding: '2px 7px', borderRadius: '999px', fontWeight: 600 }}>{boleta.dia}</span>
                             <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{boleta.proveedor}</span>
                             {yaVinculada && <span style={{ fontSize: '0.65rem', background: 'rgba(40,167,69,0.12)', color: '#28a745', padding: '2px 6px', borderRadius: '4px' }}>✓ Vinculada</span>}
                           </div>
-                          <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>{boleta.cortes.length} corte{boleta.cortes.length !== 1 ? 's' : ''}</div>
+                          <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>{boleta.cortes.length} corte{boleta.cortes.length !== 1 ? 's' : ''}</div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#28a745', marginBottom: '6px' }}>{formatCurrency(boleta.costoTotal)}</div>
@@ -467,7 +471,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 </div>
               )}
             </div>
-            <div style={{ padding: '12px 20px', borderTop: '1px solid #f3f4f6' }}>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #dde2e6' }}>
               <button onClick={() => setShowMercaderiaModal(false)}
                 style={{ width: '100%', padding: '9px', borderRadius: '10px', border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer' }}>
                 Cerrar
