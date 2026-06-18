@@ -241,3 +241,31 @@ export const IconSparkles = ({ size = 14 }) => (
     <path d="M12 8a4 4 0 1 0 4 4" />
   </svg>
 );
+
+/** Pelota de fútbol — Tabler Icons "ball-football" (MIT). */
+export const IconFootball = ({ size = 14 }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.75}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ flexShrink: 0, verticalAlign: 'text-bottom' }}
+    aria-hidden
+  >
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7l4.76 3" />
+    <path d="M12 7v6.5" />
+    <path d="M12 7l-4.76 3" />
+    <path d="M12 13.5l4.76 3" />
+    <path d="M12 13.5v6.5" />
+    <path d="M12 13.5l-4.76 3" />
+    <path d="M7.24 10l-2.74 4.65" />
+    <path d="M7.24 16.5l2.74 4.65" />
+    <path d="M16.76 10l2.74 4.65" />
+    <path d="M16.76 16.5l-2.74 4.65" />
+  </svg>
+);

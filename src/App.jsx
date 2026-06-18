@@ -6,6 +6,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Navbar from './components/Navbar';
 import NavbarAI from './components/NavbarAI';
 import Login from './components/Login';
+import { FabGeneral } from './components/fab';
 
 // Pages
 import Home from './pages/Home';
@@ -158,6 +159,7 @@ const AppContent = () => {
               </div>
             } />
         </Routes>
+        <FabGeneral />
         </div>
       </Router>
     </PagosProveedoresProvider>

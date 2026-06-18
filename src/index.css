@@ -343,6 +343,21 @@ body {
   align-self: flex-start;
 }
 
+/* FAB General — botón flotante global */
+.fab-general-trigger:focus-visible {
+  outline: 2px solid #6A8899;
+  outline-offset: 3px;
+}
+
+.fab-goal-trigger:focus-visible {
+  outline: 2px solid #6A8899;
+  outline-offset: 2px;
+}
+
+.fab-goal-trigger:not(:disabled):active {
+  transform: scale(0.96);
+}
+
 /* Estilos para el spinner de carga */
 .spinner-border {
   width: 2rem;
