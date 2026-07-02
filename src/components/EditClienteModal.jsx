@@ -3,6 +3,7 @@ import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../u
 import { getLocalDateString } from '../utils/date';
 import { useGestionSemanal } from '../firebase/hooks';
 import { IconX } from './gestionSemanal/icons';
+import CurrencyInput from './CurrencyInput';
 
 /* ── Sub-componentes (mismos patrones que FormSection del formulario principal) ── */
 
@@ -91,14 +92,6 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
       });
     }
   }, [isOpen, cliente]);
-
-  const handleCurrencyBlur = (e) => {
-    const num = parseCurrencyValue(e.target.value);
-    if (!isNaN(num)) e.target.value = formatCurrencyNoSymbol(num);
-  };
-  const handleCurrencyFocus = (e) => {
-    e.target.value = e.target.value.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').trim();
-  };
 
   const addItem = (arrayName, defaultItem) =>
     setFormData(prev => ({ ...prev, [arrayName]: [...prev[arrayName], defaultItem] }));
@@ -256,7 +249,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 {formData.deudas.map((item, i) => (
                   <InputRow key={i}>
                     <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateItem('deudas', i, 'date', e.target.value)} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateItem('deudas', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(val) => updateItem('deudas', i, 'amount', val)} />
                     <RemoveBtn onClick={() => removeItem('deudas', i)} />
                   </InputRow>
                 ))}
@@ -270,7 +263,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
             {formData.boletas.map((boleta, i) => (
               <InputRow key={i}>
                 <input type="date" className="form-control" value={boleta.date} onChange={(e) => updateItem('boletas', i, 'date', e.target.value)} disabled={boleta.esDeMercaderia} />
-                <input type="text" className="form-control" placeholder="Monto (AR$)" value={boleta.amount} onChange={(e) => updateItem('boletas', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} disabled={boleta.esDeMercaderia} />
+                <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={boleta.amount} onChange={(val) => updateItem('boletas', i, 'amount', val)} disabled={boleta.esDeMercaderia} />
                 {boleta.esDeMercaderia && (
                   <span style={{ fontSize: '0.72rem', background: 'rgba(23,162,184,0.12)', color: '#17a2b8', padding: '3px 7px', borderRadius: '6px', flexShrink: 0 }}>📦</span>
                 )}
@@ -294,7 +287,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 {formData.ventas.map((v, i) => (
                   <InputRow key={i}>
                     <input type="date" className="form-control" value={v.date} onChange={(e) => updateItem('ventas', i, 'date', e.target.value)} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={v.amount} onChange={(e) => updateItem('ventas', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={v.amount} onChange={(val) => updateItem('ventas', i, 'amount', val)} />
                     <RemoveBtn onClick={() => removeItem('ventas', i)} />
                   </InputRow>
                 ))}
@@ -312,7 +305,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 {formData.plataFavor.map((p, i) => (
                   <InputRow key={i}>
                     <input type="date" className="form-control" value={p.date} onChange={(e) => updateItem('plataFavor', i, 'date', e.target.value)} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={p.amount} onChange={(e) => updateItem('plataFavor', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={p.amount} onChange={(val) => updateItem('plataFavor', i, 'amount', val)} />
                     <RemoveBtn onClick={() => removeItem('plataFavor', i)} />
                   </InputRow>
                 ))}
@@ -327,7 +320,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 {formData.efectivo.map((e, i) => (
                   <InputRow key={i}>
                     <input type="date" className="form-control" value={e.date} onChange={(ev) => updateItem('efectivo', i, 'date', ev.target.value)} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={e.amount} onChange={(ev) => updateItem('efectivo', i, 'amount', ev.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={e.amount} onChange={(val) => updateItem('efectivo', i, 'amount', val)} />
                     <RemoveBtn onClick={() => removeItem('efectivo', i)} />
                   </InputRow>
                 ))}
@@ -343,7 +336,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                   <InputRow key={i}>
                     <input type="date" className="form-control" value={c.date} onChange={(e) => updateItem('cheques', i, 'date', e.target.value)} />
                     <input type="text" className="form-control" maxLength="4" placeholder="4 dígitos" value={c.id} onChange={(e) => updateItem('cheques', i, 'id', e.target.value)} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={c.amount} onChange={(e) => updateItem('cheques', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={c.amount} onChange={(val) => updateItem('cheques', i, 'amount', val)} />
                     <RemoveBtn onClick={() => removeItem('cheques', i)} />
                   </InputRow>
                 ))}
@@ -358,7 +351,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
                 {formData.transferencias.map((t, i) => (
                   <InputRow key={i}>
                     <input type="date" className="form-control" value={t.date} onChange={(e) => updateItem('transferencias', i, 'date', e.target.value)} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={t.amount} onChange={(e) => updateItem('transferencias', i, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={t.amount} onChange={(val) => updateItem('transferencias', i, 'amount', val)} />
                     <RemoveBtn onClick={() => removeItem('transferencias', i)} />
                   </InputRow>
                 ))}

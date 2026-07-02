@@ -39,7 +39,10 @@ export default function ClientesTab({
     setEditingClientes(index);
     setTempClientesData({
       nombre: cliente.nombre,
-      boletas: [...cliente.boletas]
+      boletas: cliente.boletas.map(b => ({
+        ...b,
+        monto: b.monto != null ? String(b.monto) : ''
+      }))
     });
   };
 
@@ -50,7 +53,14 @@ export default function ClientesTab({
 
   const saveEditingClientes = async (index) => {
     try {
-      await actualizarCliente(index, tempClientesData);
+      const dataToSave = {
+        ...tempClientesData,
+        boletas: tempClientesData.boletas.map(b => ({
+          ...b,
+          monto: parseFloat(b.monto) || 0
+        }))
+      };
+      await actualizarCliente(index, dataToSave);
       addNotification('Cliente actualizado', 'success');
       setEditingClientes(null);
       setTempClientesData({});
@@ -80,7 +90,7 @@ export default function ClientesTab({
   const agregarBoletaEnEdicion = () => {
     setTempClientesData(prev => ({
       ...prev,
-      boletas: [...prev.boletas, { dia: getDiaActual(), monto: 0 }]
+      boletas: [...prev.boletas, { dia: getDiaActual(), monto: '' }]
     }));
   };
 
@@ -289,7 +299,7 @@ export default function ClientesTab({
                             <div className="mb-2">
                               <span className="badge bg-danger fs-6">
                                 Debe: {editingClientes === clienteIndex ? 
-                                  formatCurrency(tempClientesData.boletas?.reduce((sum, b) => sum + b.monto, 0) || 0) :
+                                  formatCurrency(tempClientesData.boletas?.reduce((sum, b) => sum + (parseFloat(b.monto) || 0), 0) || 0) :
                                   formatCurrency(deuda)
                                 }
                               </span>
@@ -320,11 +330,11 @@ export default function ClientesTab({
                                           </select>
                                         </td>
                                         <td>
-                                          <input 
-                                            type="number" 
-                                            className="form-control form-control-sm" 
+                                          <input
+                                            type="number"
+                                            className="form-control form-control-sm"
                                             value={boleta.monto}
-                                            onChange={(e) => updateBoleta(i, 'monto', parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => updateBoleta(i, 'monto', e.target.value)}
                                           />
                                         </td>
                                         <td>

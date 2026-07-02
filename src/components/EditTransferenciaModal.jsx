@@ -52,13 +52,9 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
     }
   }, [isOpen, transferencia]);
 
-  const handleCurrencyBlur = (e) => {
+  const handleCurrencyBlur = (updateFn) => (e) => {
     const num = parseCurrencyValue(e.target.value);
-    if (!isNaN(num)) e.target.value = formatCurrencyNoSymbol(num);
-  };
-
-  const handleCurrencyFocus = (e) => {
-    e.target.value = e.target.value.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').trim();
+    if (Number.isFinite(num)) updateFn(formatCurrencyNoSymbol(num));
   };
 
   const addTransferenciaRow = () => setFormData(p => ({ ...p, transferencias: [...p.transferencias, { descripcion: '', monto: '' }] }));
@@ -138,7 +134,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
                     style={{ flex: 2, border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
                   <input type="text" placeholder="Monto"
                     value={t.monto} onChange={(e) => updateTransferenciaRow(i, 'monto', e.target.value)}
-                    onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus}
+                    onBlur={handleCurrencyBlur((val) => updateTransferenciaRow(i, 'monto', val))}
                     style={{ flex: 1, border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
                   {formData.transferencias.length > 1 && <RemoveBtn onClick={() => removeTransferenciaRow(i)} />}
                 </div>
@@ -157,7 +153,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
                     style={{ flex: 2, border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
                   <input type="text" placeholder="Monto"
                     value={b.monto} onChange={(e) => updateBoleta(i, 'monto', e.target.value)}
-                    onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus}
+                    onBlur={handleCurrencyBlur((val) => updateBoleta(i, 'monto', val))}
                     style={{ flex: 1, border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
                   {formData.boletas.length > 1 && <RemoveBtn onClick={() => removeBoleta(i)} />}
                 </div>

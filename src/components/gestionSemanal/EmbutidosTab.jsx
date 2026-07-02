@@ -98,7 +98,11 @@ export default function EmbutidosTab({
     setEditingEmbutidos(index);
     setTempEmbutidosData({
       dia: entrada.dia,
-      embutidos: [...entrada.embutidos]
+      embutidos: entrada.embutidos.map(e => ({
+        ...e,
+        kg: e.kg != null ? String(e.kg) : '',
+        precioKg: e.precioKg != null ? String(e.precioKg) : ''
+      }))
     });
   };
 
@@ -109,7 +113,15 @@ export default function EmbutidosTab({
 
   const saveEditingEmbutidos = async (index) => {
     try {
-      await actualizarEmbutidos(index, tempEmbutidosData);
+      const dataToSave = {
+        ...tempEmbutidosData,
+        embutidos: tempEmbutidosData.embutidos.map(e => ({
+          ...e,
+          kg: parseFloat(e.kg) || 0,
+          precioKg: parseFloat(e.precioKg) || 0
+        }))
+      };
+      await actualizarEmbutidos(index, dataToSave);
       addNotification('Embutidos actualizados', 'success');
       setEditingEmbutidos(null);
       setTempEmbutidosData({});
@@ -139,7 +151,7 @@ export default function EmbutidosTab({
   const agregarEmbutidoEnEdicion = () => {
     setTempEmbutidosData(prev => ({
       ...prev,
-      embutidos: [...prev.embutidos, { tipo: 'Nuevo Tipo', kg: 0, precioKg: 0 }]
+      embutidos: [...prev.embutidos, { tipo: 'Nuevo Tipo', kg: '', precioKg: '' }]
     }));
   };
 
@@ -515,22 +527,22 @@ export default function EmbutidosTab({
                                         />
                                         <div className="input-group input-group-sm mb-1">
                                           <span className="input-group-text" style={{fontSize: '0.75rem'}}>Kg</span>
-                                          <input 
-                                            type="number" 
-                                            className="form-control" 
+                                          <input
+                                            type="number"
+                                            className="form-control"
                                             value={emb.kg}
-                                            onChange={(e) => updateEmbutido(i, 'kg', parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => updateEmbutido(i, 'kg', e.target.value)}
                                             step="0.1"
                                             placeholder="0"
                                           />
                                         </div>
                                         <div className="input-group input-group-sm">
                                           <span className="input-group-text" style={{fontSize: '0.75rem'}}>$/Kg</span>
-                                          <input 
-                                            type="number" 
-                                            className="form-control" 
-                                            value={emb.precioKg || 0}
-                                            onChange={(e) => updateEmbutido(i, 'precioKg', parseFloat(e.target.value) || 0)}
+                                          <input
+                                            type="number"
+                                            className="form-control"
+                                            value={emb.precioKg ?? ''}
+                                            onChange={(e) => updateEmbutido(i, 'precioKg', e.target.value)}
                                             step="0.01"
                                             placeholder="0"
                                           />
@@ -555,7 +567,7 @@ export default function EmbutidosTab({
                                   <div className="d-flex justify-content-between">
                                     <strong>Total:</strong>
                                     <strong className="text-primary fs-5">
-                                      {tempEmbutidosData.embutidos.reduce((sum, emb) => sum + emb.kg, 0).toFixed(2)} kg
+                                      {tempEmbutidosData.embutidos.reduce((sum, emb) => sum + (parseFloat(emb.kg) || 0), 0).toFixed(2)} kg
                                     </strong>
                                   </div>
                                 </div>

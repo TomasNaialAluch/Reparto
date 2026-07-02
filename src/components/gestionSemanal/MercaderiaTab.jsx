@@ -128,7 +128,11 @@ export default function MercaderiaTab({
     setTempMercaderiaData({
       dia: entrada.dia,
       proveedor: entrada.proveedor,
-      cortes: [...entrada.cortes]
+      cortes: entrada.cortes.map(c => ({
+        ...c,
+        kg: c.kg != null ? String(c.kg) : '',
+        precioKg: c.precioKg != null ? String(c.precioKg) : ''
+      }))
     });
   };
 
@@ -139,7 +143,15 @@ export default function MercaderiaTab({
 
   const saveEditingMercaderia = async (index) => {
     try {
-      await actualizarMercaderia(index, tempMercaderiaData);
+      const dataToSave = {
+        ...tempMercaderiaData,
+        cortes: tempMercaderiaData.cortes.map(c => ({
+          ...c,
+          kg: parseFloat(c.kg) || 0,
+          precioKg: parseFloat(c.precioKg) || 0
+        }))
+      };
+      await actualizarMercaderia(index, dataToSave);
       addNotification('Mercadería actualizada', 'success');
       setEditingMercaderia(null);
       setTempMercaderiaData({});
@@ -153,7 +165,7 @@ export default function MercaderiaTab({
   const updateCorte = (corteIndex, field, value) => {
     setTempMercaderiaData(prev => ({
       ...prev,
-      cortes: prev.cortes.map((corte, index) => 
+      cortes: prev.cortes.map((corte, index) =>
         index === corteIndex ? { ...corte, [field]: value } : corte
       )
     }));
@@ -199,7 +211,7 @@ export default function MercaderiaTab({
   const agregarCorteEnEdicion = () => {
     setTempMercaderiaData(prev => ({
       ...prev,
-      cortes: [...prev.cortes, { corte: 'Nuevo Corte', kg: 0, precioKg: 0 }]
+      cortes: [...prev.cortes, { corte: 'Nuevo Corte', kg: '', precioKg: '' }]
     }));
   };
 
@@ -789,22 +801,22 @@ export default function MercaderiaTab({
                                         />
                                         <div className="input-group input-group-sm mb-1">
                                           <span className="input-group-text" style={{fontSize: '0.75rem'}}>Kg</span>
-                                          <input 
-                                            type="number" 
-                                            className="form-control" 
+                                          <input
+                                            type="number"
+                                            className="form-control"
                                             value={corte.kg}
-                                            onChange={(e) => updateCorte(i, 'kg', parseFloat(e.target.value) || 0)}
+                                            onChange={(e) => updateCorte(i, 'kg', e.target.value)}
                                             step="0.1"
                                             placeholder="0"
                                           />
                                         </div>
                                         <div className="input-group input-group-sm">
                                           <span className="input-group-text" style={{fontSize: '0.75rem'}}>$/Kg</span>
-                                          <input 
-                                            type="number" 
-                                            className="form-control" 
-                                            value={corte.precioKg || 0}
-                                            onChange={(e) => updateCorte(i, 'precioKg', parseFloat(e.target.value) || 0)}
+                                          <input
+                                            type="number"
+                                            className="form-control"
+                                            value={corte.precioKg ?? ''}
+                                            onChange={(e) => updateCorte(i, 'precioKg', e.target.value)}
                                             step="0.01"
                                             placeholder="0"
                                           />
@@ -826,30 +838,32 @@ export default function MercaderiaTab({
                                   </div>
                                 </div>
                                 <div className="mt-3 pt-2 border-top">
-                                  <div className="d-flex justify-content-between">
-                                    <strong>Total:</strong>
-                                    <strong className="text-primary fs-5">
-                                      {tempMercaderiaData.cortes.reduce((sum, corte) => sum + corte.kg, 0).toFixed(2)} kg
-                                    </strong>
-                                  </div>
-                                  {tempMercaderiaData.cortes.some(c => c.precioKg && c.precioKg > 0) && (
-                                    <>
-                                      <div className="d-flex justify-content-between mt-1">
-                                        <strong>Costo Total:</strong>
-                                        <strong className="text-success">
-                                          ${tempMercaderiaData.cortes.reduce((sum, c) => sum + (c.kg * (c.precioKg || 0)), 0).toFixed(2)}
-                                        </strong>
-                                      </div>
-                                      <div className="d-flex justify-content-between mt-1">
-                                        <strong>Costo Promedio:</strong>
-                                        <strong className="text-info">
-                                          ${tempMercaderiaData.cortes.reduce((sum, c) => sum + c.kg, 0) > 0 ? 
-                                            (tempMercaderiaData.cortes.reduce((sum, c) => sum + (c.kg * (c.precioKg || 0)), 0) / 
-                                             tempMercaderiaData.cortes.reduce((sum, c) => sum + c.kg, 0)).toFixed(2) : '0.00'}/kg
-                                        </strong>
-                                      </div>
-                                    </>
-                                  )}
+                                  {(() => {
+                                    const totalKgEdit = tempMercaderiaData.cortes.reduce((sum, c) => sum + (parseFloat(c.kg) || 0), 0);
+                                    const costoTotalEdit = tempMercaderiaData.cortes.reduce((sum, c) => sum + ((parseFloat(c.kg) || 0) * (parseFloat(c.precioKg) || 0)), 0);
+                                    return (
+                                      <>
+                                        <div className="d-flex justify-content-between">
+                                          <strong>Total:</strong>
+                                          <strong className="text-primary fs-5">{totalKgEdit.toFixed(2)} kg</strong>
+                                        </div>
+                                        {tempMercaderiaData.cortes.some(c => parseFloat(c.precioKg) > 0) && (
+                                          <>
+                                            <div className="d-flex justify-content-between mt-1">
+                                              <strong>Costo Total:</strong>
+                                              <strong className="text-success">${costoTotalEdit.toFixed(2)}</strong>
+                                            </div>
+                                            <div className="d-flex justify-content-between mt-1">
+                                              <strong>Costo Promedio:</strong>
+                                              <strong className="text-info">
+                                                ${totalKgEdit > 0 ? (costoTotalEdit / totalKgEdit).toFixed(2) : '0.00'}/kg
+                                              </strong>
+                                            </div>
+                                          </>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             ) : (

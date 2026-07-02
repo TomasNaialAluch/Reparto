@@ -36,7 +36,10 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
     if (isOpen && reparto) {
       setFormData({
         date: reparto.date || getLocalDateString(),
-        clients: reparto.clientes || reparto.clients || []
+        clients: (reparto.clientes || reparto.clients || []).map(c => ({
+          ...c,
+          billAmount: c.billAmount != null ? String(c.billAmount) : ''
+        }))
       });
     }
   }, [isOpen, reparto]);
@@ -45,7 +48,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
     ...prev,
     clients: [...prev.clients, {
       id: Date.now().toString() + Math.random(),
-      clientName: '', billAmount: 0,
+      clientName: '', billAmount: '',
       paymentStatus: 'pending', paymentAmount: 0, address: ''
     }]
   }));
@@ -56,12 +59,25 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
 
   const updateCliente = (index, field, value) => setFormData(prev => ({
     ...prev,
-    clients: prev.clients.map((c, i) => i === index ? { ...c, [field]: value } : c)
+    clients: prev.clients.map((c, i) => {
+      if (i !== index) return c;
+      const updated = { ...c, [field]: value };
+      // Sincronizar paymentAmount con el status
+      if (field === 'paymentStatus') {
+        if (value === 'paid') updated.paymentAmount = parseFloat(c.billAmount) || 0;
+        if (value === 'pending') updated.paymentAmount = 0;
+      }
+      // Sincronizar billAmount: si se cambia el monto y el status es paid, actualizar paymentAmount
+      if (field === 'billAmount' && c.paymentStatus === 'paid') {
+        updated.paymentAmount = parseFloat(value) || 0;
+      }
+      return updated;
+    })
   }));
 
   const handleSave = () => {
     if (formData.clients.length === 0) { alert('Debe agregar al menos un cliente'); return; }
-    if (formData.clients.some(c => !c.clientName.trim() || c.billAmount <= 0)) {
+    if (formData.clients.some(c => !c.clientName.trim() || parseFloat(c.billAmount) <= 0 || isNaN(parseFloat(c.billAmount)))) {
       alert('Todos los clientes deben tener nombre y monto válido'); return;
     }
     const mapped = formData.clients.map(c => ({
@@ -73,6 +89,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
 
   const totalReparto = formData.clients.reduce((s, c) => s + (parseFloat(c.billAmount) || 0), 0);
   const pagados      = formData.clients.filter(c => c.paymentStatus === 'paid').length;
+  const parciales    = formData.clients.filter(c => c.paymentStatus === 'partial').length;
   const pendientes   = formData.clients.filter(c => c.paymentStatus === 'pending').length;
 
   if (!isOpen) return null;
@@ -165,7 +182,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
                           placeholder="Nombre del cliente"
                           style={{ borderRadius: '7px', flex: 2 }} />
                         <input type="text" className="form-control form-control-sm"
-                          value={cliente.address}
+                          value={cliente.address || ''}
                           onChange={(e) => updateCliente(index, 'address', e.target.value)}
                           placeholder="Dirección (opcional)"
                           style={{ borderRadius: '7px', flex: 2 }} />
@@ -179,10 +196,10 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
                       {/* Fila 2: monto + estado */}
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <div style={{ flex: 1 }}>
-                          <label style={{ fontSize: '0.65rem', color: '#6c757d', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Monto</label>
+                          <label style={{ fontSize: '0.65rem', color: '#6c757d', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Monto Boleta</label>
                           <input type="number" step="0.01" className="form-control form-control-sm"
                             value={cliente.billAmount}
-                            onChange={(e) => updateCliente(index, 'billAmount', parseFloat(e.target.value) || 0)}
+                            onChange={(e) => updateCliente(index, 'billAmount', e.target.value)}
                             placeholder="0.00"
                             style={{ borderRadius: '7px' }} />
                         </div>
@@ -197,6 +214,17 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
                             <option value="paid">Pagado</option>
                           </select>
                         </div>
+                        {cliente.paymentStatus === 'partial' && (
+                          <div style={{ flex: 1 }}>
+                            <label style={{ fontSize: '0.65rem', color: '#e6a817', fontWeight: 600, display: 'block', marginBottom: '2px' }}>Monto Pagado</label>
+                            <input type="number" step="0.01" className="form-control form-control-sm"
+                              value={cliente.paymentAmount || ''}
+                              onChange={(e) => updateCliente(index, 'paymentAmount', parseFloat(e.target.value) || 0)}
+                              placeholder="0.00"
+                              max={parseFloat(cliente.billAmount) || undefined}
+                              style={{ borderRadius: '7px', borderColor: '#e6a817' }} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -211,7 +239,7 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
               <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>
                 Resumen
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                 <div>
                   <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Total</div>
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#6A8899' }}>{formatCurrency(totalReparto)}</div>
@@ -221,8 +249,12 @@ const EditRepartoModal = ({ isOpen, onClose, reparto, onSave }) => {
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#28a745' }}>{pagados}</div>
                 </div>
                 <div>
+                  <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Parcial</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: parciales > 0 ? '#e6a817' : '#6c757d' }}>{parciales}</div>
+                </div>
+                <div>
                   <div style={{ fontSize: '0.68rem', color: '#6c757d' }}>Pendientes</div>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: pendientes > 0 ? '#e6a817' : '#6c757d' }}>{pendientes}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: pendientes > 0 ? '#dc3545' : '#6c757d' }}>{pendientes}</div>
                 </div>
               </div>
             </div>

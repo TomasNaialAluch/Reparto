@@ -13,6 +13,7 @@ import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString, formatDateSafe } from '../utils/date';
 import { IconPrinter, IconCalendar, IconDownload, IconInbox, IconX } from '../components/gestionSemanal/icons';
+import CurrencyInput from '../components/CurrencyInput';
 
 const FILTER_OPTIONS = [
   ['hoy', 'Hoy'],
@@ -21,6 +22,48 @@ const FILTER_OPTIONS = [
   ['año', 'Año'],
   ['elegir_mes', null],
 ];
+
+const FormSection = ({ label, children }) => (
+  <div style={{ marginBottom: '20px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
+    </div>
+    {children}
+  </div>
+);
+
+const ToggleRow = ({ id, label, checked, onChange }) => (
+  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', cursor: 'pointer' }} onClick={() => onChange({ target: { checked: !checked } })}>
+    <div style={{ width: '36px', height: '20px', borderRadius: '10px', background: checked ? '#6A8899' : '#dee2e6', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}>
+      <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: checked ? '18px' : '2px', transition: 'left 0.2s cubic-bezier(.4,0,.2,1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+    </div>
+    <label htmlFor={id} style={{ fontSize: '0.85rem', color: '#212529', cursor: 'pointer', margin: 0 }}>{label}</label>
+  </div>
+);
+
+const InputRow = ({ children }) => (
+  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+    {children}
+  </div>
+);
+
+const RemoveBtn = ({ onClick }) => (
+  <button type="button" onClick={onClick}
+    className="d-inline-flex align-items-center justify-content-center"
+    style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
+    <IconX size={14} />
+  </button>
+);
+
+const AddBtn = ({ onClick, children }) => (
+  <button type="button" onClick={onClick}
+    style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.75rem', cursor: 'pointer', marginBottom: '8px', marginRight: '6px', transition: 'all 0.15s' }}>
+    {children}
+  </button>
+);
 
 const SaldoClientes = () => {
   const { user } = useFirebase();
@@ -184,18 +227,19 @@ const SaldoClientes = () => {
         boletas: updatedData.boletas || [],
         ventas: updatedData.ventas || [],
         plataFavor: updatedData.plataFavor || [],
+        deudas: updatedData.deudas || [],
         efectivo: updatedData.efectivo || [],
         cheques: updatedData.cheques || [],
         transferencias: updatedData.transferencias || [],
-        // Incluir todos los totales calculados por el modal
         totalBoletas: updatedData.totalBoletas || 0,
         totalVentas: updatedData.totalVentas || 0,
         totalPlata: updatedData.totalPlata || 0,
+        totalDeuda: updatedData.totalDeuda || 0,
         totalEfectivo: updatedData.totalEfectivo || 0,
         totalCheque: updatedData.totalCheque || 0,
         totalTransferencia: updatedData.totalTransferencia || 0,
         totalIngresos: updatedData.totalIngresos || 0,
-        finalBalance: updatedData.finalBalance || (updatedData.totalIngresos - updatedData.totalBoletas),
+        finalBalance: updatedData.finalBalance ?? (updatedData.totalIngresos - updatedData.totalBoletas - (updatedData.totalDeuda || 0)),
         date: updatedData.date || getLocalDateString()
       };
 
@@ -393,19 +437,6 @@ const SaldoClientes = () => {
     showSuccess,
     showError
   });
-
-  // Formatear input de moneda
-  const handleCurrencyBlur = (e) => {
-    let num = parseCurrencyValue(e.target.value);
-    if (!isNaN(num)) {
-      e.target.value = formatCurrencyNoSymbol(num);
-    }
-  };
-
-  const handleCurrencyFocus = (e) => {
-    let val = e.target.value.replace(/\$/g, '').replace(/\./g, '').replace(',', '.').trim();
-    e.target.value = val;
-  };
 
   // Add rows
   const addBoleta = () => {
@@ -652,8 +683,9 @@ const SaldoClientes = () => {
         const totalEfectivo = balance.totalEfectivo || balance.efectivo?.reduce((sum, e) => sum + parseCurrencyValue(e.amount), 0) || 0;
         const totalCheque = balance.totalCheque || balance.cheques?.reduce((sum, c) => sum + parseCurrencyValue(c.amount), 0) || 0;
         const totalTransferencia = balance.totalTransferencia || balance.transferencias?.reduce((sum, t) => sum + parseCurrencyValue(t.amount), 0) || 0;
+        const totalDeuda = balance.totalDeuda || balance.deudas?.reduce((sum, d) => sum + parseCurrencyValue(d.amount), 0) || 0;
         const totalIngresos = balance.totalIngresos || (totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia);
-        const finalBalance = balance.finalBalance || (totalIngresos - totalBoletas);
+        const finalBalance = balance.finalBalance ?? (totalIngresos - totalBoletas - totalDeuda);
 
         return {
           id: balance.id,
@@ -662,14 +694,15 @@ const SaldoClientes = () => {
           boletas: balance.boletas || [],
           ventas: balance.ventas || [],
           plataFavor: balance.plataFavor || [],
+          deudas: balance.deudas || [],
           efectivo: balance.efectivo || [],
           cheques: balance.cheques || [],
           transferencias: balance.transferencias || [],
-          saldoFinal: balance.finalBalance || finalBalance,
-          // Agregar todos los totales calculados
+          saldoFinal: balance.finalBalance ?? finalBalance,
           totalBoletas: balance.totalBoletas || totalBoletas,
           totalVentas: balance.totalVentas || totalVentas,
           totalPlata: balance.totalPlata || totalPlata,
+          totalDeuda: balance.totalDeuda || totalDeuda,
           totalEfectivo: balance.totalEfectivo || totalEfectivo,
           totalCheque: balance.totalCheque || totalCheque,
           totalTransferencia: balance.totalTransferencia || totalTransferencia,
@@ -725,49 +758,6 @@ const SaldoClientes = () => {
       window.removeEventListener('resize', syncClientesListHeight);
     };
   }, [showSummary, summaryData, dateFilter, savedClientes.length, filteredClientesCount, loading, showSaldoPrevio, customMonth, semanaActiva?.clientesCuenta?.length]);
-
-  // Sub-componentes internos del formulario
-  const FormSection = ({ label, children }) => (
-    <div style={{ marginBottom: '20px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-          {label}
-        </span>
-        <div style={{ flex: 1, height: '1px', background: '#dde2e6' }} />
-      </div>
-      {children}
-    </div>
-  );
-
-  const ToggleRow = ({ id, label, checked, onChange }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 0', cursor: 'pointer' }} onClick={() => onChange({ target: { checked: !checked } })}>
-      <div style={{ width: '36px', height: '20px', borderRadius: '10px', background: checked ? '#6A8899' : '#dee2e6', position: 'relative', flexShrink: 0, transition: 'background 0.2s', cursor: 'pointer' }}>
-        <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: 'white', position: 'absolute', top: '2px', left: checked ? '18px' : '2px', transition: 'left 0.2s cubic-bezier(.4,0,.2,1)', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-      </div>
-      <label htmlFor={id} style={{ fontSize: '0.85rem', color: '#212529', cursor: 'pointer', margin: 0 }}>{label}</label>
-    </div>
-  );
-
-  const InputRow = ({ children }) => (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-      {children}
-    </div>
-  );
-
-  const RemoveBtn = ({ onClick }) => (
-    <button type="button" onClick={onClick}
-      className="d-inline-flex align-items-center justify-content-center"
-      style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '0 4px', lineHeight: 1, flexShrink: 0 }}>
-      <IconX size={14} />
-    </button>
-  );
-
-  const AddBtn = ({ onClick, children }) => (
-    <button type="button" onClick={onClick}
-      style={{ border: '1px dashed #dee2e6', borderRadius: '8px', padding: '5px 12px', background: 'transparent', color: '#6c757d', fontSize: '0.75rem', cursor: 'pointer', marginBottom: '8px', marginRight: '6px', transition: 'all 0.15s' }}>
-      {children}
-    </button>
-  );
 
   return (
     <div className="container mt-4 printable saldo-clientes-page">
@@ -897,7 +887,7 @@ const SaldoClientes = () => {
                     {deudas.map((item, index) => (
                       <InputRow key={index}>
                         <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updateDeuda(index, 'date', e.target.value)} />
-                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateDeuda(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} />
+                        <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(val) => updateDeuda(index, 'amount', val)} />
                         <RemoveBtn onClick={() => removeDeuda(index)} />
                       </InputRow>
                     ))}
@@ -910,7 +900,7 @@ const SaldoClientes = () => {
                 {boletas.map((boleta, index) => (
                   <InputRow key={index}>
                     <input type="date" className="form-control" value={boleta.date} onChange={(e) => updateBoleta(index, 'date', e.target.value)} required disabled={boleta.esDeMercaderia} />
-                    <input type="text" className="form-control" placeholder="Monto (AR$)" value={boleta.amount} onChange={(e) => updateBoleta(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required disabled={boleta.esDeMercaderia} />
+                    <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={boleta.amount} onChange={(val) => updateBoleta(index, 'amount', val)} required disabled={boleta.esDeMercaderia} />
                     {boleta.esDeMercaderia
                       ? <span style={{ fontSize: '0.75rem', background: 'rgba(23,162,184,0.12)', color: '#17a2b8', padding: '3px 7px', borderRadius: '6px', flexShrink: 0 }}>📦</span>
                       : <button type="button" onClick={() => moverBoletaAVentas(index)} title="Pasé mal: era venta mía al cliente"
@@ -937,7 +927,7 @@ const SaldoClientes = () => {
                     {ventas.map((venta, index) => (
                       <InputRow key={index}>
                         <input type="date" className="form-control" value={venta.date} onChange={(e) => updateVenta(index, 'date', e.target.value)} required />
-                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={venta.amount} onChange={(e) => updateVenta(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={venta.amount} onChange={(val) => updateVenta(index, 'amount', val)} required />
                         <RemoveBtn onClick={() => removeVenta(index)} />
                       </InputRow>
                     ))}
@@ -954,7 +944,7 @@ const SaldoClientes = () => {
                     {plata.map((item, index) => (
                       <InputRow key={index}>
                         <input type="date" className="form-control" value={item.date || ''} onChange={(e) => updatePlata(index, 'date', e.target.value)} required />
-                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updatePlata(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(val) => updatePlata(index, 'amount', val)} required />
                         <RemoveBtn onClick={() => removePlata(index)} />
                       </InputRow>
                     ))}
@@ -968,7 +958,7 @@ const SaldoClientes = () => {
                   <div style={{ marginTop: '10px' }}>
                     {efectivo.map((item, index) => (
                       <InputRow key={index}>
-                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(e) => updateEfectivo(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={item.amount} onChange={(val) => updateEfectivo(index, val)} required />
                         <RemoveBtn onClick={() => removeEfectivo(index)} />
                       </InputRow>
                     ))}
@@ -983,7 +973,7 @@ const SaldoClientes = () => {
                     {cheques.map((cheque, index) => (
                       <InputRow key={index}>
                         <input type="text" className="form-control" maxLength="4" placeholder="Últimos 4 dígitos" value={cheque.id} onChange={(e) => updateCheque(index, 'id', e.target.value)} required />
-                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(e) => updateCheque(index, 'amount', e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={cheque.amount} onChange={(val) => updateCheque(index, 'amount', val)} required />
                         <RemoveBtn onClick={() => removeCheque(index)} />
                       </InputRow>
                     ))}
@@ -997,7 +987,7 @@ const SaldoClientes = () => {
                   <div style={{ marginTop: '10px' }}>
                     {transferencias.map((transfer, index) => (
                       <InputRow key={index}>
-                        <input type="text" className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(e) => updateTransferencia(index, e.target.value)} onBlur={handleCurrencyBlur} onFocus={handleCurrencyFocus} required />
+                        <CurrencyInput className="form-control" placeholder="Monto (AR$)" value={transfer.amount} onChange={(val) => updateTransferencia(index, val)} required />
                         <RemoveBtn onClick={() => removeTransferencia(index)} />
                       </InputRow>
                     ))}

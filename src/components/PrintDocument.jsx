@@ -8,6 +8,7 @@ const PrintDocument = ({ data, type, onClose }) => {
   const [showTopIndicator, setShowTopIndicator] = useState(false);
   const [showBottomIndicator, setShowBottomIndicator] = useState(true);
   const [anchoImpresion, setAnchoImpresion] = useState('completo');
+  const esEmpleado = type === 'empleado' || type === 'empleados';
 
   useEffect(() => {
     const modalBody = modalBodyRef.current;
@@ -279,14 +280,68 @@ const PrintDocument = ({ data, type, onClose }) => {
       }
     `;
 
-    return printType === 'empleado' ? empleadoStyles : baseStyles;
+    const duplicadoExtra = ancho === 'duplicado' ? `
+      @page { size: A4 landscape; margin: 1cm 1.2cm; }
+      body { padding: 0; margin: 0; }
+      .duplicado-wrapper {
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        min-height: 100%;
+        gap: 0;
+      }
+      .duplicado-half {
+        flex: 1;
+        overflow: hidden;
+        padding: 6px 10px;
+        box-sizing: border-box;
+        font-size: 8.5pt;
+        line-height: 1.3;
+      }
+      .duplicado-half .print-header { font-size: 12pt; margin-bottom: 6px; padding-bottom: 4px; }
+      .duplicado-half .print-date { font-size: 8pt; margin-bottom: 6px; }
+      .duplicado-half .print-section-title { font-size: 9.5pt; margin-bottom: 4px; }
+      .duplicado-half .print-item { font-size: 8.5pt; margin: 2px 0; padding-left: 10px; }
+      .duplicado-half .print-subtotal { padding: 4px 8px; margin: 4px 0; font-size: 8.5pt; }
+      .duplicado-half .print-total { font-size: 10pt; padding: 7px; margin: 7px 0; }
+      .duplicado-cut {
+        width: 0;
+        border-left: 1.5px dashed #bbb;
+        margin: 0 6px;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .duplicado-cut::before {
+        content: '✂';
+        position: absolute;
+        top: 0;
+        left: -7px;
+        font-size: 9pt;
+        color: #aaa;
+      }
+    ` : '';
+
+    return printType === 'empleado' ? empleadoStyles : baseStyles + duplicadoExtra;
   };
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     const content = printRef.current.innerHTML;
     const styles = getStylesForType(type, anchoImpresion);
-    
+
+    let body;
+    if (anchoImpresion === 'duplicado') {
+      body = `
+        <div class="duplicado-wrapper">
+          <div class="duplicado-half">${content}</div>
+          <div class="duplicado-cut"></div>
+          <div class="duplicado-half">${content}</div>
+        </div>
+      `;
+    } else {
+      body = content;
+    }
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html lang="es">
@@ -298,11 +353,11 @@ const PrintDocument = ({ data, type, onClose }) => {
         </style>
       </head>
       <body>
-        ${content}
+        ${body}
       </body>
       </html>
     `);
-    
+
     printWindow.document.close();
     printWindow.print();
   };
@@ -1100,26 +1155,34 @@ const PrintDocument = ({ data, type, onClose }) => {
           {/* Selector de ancho — segmented control */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
-              Ancho
+              Formato
             </span>
-            <div style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px', flex: 1 }}>
-              {/* Slider animado */}
-              <div style={{
-                position: 'absolute', top: '3px', bottom: '3px',
-                left: anchoImpresion === 'completo' ? '3px' : 'calc(50% + 1px)',
-                width: 'calc(50% - 4px)',
-                background: 'white', borderRadius: '8px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
-                transition: 'left 0.22s cubic-bezier(.4,0,.2,1)',
-                pointerEvents: 'none', zIndex: 0,
-              }} />
-              {[['completo','📄 Hoja completa'],['mitad','✂️ Media hoja']].map(([val, label]) => (
-                <button key={val} onClick={() => setAnchoImpresion(val)}
-                  style={{ position: 'relative', zIndex: 1, flex: 1, border: 'none', borderRadius: '8px', padding: '5px 8px', fontSize: '0.75rem', fontWeight: anchoImpresion === val ? 600 : 400, background: 'transparent', color: anchoImpresion === val ? '#212529' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                  {label}
-                </button>
-              ))}
-            </div>
+            {(() => {
+              const opciones = esEmpleado
+                ? [['completo', '📄 Hoja completa'], ['mitad', '✂️ Media hoja']]
+                : [['completo', '📄 Hoja completa'], ['mitad', '✂️ Media hoja'], ['duplicado', '📋 Media hoja x2']];
+              const idx = opciones.findIndex(([val]) => val === anchoImpresion);
+              const sliderPct = idx < 0 ? 0 : (idx / opciones.length) * 100;
+              return (
+                <div style={{ position: 'relative', display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px', flex: 1 }}>
+                  <div style={{
+                    position: 'absolute', top: '3px', bottom: '3px',
+                    left: `calc(${sliderPct}% + 3px)`,
+                    width: `calc(${100 / opciones.length}% - 4px)`,
+                    background: 'white', borderRadius: '8px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+                    transition: 'left 0.22s cubic-bezier(.4,0,.2,1)',
+                    pointerEvents: 'none', zIndex: 0,
+                  }} />
+                  {opciones.map(([val, label]) => (
+                    <button key={val} onClick={() => setAnchoImpresion(val)}
+                      style={{ position: 'relative', zIndex: 1, flex: 1, border: 'none', borderRadius: '8px', padding: '5px 6px', fontSize: '0.72rem', fontWeight: anchoImpresion === val ? 600 : 400, background: 'transparent', color: anchoImpresion === val ? '#212529' : '#6c757d', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Botones Cancelar / Imprimir */}

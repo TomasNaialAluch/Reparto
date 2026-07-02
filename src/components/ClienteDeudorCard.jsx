@@ -18,13 +18,14 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
   const totalDeuda = cliente.saldoFinal || cliente.finalBalance || 0;
   const esAFavor = totalDeuda > 0;
 
-  const totalBoletasAmount   = cliente.totalBoletas      || cliente.boletas?.reduce((s, b) => s + parseCurrencyValue(b.amount), 0) || 0;
-  const totalVentasAmount    = cliente.totalVentas       || cliente.ventas?.reduce((s, v) => s + parseCurrencyValue(v.amount), 0) || 0;
-  const totalPlataAmount     = cliente.totalPlata        || cliente.plataFavor?.reduce((s, p) => s + parseCurrencyValue(p.amount), 0) || 0;
-  const totalEfectivoAmount  = cliente.totalEfectivo     || cliente.efectivo?.reduce((s, p) => s + parseCurrencyValue(p.amount), 0) || 0;
-  const totalChequeAmount    = cliente.totalCheque       || cliente.cheques?.reduce((s, c) => s + parseCurrencyValue(c.amount), 0) || 0;
-  const totalTransAmount     = cliente.totalTransferencia|| cliente.transferencias?.reduce((s, t) => s + parseCurrencyValue(t.amount), 0) || 0;
-  const totalIngresosAmount  = cliente.totalIngresos     || (totalVentasAmount + totalPlataAmount + totalEfectivoAmount + totalChequeAmount + totalTransAmount);
+  const totalBoletasAmount   = cliente.totalBoletas       ?? cliente.boletas?.reduce((s, b) => s + parseCurrencyValue(b.amount), 0) ?? 0;
+  const totalVentasAmount    = cliente.totalVentas        ?? cliente.ventas?.reduce((s, v) => s + parseCurrencyValue(v.amount), 0) ?? 0;
+  const totalPlataAmount     = cliente.totalPlata         ?? cliente.plataFavor?.reduce((s, p) => s + parseCurrencyValue(p.amount), 0) ?? 0;
+  const totalEfectivoAmount  = cliente.totalEfectivo      ?? cliente.efectivo?.reduce((s, p) => s + parseCurrencyValue(p.amount), 0) ?? 0;
+  const totalChequeAmount    = cliente.totalCheque        ?? cliente.cheques?.reduce((s, c) => s + parseCurrencyValue(c.amount), 0) ?? 0;
+  const totalTransAmount     = cliente.totalTransferencia ?? cliente.transferencias?.reduce((s, t) => s + parseCurrencyValue(t.amount), 0) ?? 0;
+  const totalDeudaAmount     = cliente.totalDeuda         ?? cliente.deudas?.reduce((s, d) => s + parseCurrencyValue(d.amount), 0) ?? 0;
+  const totalIngresosAmount  = cliente.totalIngresos      ?? (totalVentasAmount + totalPlataAmount + totalEfectivoAmount + totalChequeAmount + totalTransAmount);
 
   const totalBoletas = cliente.boletas?.length || 0;
   const totalVentas  = cliente.ventas?.length  || 0;
@@ -116,11 +117,17 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
           </div>
 
           <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '10px 12px', marginBottom: '12px', border: '1px solid #dde2e6' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: totalChequeAmount + totalEfectivoAmount + totalTransAmount > 0 ? '8px' : 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: totalDeudaAmount > 0 ? '1fr 1fr 1fr' : '1fr 1fr', gap: '8px', marginBottom: totalChequeAmount + totalEfectivoAmount + totalTransAmount > 0 ? '8px' : 0 }}>
               <div>
                 <div style={{ fontSize: '0.67rem', color: '#6c757d' }}>Total Boletas</div>
                 <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#e6a817' }}>{formatCurrency(totalBoletasAmount)}</div>
               </div>
+              {totalDeudaAmount > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.67rem', color: '#6c757d' }}>Deuda</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#dc3545' }}>{formatCurrency(totalDeudaAmount)}</div>
+                </div>
+              )}
               <div>
                 <div style={{ fontSize: '0.67rem', color: '#6c757d' }}>Total Ingresos</div>
                 <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#28a745' }}>{formatCurrency(totalIngresosAmount)}</div>
@@ -173,9 +180,13 @@ const ClienteDeudorCard = ({ cliente, onDelete, onEdit, onPrint }) => {
                 <TransaccionRow key={`t-${i}`} tipo="Transferencia" monto={parseCurrencyValue(t.amount)}
                   bg="rgba(108,117,125,0.08)" color="#6c757d" formatCurrency={formatCurrency} />
               ))}
+              {cliente.deudas?.map((d, i) => (
+                <TransaccionRow key={`d-${i}`} tipo={`Deuda${d.descripcion ? `: ${d.descripcion}` : ''}`} monto={parseCurrencyValue(d.amount)} fecha={d.date}
+                  bg="rgba(220,53,69,0.07)" color="#dc3545" formatCurrency={formatCurrency} />
+              ))}
 
               {!cliente.boletas?.length && !cliente.ventas?.length && !cliente.plataFavor?.length &&
-               !cliente.efectivo?.length && !cliente.cheques?.length && !cliente.transferencias?.length && (
+               !cliente.efectivo?.length && !cliente.cheques?.length && !cliente.transferencias?.length && !cliente.deudas?.length && (
                 <div style={{ textAlign: 'center', color: '#6c757d', padding: '8px', fontSize: '0.75rem' }}>
                   Sin transacciones registradas
                 </div>
