@@ -362,6 +362,63 @@ const PrintDocument = ({ data, type, onClose }) => {
     printWindow.print();
   };
 
+  const renderFacturaContent = () => {
+    const { numeroFormateado, clienteNombre, fecha, items, subtotal, total, ivaPct } = data;
+
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          {numeroFormateado || 'Factura'}
+        </div>
+
+        <div className="print-date">
+          Fecha: {fecha ? new Date(fecha).toLocaleDateString('es-AR') : new Date().toLocaleDateString('es-AR')}
+        </div>
+
+        <div className="print-section">
+          <div className="print-section-title">Cliente: {clienteNombre}</div>
+        </div>
+
+        {items && items.length > 0 && (
+          <div className="print-section">
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>Cant.</th>
+                  <th>Descripción</th>
+                  <th className="text-end">Pr. Unit.</th>
+                  <th className="text-end">Pr. Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={i}>
+                    <td>{item.cantidad}</td>
+                    <td>{item.descripcion}</td>
+                    <td className="number">{formatCurrency(parseFloat(item.precioUnit) || 0)}</td>
+                    <td className="number">{formatCurrency(item.prTotal || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="print-section">
+          <div className="print-subtotal">
+            Subtotal: {formatCurrency(subtotal || 0)}
+          </div>
+          <div className="print-subtotal">
+            IVA ({ivaPct || 0}%): {formatCurrency((total || 0) - (subtotal || 0))}
+          </div>
+          <div className="print-total">
+            Total: {formatCurrency(total || 0)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderRepartoContent = () => {
     const { clientes, fecha } = data;
     
@@ -485,8 +542,162 @@ const PrintDocument = ({ data, type, onClose }) => {
     );
   };
 
+  const renderVentaContent = () => {
+    const { numero, tipo, fecha, items, total, clienteNombre } = data;
+
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          {tipo || 'Comprobante de Venta'}
+        </div>
+
+        <div className="print-date">
+          Fecha: {fecha ? new Date(fecha).toLocaleDateString('es-AR') : new Date().toLocaleDateString('es-AR')}
+        </div>
+
+        <div className="print-section">
+          <div className="print-section-title">N° {numero}</div>
+          {clienteNombre && (
+            <div className="print-item">Cliente: {clienteNombre}</div>
+          )}
+        </div>
+
+        {items && items.length > 0 && (
+          <div className="print-section">
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th className="text-end">Precio Unit.</th>
+                  <th className="text-end">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => (
+                  <tr key={i}>
+                    <td>{item.producto}</td>
+                    <td>{item.cantidad}</td>
+                    <td className="number">{formatCurrency(parseFloat(item.precioUnit) || 0)}</td>
+                    <td className="number">{formatCurrency(item.subtotal || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="print-section">
+          <div className="print-total">
+            Total: {formatCurrency(total || 0)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderVentasResumenContent = () => {
+    const { ventas, total, clienteNombre } = data;
+
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          Resumen de Ventas
+        </div>
+
+        <div className="print-date">
+          Fecha: {new Date().toLocaleDateString('es-AR')}
+        </div>
+
+        {clienteNombre && (
+          <div className="print-section">
+            <div className="print-section-title">Cliente: {clienteNombre}</div>
+          </div>
+        )}
+
+        {ventas && ventas.length > 0 && (
+          <div className="print-section">
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>N° Comprobante</th>
+                  <th>Tipo</th>
+                  <th>Fecha</th>
+                  <th className="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ventas.map((v, i) => (
+                  <tr key={i}>
+                    <td>{v.numero}</td>
+                    <td>{v.tipo}</td>
+                    <td>{new Date(v.fecha).toLocaleDateString('es-AR')}</td>
+                    <td className="number">{formatCurrency(v.total || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="print-section">
+          <div className="print-total">
+            Total: {formatCurrency(total || 0)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFacturasResumenContent = () => {
+    const { facturas, total } = data;
+
+    return (
+      <div ref={printRef}>
+        <div className="print-header">
+          Resumen de Facturas
+        </div>
+
+        <div className="print-date">
+          Fecha: {new Date().toLocaleDateString('es-AR')}
+        </div>
+
+        {facturas && facturas.length > 0 && (
+          <div className="print-section">
+            <table className="print-table">
+              <thead>
+                <tr>
+                  <th>Comprobante</th>
+                  <th>Cliente</th>
+                  <th>Fecha</th>
+                  <th className="text-end">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {facturas.map((f, i) => (
+                  <tr key={i}>
+                    <td>{f.numeroFormateado}</td>
+                    <td>{f.clienteNombre}</td>
+                    <td>{new Date(f.fecha).toLocaleDateString('es-AR')}</td>
+                    <td className="number">{formatCurrency(f.total || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="print-section">
+          <div className="print-total">
+            Total: {formatCurrency(total || 0)}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderSaldoContent = () => {
-    const { 
+    const {
       clientName, 
       boletas, 
       ventas, 
@@ -1133,6 +1344,10 @@ const PrintDocument = ({ data, type, onClose }) => {
            type === 'empleados'     ? renderEmpleadosContent()     :
            type === 'empleado'      ? renderEmpleadoContent()      :
            type === 'listaPrecios'  ? renderListaPreciosContent()  :
+           type === 'venta'         ? renderVentaContent()         :
+           type === 'ventasResumen' ? renderVentasResumenContent() :
+           type === 'factura'       ? renderFacturaContent()       :
+           type === 'facturasResumen' ? renderFacturasResumenContent() :
            renderSaldoContent()}
 
           {/* Indicador scroll abajo */}

@@ -356,6 +356,90 @@ export const useClientBalances = () => {
   };
 };
 
+// Hook específico para clientes de Facturación
+export const useClientesFacturacion = () => {
+  const { documents, loading, error } = useFirestoreRealtime('facturacion_clientes');
+  const { addDocument, updateDocument, deleteDocument } = useFirestore('facturacion_clientes');
+
+  const clientes = [...documents].sort((a, b) => (a.codigo || 0) - (b.codigo || 0));
+
+  const siguienteCodigo = () => {
+    if (clientes.length === 0) return 1;
+    return Math.max(...clientes.map(c => c.codigo || 0)) + 1;
+  };
+
+  const addCliente = async (data) => {
+    const codigo = siguienteCodigo();
+    return await addDocument({ ...data, codigo });
+  };
+
+  return {
+    clientes,
+    loading,
+    error,
+    siguienteCodigo,
+    addCliente,
+    updateCliente: updateDocument,
+    deleteCliente: deleteDocument
+  };
+};
+
+// Hook específico para productos de Facturación
+export const useProductosFacturacion = () => {
+  const { documents, loading, error } = useFirestoreRealtime('facturacion_productos');
+  const { addDocument, updateDocument, deleteDocument } = useFirestore('facturacion_productos');
+
+  const productos = [...documents].sort((a, b) => (a.codigo || 0) - (b.codigo || 0));
+
+  const siguienteCodigo = () => {
+    if (productos.length === 0) return 1;
+    return Math.max(...productos.map(p => p.codigo || 0)) + 1;
+  };
+
+  const addProducto = async (data) => {
+    const codigo = siguienteCodigo();
+    return await addDocument({ ...data, codigo });
+  };
+
+  return {
+    productos,
+    loading,
+    error,
+    siguienteCodigo,
+    addProducto,
+    updateProducto: updateDocument,
+    deleteProducto: deleteDocument
+  };
+};
+
+// Hook específico para facturas de Facturación
+export const useFacturasFacturacion = () => {
+  const { documents, loading, error } = useFirestoreRealtime('facturacion_facturas');
+  const { addDocument, updateDocument, deleteDocument } = useFirestore('facturacion_facturas');
+
+  const facturas = [...documents].sort((a, b) => (b.numero || 0) - (a.numero || 0));
+
+  const siguienteNumero = () => {
+    if (facturas.length === 0) return 1;
+    return Math.max(...facturas.map(f => f.numero || 0)) + 1;
+  };
+
+  const addFactura = async (data) => {
+    const numero = siguienteNumero();
+    return await addDocument({ ...data, numero });
+  };
+
+  return {
+    facturas,
+    loading,
+    error,
+    siguienteNumero,
+    addFactura,
+    updateFactura: updateDocument,
+    deleteFactura: deleteDocument
+  };
+};
+
 // Hook específico para transferencias
 export const useTransferenciasClientes = () => {
   const { documents, loading, error } = useFirestoreRealtime('TransferenciasClientes');

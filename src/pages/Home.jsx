@@ -9,6 +9,7 @@ import {
   IconClipboard,
   IconSparkles,
   IconChevronDown,
+  IconReceipt,
 } from '../components/gestionSemanal/icons';
 
 const NAV_ITEMS = [
@@ -39,6 +40,12 @@ const NAV_ITEMS = [
     submenu: [
       { path: '/balance', label: 'Balance' },
     ],
+  },
+  {
+    path: '/facturacion',
+    label: 'Facturación',
+    desc: 'Generá y gestioná tus facturas',
+    Icon: IconReceipt,
   },
   {
     key: 'herramientas',

@@ -234,6 +234,22 @@ export const IconTruck = ({ size = 14 }) => (
   </svg>
 );
 
+export const IconReceipt = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <path d="M4 2h16v20l-3-2-3 2-3-2-3 2-3-2-1 2z" />
+    <line x1="8" y1="7" x2="16" y2="7" />
+    <line x1="8" y1="11" x2="16" y2="11" />
+    <line x1="8" y1="15" x2="13" y2="15" />
+  </svg>
+);
+
+export const IconSearch = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
 export const IconSparkles = ({ size = 14 }) => (
   <svg {...base(size)}>
     <path d="M12 3v2" /><path d="M12 19v2" /><path d="M5 12H3" /><path d="M21 12h-2" />

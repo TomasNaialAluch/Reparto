@@ -23,6 +23,7 @@ import PreciosClientes from './pages/PreciosClientes';
 import DolarHoy from './pages/DolarHoy';
 import GestionDeudas from './pages/GestionDeudas';
 import LibroCheques from './pages/LibroCheques';
+import Facturacion from './pages/Facturacion';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -156,6 +157,12 @@ const AppContent = () => {
               <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
                 <Navbar />
                 <LibroCheques />
+              </div>
+            } />
+          <Route path="/facturacion" element={
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+                <Navbar />
+                <Facturacion />
               </div>
             } />
         </Routes>
