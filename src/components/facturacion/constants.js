@@ -18,7 +18,9 @@ export const PRODUCTO_VACIO = {
   descripcion: '',
 };
 
-export const IVA_DEFAULT = 21;
+// 0 por defecto: no todos los comprobantes llevan IVA. El campo acepta valores
+// negativos también (ej. para modelar una bonificación como IVA negativo).
+export const IVA_DEFAULT = 0;
 
 // Formato simple "0001-00000001" — no es numeración AFIP real (punto de venta / letra
 // según condición de IVA), solo un correlativo interno legible. Ver README-FACTURACION.md.

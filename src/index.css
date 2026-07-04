@@ -466,6 +466,97 @@ table tbody tr:hover {
   border-radius: 5px;
 }
 
+/* Vista previa en pantalla de PrintDocument.jsx (modal "Imprimir").
+   Las clases .print-* de acá abajo (dentro de @media print) solo aplican al imprimir
+   de verdad — la vista previa en pantalla no tenía NINGÚN estilo para esas clases,
+   por eso se veía todo apretado sin bordes ni espaciado. Este bloque le da apariencia
+   legible en pantalla, sin tocar el output de impresión real (que ya funciona bien
+   y usa su propio <style> inyectado en la ventana de impresión, ver PrintDocument.jsx). */
+.pd-preview {
+  font-family: 'Arial', sans-serif;
+  color: #212529;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+.pd-preview .print-header {
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #212529;
+}
+.pd-preview .print-date {
+  text-align: right;
+  font-size: 0.72rem;
+  color: #6c757d;
+  margin-bottom: 10px;
+}
+.pd-preview .print-section {
+  margin: 10px 0;
+}
+.pd-preview .print-section-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #212529;
+}
+.pd-preview .print-item {
+  margin: 4px 0;
+  padding-left: 12px;
+  font-size: 0.8rem;
+}
+.pd-preview .print-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.pd-preview .print-table th,
+.pd-preview .print-table td {
+  border: 1px solid #d3d9de;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 0.8rem;
+}
+.pd-preview .print-table th {
+  background-color: #f8f9fa;
+  font-weight: 700;
+}
+.pd-preview .print-table td.number,
+.pd-preview .print-table .text-end {
+  text-align: right;
+}
+.pd-preview .print-subtotal {
+  background-color: #f8f9fa;
+  padding: 8px 12px;
+  margin: 8px 0;
+  border-left: 3px solid #6A8899;
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.pd-preview .print-total {
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 14px 0;
+  padding: 12px;
+  background-color: #f8f9fa;
+  border: 2px solid #212529;
+  border-radius: 8px;
+}
+.pd-preview .print-message {
+  text-align: center;
+  font-size: 0.78rem;
+  margin: 10px 0;
+  padding: 10px;
+  background-color: rgba(255, 209, 102, 0.15);
+  border: 1px solid #FFD166;
+  border-radius: 8px;
+}
+.pd-preview .status-paid { color: #28a745; font-weight: 700; }
+.pd-preview .status-pending { color: #e6a817; font-weight: 700; }
+.pd-preview .text-muted { color: #6c757d; }
+
 /* Estilos de impresión simples - usando window.print() */
 @media print {
   @page {

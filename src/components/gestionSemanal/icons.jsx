@@ -22,6 +22,10 @@ export const IconX = ({ size = 14 }) => (
   <svg {...base(size)}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
 );
 
+export const IconMinimize = ({ size = 14 }) => (
+  <svg {...base(size)}><line x1="5" y1="19" x2="19" y2="19" /></svg>
+);
+
 export const IconCheck = ({ size = 14 }) => (
   <svg {...base(size)}><polyline points="20 6 9 17 4 12" /></svg>
 );

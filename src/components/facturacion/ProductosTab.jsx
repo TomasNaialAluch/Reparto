@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useProductosFacturacion } from '../../firebase/hooks';
+import { useNotifications } from '../../hooks/useNotifications';
+import NotificationContainer from '../NotificationContainer';
 import Breadcrumb from './Breadcrumb';
 import ProductosList from './productos/ProductosList';
 import ProductoDetalle from './productos/ProductoDetalle';
@@ -7,6 +9,7 @@ import ProductoForm from './productos/ProductoForm';
 
 export default function ProductosTab() {
   const { productos, loading, addProducto, updateProducto } = useProductosFacturacion();
+  const { notifications, removeNotification, showError } = useNotifications();
   const [vista, setVista] = useState('lista'); // 'lista' | 'ver' | 'form'
   const [productoId, setProductoId] = useState(null);
 
@@ -82,8 +85,11 @@ export default function ProductosTab() {
           producto={productoActual}
           onSave={handleGuardar}
           onCancel={cancelarForm}
+          onError={showError}
         />
       )}
+
+      <NotificationContainer notifications={notifications} onRemove={removeNotification} />
     </div>
   );
 }

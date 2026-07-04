@@ -14,7 +14,7 @@ const ReadField = ({ label, value, flex = 1 }) => (
   </div>
 );
 
-export default function ClienteDetalle({ cliente, onEdit }) {
+export default function ClienteDetalle({ cliente, onEdit, onError }) {
   const [showHistorial, setShowHistorial] = useState(false);
 
   if (!cliente) return null;
@@ -89,7 +89,7 @@ export default function ClienteDetalle({ cliente, onEdit }) {
       </FormSection>
 
       {showHistorial && (
-        <HistorialVentasModal cliente={cliente} onClose={() => setShowHistorial(false)} />
+        <HistorialVentasModal cliente={cliente} onClose={() => setShowHistorial(false)} onError={onError} />
       )}
     </div>
   );

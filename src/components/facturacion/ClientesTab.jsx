@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useClientesFacturacion } from '../../firebase/hooks';
+import { useNotifications } from '../../hooks/useNotifications';
+import NotificationContainer from '../NotificationContainer';
 import Breadcrumb from './Breadcrumb';
 import ClientesList from './clientes/ClientesList';
 import ClienteDetalle from './clientes/ClienteDetalle';
@@ -25,6 +27,7 @@ const CLIENTE_DEMO = {
 
 export default function ClientesTab() {
   const { clientes, loading, addCliente, updateCliente } = useClientesFacturacion();
+  const { notifications, removeNotification, showError } = useNotifications();
   const [vista, setVista] = useState('lista'); // 'lista' | 'ver' | 'form'
   const [clienteId, setClienteId] = useState(null);
 
@@ -93,7 +96,7 @@ export default function ClientesTab() {
       )}
 
       {vista === 'ver' && clienteActual && (
-        <ClienteDetalle cliente={clienteActual} onEdit={editarClienteActual} />
+        <ClienteDetalle cliente={clienteActual} onEdit={editarClienteActual} onError={showError} />
       )}
 
       {vista === 'form' && (
@@ -101,8 +104,11 @@ export default function ClientesTab() {
           cliente={clienteActual}
           onSave={handleGuardar}
           onCancel={cancelarForm}
+          onError={showError}
         />
       )}
+
+      <NotificationContainer notifications={notifications} onRemove={removeNotification} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import VentaDetalle from './ventas/VentaDetalle';
 import VentaForm from './ventas/VentaForm';
 import { VENTAS_DEMO } from './ventas/ventasDemo';
 
-export default function HistorialVentasModal({ cliente, onClose }) {
+export default function HistorialVentasModal({ cliente, onClose, onError }) {
   // Copia local editable — cuando exista la colección real de ventas, esto pasa a ser un hook de Firebase.
   const [ventas, setVentas] = useState(VENTAS_DEMO);
   const [vista, setVista] = useState('lista'); // 'lista' | 'detalle' | 'editar'
@@ -95,7 +95,7 @@ export default function HistorialVentasModal({ cliente, onClose }) {
           )}
 
           {vista === 'editar' && ventaActual && (
-            <VentaForm venta={ventaActual} onSave={handleGuardar} onCancel={cancelarEdicion} />
+            <VentaForm venta={ventaActual} onSave={handleGuardar} onCancel={cancelarEdicion} onError={onError} />
           )}
         </div>
       </div>

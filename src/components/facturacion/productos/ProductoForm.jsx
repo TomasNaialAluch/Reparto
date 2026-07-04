@@ -16,7 +16,7 @@ const inputStyle = {
   fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box',
 };
 
-export default function ProductoForm({ producto, onSave, onCancel }) {
+export default function ProductoForm({ producto, onSave, onCancel, onError }) {
   const esNuevo = !producto;
   const [formData, setFormData] = useState(() => ({ ...PRODUCTO_VACIO, ...producto }));
 
@@ -24,7 +24,7 @@ export default function ProductoForm({ producto, onSave, onCancel }) {
 
   const handleGuardar = () => {
     if (!formData.descripcion.trim()) {
-      alert('Ingresá la descripción del producto');
+      onError?.('Ingresá la descripción del producto');
       return;
     }
     onSave(formData);

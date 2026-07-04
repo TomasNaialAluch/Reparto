@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { formatCurrency, parseCurrencyValue } from '../utils/money';
 import { IconX, IconPrinter } from './gestionSemanal/icons';
 
@@ -363,7 +364,8 @@ const PrintDocument = ({ data, type, onClose }) => {
   };
 
   const renderFacturaContent = () => {
-    const { numeroFormateado, clienteNombre, fecha, items, subtotal, total, ivaPct } = data;
+    const { numeroFormateado, clienteNombre, fecha, items, subtotal, total, ivaPct, totalImpreso, redondeoAplicado } = data;
+    const totalFinal = totalImpreso ?? total;
 
     return (
       <div ref={printRef}>
@@ -411,8 +413,13 @@ const PrintDocument = ({ data, type, onClose }) => {
           <div className="print-subtotal">
             IVA ({ivaPct || 0}%): {formatCurrency((total || 0) - (subtotal || 0))}
           </div>
+          {redondeoAplicado > 0 && (
+            <div className="print-subtotal">
+              Redondeo: +{formatCurrency(redondeoAplicado)}
+            </div>
+          )}
           <div className="print-total">
-            Total: {formatCurrency(total || 0)}
+            Total: {formatCurrency(totalFinal || 0)}
           </div>
         </div>
       </div>
@@ -1282,7 +1289,7 @@ const PrintDocument = ({ data, type, onClose }) => {
     );
   };
 
-  return (
+  return createPortal(
     <>
       {/* Overlay */}
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }} />
@@ -1293,7 +1300,7 @@ const PrintDocument = ({ data, type, onClose }) => {
         style={{
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
-          width: 'min(680px, 96vw)',
+          width: 'min(760px, 96vw)',
           maxHeight: '92vh',
           background: 'white',
           borderRadius: '16px',
@@ -1339,16 +1346,18 @@ const PrintDocument = ({ data, type, onClose }) => {
             </div>
           )}
 
-          {type === 'reparto'       ? renderRepartoContent()      :
-           type === 'transferencia' ? renderTransferenciaContent() :
-           type === 'empleados'     ? renderEmpleadosContent()     :
-           type === 'empleado'      ? renderEmpleadoContent()      :
-           type === 'listaPrecios'  ? renderListaPreciosContent()  :
-           type === 'venta'         ? renderVentaContent()         :
-           type === 'ventasResumen' ? renderVentasResumenContent() :
-           type === 'factura'       ? renderFacturaContent()       :
-           type === 'facturasResumen' ? renderFacturasResumenContent() :
-           renderSaldoContent()}
+          <div className="pd-preview">
+            {type === 'reparto'       ? renderRepartoContent()      :
+             type === 'transferencia' ? renderTransferenciaContent() :
+             type === 'empleados'     ? renderEmpleadosContent()     :
+             type === 'empleado'      ? renderEmpleadoContent()      :
+             type === 'listaPrecios'  ? renderListaPreciosContent()  :
+             type === 'venta'         ? renderVentaContent()         :
+             type === 'ventasResumen' ? renderVentasResumenContent() :
+             type === 'factura'       ? renderFacturaContent()       :
+             type === 'facturasResumen' ? renderFacturasResumenContent() :
+             renderSaldoContent()}
+          </div>
 
           {/* Indicador scroll abajo */}
           {showBottomIndicator && (
@@ -1415,7 +1424,8 @@ const PrintDocument = ({ data, type, onClose }) => {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

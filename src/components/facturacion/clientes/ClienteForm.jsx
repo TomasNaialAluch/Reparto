@@ -21,7 +21,7 @@ const inputStyle = {
   boxSizing: 'border-box',
 };
 
-export default function ClienteForm({ cliente, onSave, onCancel }) {
+export default function ClienteForm({ cliente, onSave, onCancel, onError }) {
   const esNuevo = !cliente;
   const [formData, setFormData] = useState(() => ({ ...CLIENTE_VACIO, ...cliente }));
 
@@ -29,7 +29,7 @@ export default function ClienteForm({ cliente, onSave, onCancel }) {
 
   const handleGuardar = () => {
     if (!formData.razonSocial.trim()) {
-      alert('Ingresá la razón social del cliente');
+      onError?.('Ingresá la razón social del cliente');
       return;
     }
     onSave(formData);

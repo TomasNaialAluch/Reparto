@@ -54,5 +54,13 @@ export function formatCurrencyNoSymbol(value) {
   return formatCurrency(value).replace('$', '').trim();
 }
 
+// Redondeo de boletas al millar más cercano hacia arriba — uso comercial informal
+// (no bancario) para poder cobrar en efectivo sin necesitar monedas/billetes chicos.
+export function roundUpToThousand(value) {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  const safe = Number.isFinite(num) ? num : 0;
+  return Math.ceil(safe / 1000) * 1000;
+}
+
 
 

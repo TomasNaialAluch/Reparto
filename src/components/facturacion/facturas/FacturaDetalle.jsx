@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { formatCurrency } from '../../../utils/money';
+import { formatCurrency, roundUpToThousand } from '../../../utils/money';
 import { formatearComprobante } from '../constants';
-import { IconReceipt, IconEdit, IconPrinter } from '../../gestionSemanal/icons';
+import { IconReceipt, IconEdit, IconPrinter, IconRefresh } from '../../gestionSemanal/icons';
 import PrintDocument from '../../PrintDocument';
 
 const th = {
@@ -17,6 +17,10 @@ const td = {
 
 export default function FacturaDetalle({ factura, onEdit }) {
   const [showPrint, setShowPrint] = useState(false);
+  const [redondear, setRedondear] = useState(false);
+
+  const totalRedondeado = roundUpToThousand(factura.total);
+  const redondeoDiff = totalRedondeado - factura.total;
 
   return (
     <div>
@@ -81,20 +85,53 @@ export default function FacturaDetalle({ factura, onEdit }) {
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.78rem', color: '#6c757d' }}>Subtotal: {formatCurrency(factura.subtotal)}</div>
           <div style={{ fontSize: '0.78rem', color: '#6c757d' }}>IVA ({factura.ivaPct}%): {formatCurrency(factura.total - factura.subtotal)}</div>
+          {redondear && (
+            <div style={{ fontSize: '0.78rem', color: '#6c757d' }}>Redondeo: +{formatCurrency(redondeoDiff)}</div>
+          )}
         </div>
       </div>
 
       <div style={{
         background: '#f8f9fa', borderRadius: '10px', padding: '12px 16px',
         borderLeft: '3px solid #6A8899', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        gap: '10px', flexWrap: 'wrap', marginBottom: '10px',
       }}>
-        <span style={{ fontSize: '0.82rem', color: '#6c757d', fontWeight: 600 }}>Total</span>
-        <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#212529' }}>{formatCurrency(factura.total)}</span>
+        <span style={{ fontSize: '0.82rem', color: '#6c757d', fontWeight: 600 }}>
+          {redondear ? 'Total a cobrar (redondeado)' : 'Total'}
+        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ fontWeight: 700, fontSize: '1.05rem', color: '#212529' }}>
+            {formatCurrency(redondear ? totalRedondeado : factura.total)}
+          </span>
+          <button
+            onClick={() => setRedondear(r => !r)}
+            title={redondear ? 'Quitar redondeo (imprimir el total exacto)' : 'Redondear al millar para cobrar sin necesitar cambio chico'}
+            className="d-inline-flex align-items-center gap-2"
+            style={{
+              border: '1px solid ' + (redondear ? '#6A8899' : '#ccd3d9'), borderRadius: '8px', padding: '6px 12px',
+              background: redondear ? '#6A8899' : 'transparent', color: redondear ? 'white' : '#6c757d',
+              fontWeight: 600, fontSize: '0.76rem', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s',
+            }}
+          >
+            <IconRefresh size={12} /> {redondear ? 'Redondeado' : 'Redondear'}
+          </button>
+        </div>
       </div>
+
+      {redondear && (
+        <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'right', marginBottom: '14px' }}>
+          Total exacto: {formatCurrency(factura.total)} — el redondeo solo afecta lo impreso, no queda guardado en la factura.
+        </div>
+      )}
 
       {showPrint && (
         <PrintDocument
-          data={{ ...factura, numeroFormateado: formatearComprobante(factura.tipo, factura.numero) }}
+          data={{
+            ...factura,
+            numeroFormateado: formatearComprobante(factura.tipo, factura.numero),
+            totalImpreso: redondear ? totalRedondeado : factura.total,
+            redondeoAplicado: redondear ? redondeoDiff : 0,
+          }}
           type="factura"
           onClose={() => setShowPrint(false)}
         />

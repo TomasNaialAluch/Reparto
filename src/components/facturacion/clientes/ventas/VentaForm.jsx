@@ -34,7 +34,7 @@ const RemoveBtn = ({ onClick }) => (
   </button>
 );
 
-export default function VentaForm({ venta, onSave, onCancel }) {
+export default function VentaForm({ venta, onSave, onCancel, onError }) {
   const [formData, setFormData] = useState(() => ({ ...venta }));
 
   const update = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
@@ -57,8 +57,8 @@ export default function VentaForm({ venta, onSave, onCancel }) {
   const totalActual = calcularTotalVenta(formData.items);
 
   const handleGuardar = () => {
-    if (!formData.numero.trim()) { alert('Ingresá el número de comprobante'); return; }
-    if (formData.items.length === 0) { alert('Agregá al menos un producto'); return; }
+    if (!formData.numero.trim()) { onError?.('Ingresá el número de comprobante'); return; }
+    if (formData.items.length === 0) { onError?.('Agregá al menos un producto'); return; }
     const items = formData.items.map(item => ({ ...item, subtotal: calcularSubtotal(item) }));
     onSave({ ...formData, items, total: calcularTotalVenta(items) });
   };

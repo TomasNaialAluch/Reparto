@@ -1,4 +1,4 @@
-export default function FormSection({ label, children }) {
+export default function FormSection({ label, right, children }) {
   return (
     <div style={{ marginBottom: '20px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
@@ -6,6 +6,7 @@ export default function FormSection({ label, children }) {
           {label}
         </span>
         <div style={{ flex: 1, height: '1px', background: '#f3f4f6' }} />
+        {right}
       </div>
       {children}
     </div>
