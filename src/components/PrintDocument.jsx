@@ -363,69 +363,6 @@ const PrintDocument = ({ data, type, onClose }) => {
     printWindow.print();
   };
 
-  const renderFacturaContent = () => {
-    const { numeroFormateado, clienteNombre, fecha, items, subtotal, total, ivaPct, totalImpreso, redondeoAplicado } = data;
-    const totalFinal = totalImpreso ?? total;
-
-    return (
-      <div ref={printRef}>
-        <div className="print-header">
-          {numeroFormateado || 'Factura'}
-        </div>
-
-        <div className="print-date">
-          Fecha: {fecha ? new Date(fecha).toLocaleDateString('es-AR') : new Date().toLocaleDateString('es-AR')}
-        </div>
-
-        <div className="print-section">
-          <div className="print-section-title">Cliente: {clienteNombre}</div>
-        </div>
-
-        {items && items.length > 0 && (
-          <div className="print-section">
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th>Cant.</th>
-                  <th>Descripción</th>
-                  <th className="text-end">Pr. Unit.</th>
-                  <th className="text-end">Pr. Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.cantidad}</td>
-                    <td>{item.descripcion}</td>
-                    <td className="number">{formatCurrency(parseFloat(item.precioUnit) || 0)}</td>
-                    <td className="number">{formatCurrency(item.prTotal || 0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div className="print-section">
-          <div className="print-subtotal">
-            Subtotal: {formatCurrency(subtotal || 0)}
-          </div>
-          <div className="print-subtotal">
-            IVA ({ivaPct || 0}%): {formatCurrency((total || 0) - (subtotal || 0))}
-          </div>
-          {redondeoAplicado > 0 && (
-            <div className="print-subtotal">
-              Redondeo: +{formatCurrency(redondeoAplicado)}
-            </div>
-          )}
-          <div className="print-total">
-            Total: {formatCurrency(totalFinal || 0)}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderRepartoContent = () => {
     const { clientes, fecha } = data;
     
@@ -1354,7 +1291,6 @@ const PrintDocument = ({ data, type, onClose }) => {
              type === 'listaPrecios'  ? renderListaPreciosContent()  :
              type === 'venta'         ? renderVentaContent()         :
              type === 'ventasResumen' ? renderVentasResumenContent() :
-             type === 'factura'       ? renderFacturaContent()       :
              type === 'facturasResumen' ? renderFacturasResumenContent() :
              renderSaldoContent()}
           </div>

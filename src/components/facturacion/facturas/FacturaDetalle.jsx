@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { formatCurrency, roundUpToThousand } from '../../../utils/money';
 import { formatearComprobante } from '../constants';
 import { IconReceipt, IconEdit, IconPrinter, IconRefresh } from '../../gestionSemanal/icons';
-import PrintDocument from '../../PrintDocument';
+import FacturaPrintDocument from './FacturaPrintDocument';
 
 const th = {
   textAlign: 'left', padding: '8px 10px', fontSize: '0.66rem', fontWeight: 600,
@@ -125,14 +125,13 @@ export default function FacturaDetalle({ factura, onEdit }) {
       )}
 
       {showPrint && (
-        <PrintDocument
+        <FacturaPrintDocument
           data={{
             ...factura,
             numeroFormateado: formatearComprobante(factura.tipo, factura.numero),
             totalImpreso: redondear ? totalRedondeado : factura.total,
             redondeoAplicado: redondear ? redondeoDiff : 0,
           }}
-          type="factura"
           onClose={() => setShowPrint(false)}
         />
       )}
