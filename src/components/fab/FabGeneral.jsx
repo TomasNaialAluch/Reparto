@@ -4,7 +4,6 @@ import FabGoalButton from './FabGoalButton';
 import FabModalShell from './FabModalShell';
 import { useFabPhysics } from './hooks/useFabPhysics';
 import { activeFabTheme } from './themes';
-import { initMundialCache } from './themes/mundial/mundialCache';
 import { FAB_TRIGGER_SIZE } from './constants';
 
 const goalCenter = (goalEl) => {
@@ -68,8 +67,8 @@ const FabGeneral = ({ theme = activeFabTheme }) => {
   const closePanel = () => setIsPanelOpen(false);
 
   useEffect(() => {
-    initMundialCache();
-  }, []);
+    theme.initCache?.();
+  }, [theme]);
 
   return (
     <>

@@ -1,4 +1,5 @@
 import MundialFabPanel from './MundialFabPanel';
+import { initMundialCache } from './mundialCache';
 
 /**
  * Tema activo del FAB General — Copa del Mundo FIFA 2026.
@@ -29,6 +30,7 @@ export const mundialFabTheme = {
   },
 
   Panel: MundialFabPanel,
+  initCache: initMundialCache,
 
   footer: {
     label: '¡Vamos Argentina!',
