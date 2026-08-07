@@ -41,13 +41,13 @@ const PrintDocument = ({ data, type, onClose }) => {
     const baseStyles = `
       @page {
         size: A4 portrait;
-        margin: 1.5cm 2cm;
+        margin: 0.6cm 0.8cm;
       }
-      
+
       body {
         font-family: 'Arial', sans-serif;
         margin: 0;
-        padding: 15px;
+        padding: 6px;
         font-size: 11pt;
         line-height: 1.4;
         color: #000;
@@ -282,7 +282,7 @@ const PrintDocument = ({ data, type, onClose }) => {
     `;
 
     const duplicadoExtra = ancho === 'duplicado' ? `
-      @page { size: A4 landscape; margin: 1cm 1.2cm; }
+      @page { size: A4 portrait; margin: 1.4cm 1.6cm 1cm 1.6cm; }
       body { padding: 0; margin: 0; }
       .duplicado-wrapper {
         display: flex;
