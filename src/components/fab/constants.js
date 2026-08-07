@@ -28,3 +28,13 @@ export const FAB_PHYSICS_DEFAULTS = {
   autoKickPower: 0.85,
   clickKickPower: 1.35,
 };
+
+/**
+ * Auto-guardado por inactividad: si no se toca la pelota/arco, se guarda sola
+ * en el arco (como un click manual). Mientras siga sin tocarse, cada tanto
+ * "asoma" un ratito para recordar que existe y vuelve a guardarse — así
+ * indefinidamente hasta que el usuario la toque, lo que reinicia todo.
+ */
+export const FAB_IDLE_STORE_MS = 3 * 60 * 1000; // 3 min sin tocar -> se guarda sola
+export const FAB_PEEK_INTERVAL_MS = 5 * 60 * 1000; // cada 5 min guardada -> asoma
+export const FAB_PEEK_DURATION_MS = 30 * 1000; // tiempo afuera antes de re-guardarse

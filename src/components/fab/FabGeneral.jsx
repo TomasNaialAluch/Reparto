@@ -4,7 +4,12 @@ import FabGoalButton from './FabGoalButton';
 import FabModalShell from './FabModalShell';
 import { useFabPhysics } from './hooks/useFabPhysics';
 import { activeFabTheme } from './themes';
-import { FAB_TRIGGER_SIZE } from './constants';
+import {
+  FAB_TRIGGER_SIZE,
+  FAB_IDLE_STORE_MS,
+  FAB_PEEK_INTERVAL_MS,
+  FAB_PEEK_DURATION_MS,
+} from './constants';
 
 const goalCenter = (goalEl) => {
   const rect = goalEl.getBoundingClientRect();
@@ -32,18 +37,90 @@ const FabGeneral = ({ theme = activeFabTheme }) => {
   const { Icon, iconSrc, iconSize, accentColor, iconColor, triggerBackground } = theme.trigger;
   const Panel = theme.Panel;
 
+  // Refs espejo del estado — los timers de auto-guardado/asomo viven minutos,
+  // así que no pueden confiar en los `ballStored`/`isScoring` capturados por
+  // closure en el momento en que se agendó el setTimeout (quedarían viejos).
+  const ballStoredRef = useRef(ballStored);
+  const isScoringRef = useRef(isScoring);
+  const isPeekingRef = useRef(false);
+  const idleTimerRef = useRef(null);
+  const peekTimerRef = useRef(null);
+  const peekBackTimerRef = useRef(null);
+
+  useEffect(() => { ballStoredRef.current = ballStored; }, [ballStored]);
+  useEffect(() => { isScoringRef.current = isScoring; }, [isScoring]);
+
+  const clearAutoTimers = () => {
+    clearTimeout(idleTimerRef.current);
+    clearTimeout(peekTimerRef.current);
+    clearTimeout(peekBackTimerRef.current);
+    idleTimerRef.current = null;
+    peekTimerRef.current = null;
+    peekBackTimerRef.current = null;
+  };
+
+  const scheduleIdleStore = () => {
+    idleTimerRef.current = setTimeout(doAutoStore, FAB_IDLE_STORE_MS);
+  };
+
+  const schedulePeekCycle = () => {
+    peekTimerRef.current = setTimeout(doAutoPeek, FAB_PEEK_INTERVAL_MS);
+  };
+
+  /** Guarda la pelota sola en el arco — mismo mecanismo que el click manual. */
+  function doAutoStore() {
+    if (isScoringRef.current || ballStoredRef.current || !goalRef.current) return;
+
+    const goal = goalCenter(goalRef.current);
+    setIsPanelOpen(false);
+    setIsScoring(true);
+    shootBallTo(goal, () => {
+      ballStoredRef.current = true;
+      setBallStored(true);
+      setIsScoring(false);
+      isPeekingRef.current = false;
+      schedulePeekCycle();
+    });
+  }
+
+  /** Asoma la pelota un rato para recordar que existe, y se re-guarda sola. */
+  function doAutoPeek() {
+    if (isScoringRef.current || !ballStoredRef.current || !goalRef.current) return;
+
+    const goal = goalCenter(goalRef.current);
+    isPeekingRef.current = true;
+    setIsScoring(true);
+    releaseBallFrom(goal, getRestPosition(), () => {
+      ballStoredRef.current = false;
+      setBallStored(false);
+      setIsScoring(false);
+      peekBackTimerRef.current = setTimeout(() => {
+        if (isPeekingRef.current) doAutoStore();
+      }, FAB_PEEK_DURATION_MS);
+    });
+  }
+
+  /** Cualquier toque del usuario (pelota o arco) reinicia el reloj de inactividad. */
+  const registerTouch = () => {
+    clearAutoTimers();
+    isPeekingRef.current = false;
+  };
+
   const handleTriggerClick = (e) => {
     if (isScoring || ballStored) return;
     e.preventDefault();
     e.stopPropagation();
+    registerTouch();
     setIsPanelOpen(true);
     kickOnClick();
+    scheduleIdleStore();
   };
 
   const handleGoalClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (isScoring || !goalRef.current) return;
+    registerTouch();
 
     const goal = goalCenter(goalRef.current);
 
@@ -51,16 +128,20 @@ const FabGeneral = ({ theme = activeFabTheme }) => {
       setIsPanelOpen(false);
       setIsScoring(true);
       shootBallTo(goal, () => {
+        ballStoredRef.current = true;
         setBallStored(true);
         setIsScoring(false);
+        schedulePeekCycle();
       });
       return;
     }
 
     setIsScoring(true);
     releaseBallFrom(goal, getRestPosition(), () => {
+      ballStoredRef.current = false;
       setBallStored(false);
       setIsScoring(false);
+      scheduleIdleStore();
     });
   };
 
@@ -69,6 +150,13 @@ const FabGeneral = ({ theme = activeFabTheme }) => {
   useEffect(() => {
     theme.initCache?.();
   }, [theme]);
+
+  // Arranca el reloj de inactividad al montar; se reinicia con cada toque.
+  useEffect(() => {
+    scheduleIdleStore();
+    return clearAutoTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>
