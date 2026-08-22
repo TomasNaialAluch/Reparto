@@ -3,11 +3,12 @@ import {
   FAB_TRIGGER_SIZE,
   FAB_PHYSICS_DEFAULTS,
   FAB_INITIAL_OFFSET,
+  FAB_FLOOR_OFFSET,
 } from '../constants';
 
 const clampPosition = (pos, size = FAB_TRIGGER_SIZE) => {
   const maxX = Math.max(0, window.innerWidth - size);
-  const maxY = Math.max(0, window.innerHeight - size);
+  const maxY = Math.max(0, window.innerHeight - size - FAB_FLOOR_OFFSET);
   return {
     x: Math.min(maxX, Math.max(0, pos.x)),
     y: Math.min(maxY, Math.max(0, pos.y)),
@@ -168,7 +169,7 @@ export function useFabPhysics({ physics: physicsOverrides = {}, pauseAutoKick = 
         spinRef.current += vel.vx * 0.4;
 
         const maxX = window.innerWidth - FAB_TRIGGER_SIZE;
-        const maxY = window.innerHeight - FAB_TRIGGER_SIZE;
+        const maxY = window.innerHeight - FAB_TRIGGER_SIZE - FAB_FLOOR_OFFSET;
 
         if (pos.x <= 0) {
           pos.x = 0;

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFirebase } from '../contexts/FirebaseContext';
 import { useGestionSemanal } from '../firebase/hooks';
 import { useNotifications } from '../hooks/useNotifications';
@@ -13,6 +13,7 @@ import ClientesTab from '../components/gestionSemanal/ClientesTab';
 import PagosProveedoresTab from '../components/gestionSemanal/PagosProveedoresTab';
 
 const TAB_KEYS = ['mercaderia', 'embutidos', 'empleados', 'gastos', 'clientes', 'pagos-proveedores'];
+const DEFAULT_TAB = TAB_KEYS[0];
 
 const contentVariants = {
   initial: (dir) => ({ x: dir * 40, opacity: 0 }),
@@ -24,9 +25,15 @@ export default function GestionSemanal() {
   const navigate = useNavigate();
   const { user } = useFirebase();
   const { addNotification } = useNotifications();
-  const [activeTab, setActiveTab] = useState('mercaderia');
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Fuente de verdad en la URL (?tab=...) — así la FloatingNavbar puede leer
+  // y cambiar el tab activo sin conocer el estado interno de esta página.
+  // Ver README-NAVBAR-CONTEXTUAL.md.
+  const activeTab = TAB_KEYS.includes(searchParams.get('tab'))
+    ? searchParams.get('tab')
+    : DEFAULT_TAB;
   const [tabDirection, setTabDirection] = useState(1);
-  const prevTabIndexRef = useRef(0);
+  const prevTabIndexRef = useRef(Math.max(0, TAB_KEYS.indexOf(activeTab)));
 
   const {
     semanaActiva,
@@ -60,8 +67,15 @@ export default function GestionSemanal() {
     const prevIndex = prevTabIndexRef.current;
     setTabDirection(newIndex >= prevIndex ? 1 : -1);
     prevTabIndexRef.current = newIndex;
-    setActiveTab(tabName);
-    
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', tabName);
+        return next;
+      },
+      { replace: true }
+    );
+
     // Scroll automático según el tab seleccionado
     setTimeout(() => {
       switch (tabName) {

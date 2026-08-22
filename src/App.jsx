@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 import NavbarAI from './components/NavbarAI';
 import Login from './components/Login';
 import { FabGeneral } from './components/fab';
+import { FloatingNavbar } from './components/floatingNavbar';
 
 // Pages
 import Home from './pages/Home';
@@ -28,6 +29,10 @@ import Facturacion from './pages/Facturacion';
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
 import { PagosProveedoresProvider } from './contexts/PagosProveedoresContext';
+
+// Espacio libre abajo para que el contenido no quede tapado por la FloatingNavbar
+// (que es fixed + bottom). Ver src/components/floatingNavbar/.
+const PAGE_BOTTOM_PADDING = '96px';
 
 // Componente interno que usa el contexto
 const AppContent = () => {
@@ -57,7 +62,7 @@ const AppContent = () => {
           </div>
           <h4>Error de Conexión</h4>
           <p className="text-muted">{error}</p>
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => window.location.reload()}
           >
@@ -82,90 +87,91 @@ const AppContent = () => {
             <Route path="/" element={<Home />} />
             <Route path="/home-ai" element={<HomeAI />} />
             <Route path="/mi-reparto" element={
-              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <MiReparto />
               </div>
             } />
             <Route path="/reparto" element={
-              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <MiReparto />
               </div>
             } />
             <Route path="/saldo-clientes" element={
-              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <SaldoClientes />
               </div>
             } />
           <Route path="/dolar" element={
-            <div style={{ backgroundColor: '#F0F8FF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: '#F0F8FF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <DolarHoy />
             </div>
           } />
           <Route path="/transferencias" element={
-            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <Transferencias />
             </div>
           } />
           <Route path="/asistente" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <Asistente />
             </div>
           } />
           <Route path="/gestion-semanal" element={
-            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <GestionSemanal />
             </div>
           } />
           <Route path="/balance" element={
-            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <Balance />
             </div>
           } />
           <Route path="/contador" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <Contador />
             </div>
           } />
           <Route path="/lista-precios" element={
-            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+            <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
               <Navbar />
               <ListaPrecios />
             </div>
           } />
           <Route path="/precios-clientes" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <PreciosClientes />
               </div>
             } />
           <Route path="/gestion-deudas" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <GestionDeudas />
               </div>
             } />
           <Route path="/libro-cheques" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <LibroCheques />
               </div>
             } />
           <Route path="/facturacion" element={
-              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <Facturacion />
               </div>
             } />
         </Routes>
+        <FloatingNavbar />
         <FabGeneral />
         </div>
       </Router>

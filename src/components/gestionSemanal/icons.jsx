@@ -135,6 +135,22 @@ export const IconUsers = ({ size = 14 }) => (
   </svg>
 );
 
+export const IconLayers = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
+
+export const IconWallet = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <line x1="2" y1="10" x2="22" y2="10" />
+    <line x1="6" y1="15" x2="10" y2="15" />
+  </svg>
+);
+
 export const IconBox = ({ size = 14 }) => (
   <svg {...base(size)}>
     <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />

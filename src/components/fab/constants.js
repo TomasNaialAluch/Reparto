@@ -1,14 +1,20 @@
 /** Tamaño del botón flotante y capas z-index del sistema FAB */
 export const FAB_TRIGGER_SIZE = 52;
 
-export const FAB_INITIAL_OFFSET = { right: 24, bottom: 88 };
+// Piso libre para que la pelota rebote sin meterse detrás de la FloatingNavbar
+// (fixed, abajo, ~70px de alto propio). Se usa como límite de rebote en
+// useFabPhysics y para la posición de reposo/arco.
+// Ver src/components/floatingNavbar/FloatingNavbar.css.
+export const FAB_FLOOR_OFFSET = 90;
 
-/** Arco fijo abajo a la derecha */
+export const FAB_INITIAL_OFFSET = { right: 24, bottom: 160 };
+
+/** Arco fijo arriba a la derecha de la FloatingNavbar */
 export const FAB_GOAL = {
   width: 56,
   height: 42,
   right: 14,
-  bottom: 14,
+  bottom: FAB_FLOOR_OFFSET,
 };
 
 export const FAB_Z_INDEX = {

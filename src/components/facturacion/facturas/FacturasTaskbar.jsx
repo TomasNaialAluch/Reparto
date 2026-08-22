@@ -5,7 +5,8 @@ export default function FacturasTaskbar({ minimizadas, getLabel, onRestaurar, on
 
   return (
     <div style={{
-      position: 'fixed', bottom: '16px', left: '50%', transform: 'translateX(-50%)',
+      // bottom deja lugar para la FloatingNavbar (fixed, abajo) sin superponerse.
+      position: 'fixed', bottom: '86px', left: '50%', transform: 'translateX(-50%)',
       display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center',
       maxWidth: '92vw', zIndex: 990,
     }}>
