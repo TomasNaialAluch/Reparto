@@ -1292,3 +1292,84 @@ export const useGestionSemanal = (userId) => {
     guardarConfiguracionesUsuario
   };
 };
+
+// ==================== TABLAS DE PRECIOS (Gestión) ====================
+
+// Hook para las tablas de precios tipo Excel (colección tablas_precios)
+export const useTablasPrecios = () => {
+  const { documents, loading, error } = useFirestoreRealtime('tablas_precios');
+  const { addDocument, updateDocument, deleteDocument } = useFirestore('tablas_precios');
+
+  const tablas = [...documents].sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+  // Nota: Firestore no permite arrays anidados directamente (array de arrays),
+  // por eso cada fila se guarda como { valores: [...] } en vez de un array plano.
+
+  const crearTabla = async (nombre) => {
+    return await addDocument({
+      nombre: nombre.trim() || 'Nueva tabla',
+      columnas: ['Columna 1', 'Columna 2'],
+      filas: [{ valores: ['', ''] }],
+    });
+  };
+
+  const renombrarTabla = async (tablaId, nombre) => {
+    return await updateDocument(tablaId, { nombre });
+  };
+
+  const agregarColumna = async (tabla, nombreColumna) => {
+    const nombre = (nombreColumna || `Columna ${tabla.columnas.length + 1}`).trim();
+    return await updateDocument(tabla.id, {
+      columnas: [...tabla.columnas, nombre],
+      filas: tabla.filas.map(fila => ({ valores: [...fila.valores, ''] })),
+    });
+  };
+
+  const renombrarColumna = async (tabla, colIdx, nombre) => {
+    const nuevasColumnas = [...tabla.columnas];
+    nuevasColumnas[colIdx] = nombre;
+    return await updateDocument(tabla.id, { columnas: nuevasColumnas });
+  };
+
+  const eliminarColumna = async (tabla, colIdx) => {
+    if (tabla.columnas.length <= 1) return;
+    return await updateDocument(tabla.id, {
+      columnas: tabla.columnas.filter((_, i) => i !== colIdx),
+      filas: tabla.filas.map(fila => ({ valores: fila.valores.filter((_, i) => i !== colIdx) })),
+    });
+  };
+
+  const agregarFila = async (tabla) => {
+    return await updateDocument(tabla.id, {
+      filas: [...tabla.filas, { valores: tabla.columnas.map(() => '') }],
+    });
+  };
+
+  const eliminarFila = async (tabla, filaIdx) => {
+    if (tabla.filas.length <= 1) return;
+    return await updateDocument(tabla.id, {
+      filas: tabla.filas.filter((_, i) => i !== filaIdx),
+    });
+  };
+
+  const actualizarCelda = async (tabla, filaIdx, colIdx, valor) => {
+    const nuevasFilas = tabla.filas.map(f => ({ valores: [...f.valores] }));
+    nuevasFilas[filaIdx].valores[colIdx] = valor;
+    return await updateDocument(tabla.id, { filas: nuevasFilas });
+  };
+
+  return {
+    tablas,
+    loading,
+    error,
+    crearTabla,
+    renombrarTabla,
+    agregarColumna,
+    renombrarColumna,
+    eliminarColumna,
+    agregarFila,
+    eliminarFila,
+    actualizarCelda,
+    eliminarTabla: deleteDocument,
+  };
+};

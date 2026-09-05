@@ -64,6 +64,7 @@ export const NAV_ITEMS = [
     submenu: [
       { path: '/gestion-deudas',  label: 'Deudas' },
       { path: '/libro-cheques',   label: 'Libro de Cheques' },
+      { path: '/tablas-precios',  label: 'Lista de Precios' },
     ],
   },
 ];
