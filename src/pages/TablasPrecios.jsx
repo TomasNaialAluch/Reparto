@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTablasPrecios } from '../firebase/hooks';
 import {
   DndContext,
@@ -65,6 +65,20 @@ const IconGrip = ({ size = 12 }) => (
     <circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" />
     <circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" />
     <circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" />
+  </svg>
+);
+
+const IconExpand = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+    <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+  </svg>
+);
+
+const IconCollapse = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+    <line x1="14" y1="10" x2="21" y2="3" /><line x1="10" y1="14" x2="3" y2="21" />
   </svg>
 );
 
@@ -309,6 +323,65 @@ const SortableRow = ({ id, index, valores, onCelda, onEliminarFila, isOnlyRow })
   );
 };
 
+// ===== Grilla completa (thead + tbody + DnD) — reutilizada inline y en el modal fullscreen =====
+const TablaGrid = ({
+  tabla, columnIds, rowIds, sensors, onDragEnd,
+  editandoColumna, nombreColumnaTemp, setNombreColumnaTemp,
+  onStartEditColumna, onSaveEditColumna,
+  onEliminarColumna, onEliminarFila, onCelda,
+  maxBodyHeight,
+}) => (
+  <div style={{ overflow: 'auto', maxHeight: maxBodyHeight }}>
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <table style={{ borderCollapse: 'collapse', width: 'max-content', minWidth: '100%' }}>
+        <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+          <thead>
+            <tr>
+              <th style={{
+                width: `${HANDLE_COL_WIDTH}px`, position: 'sticky', left: 0, top: 0, background: '#fff',
+                zIndex: 3, borderBottom: `1px solid ${C.border}`,
+              }} />
+              {tabla.columnas.map((col, colIdx) => (
+                <ColumnHeaderCell
+                  key={columnIds[colIdx]}
+                  id={columnIds[colIdx]}
+                  index={colIdx}
+                  isFirst={colIdx === 0}
+                  nombre={col}
+                  isOnlyColumn={tabla.columnas.length <= 1}
+                  editando={editandoColumna === colIdx}
+                  nombreTemp={nombreColumnaTemp}
+                  onStartEdit={() => onStartEditColumna(colIdx)}
+                  onChangeTemp={setNombreColumnaTemp}
+                  onSaveEdit={onSaveEditColumna}
+                  onEliminar={() => onEliminarColumna(colIdx)}
+                />
+              ))}
+              <th style={{ width: `${ACTION_COL_WIDTH}px`, position: 'sticky', top: 0, background: '#fff', borderBottom: `1px solid ${C.border}` }} />
+            </tr>
+          </thead>
+        </SortableContext>
+
+        <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
+          <tbody>
+            {tabla.filas.map((fila, filaIdx) => (
+              <SortableRow
+                key={rowIds[filaIdx]}
+                id={rowIds[filaIdx]}
+                index={filaIdx}
+                valores={fila.valores}
+                onCelda={onCelda}
+                onEliminarFila={onEliminarFila}
+                isOnlyRow={tabla.filas.length <= 1}
+              />
+            ))}
+          </tbody>
+        </SortableContext>
+      </table>
+    </DndContext>
+  </div>
+);
+
 const TablasPrecios = () => {
   const {
     tablas,
@@ -333,6 +406,15 @@ const TablasPrecios = () => {
   const [nombreColumnaTemp, setNombreColumnaTemp] = useState('');
   const [creandoTabla, setCreandoTabla] = useState(false);
   const [nombreNuevaTabla, setNombreNuevaTabla] = useState('');
+  const [expandido, setExpandido] = useState(false);
+
+  // Cerrar el modal de pantalla completa con Escape.
+  useEffect(() => {
+    if (!expandido) return;
+    const onKeyDown = (e) => { if (e.key === 'Escape') setExpandido(false); };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [expandido]);
 
   // Distancia mínima antes de activar el drag: evita que un click normal en la celda
   // (para escribir) se confunda con un intento de arrastre.
@@ -565,62 +647,105 @@ const TablasPrecios = () => {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <AddBtn onClick={() => agregarColumna(tablaSeleccionada)}>Columna</AddBtn>
                   <AddBtn onClick={() => agregarFila(tablaSeleccionada)}>Fila</AddBtn>
+                  <button
+                    type="button"
+                    onClick={() => setExpandido(true)}
+                    title="Ver en pantalla completa"
+                    style={{
+                      border: `1px solid ${C.borderSoft}`, borderRadius: '8px', width: '32px', height: '32px',
+                      background: 'transparent', color: C.textMuted2, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.primary; e.currentTarget.style.color = C.primary; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.borderSoft; e.currentTarget.style.color = C.textMuted2; }}
+                  >
+                    <IconExpand />
+                  </button>
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <table style={{ borderCollapse: 'collapse', width: 'max-content', minWidth: '100%' }}>
-                    <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
-                      <thead>
-                        <tr>
-                          <th style={{
-                            width: `${HANDLE_COL_WIDTH}px`, position: 'sticky', left: 0, background: '#fff',
-                            zIndex: 2, borderBottom: `1px solid ${C.border}`,
-                          }} />
-                          {tablaSeleccionada.columnas.map((col, colIdx) => (
-                            <ColumnHeaderCell
-                              key={columnIds[colIdx]}
-                              id={columnIds[colIdx]}
-                              index={colIdx}
-                              isFirst={colIdx === 0}
-                              nombre={col}
-                              isOnlyColumn={tablaSeleccionada.columnas.length <= 1}
-                              editando={editandoColumna === colIdx}
-                              nombreTemp={nombreColumnaTemp}
-                              onStartEdit={() => iniciarEdicionColumna(colIdx)}
-                              onChangeTemp={setNombreColumnaTemp}
-                              onSaveEdit={guardarNombreColumna}
-                              onEliminar={() => eliminarColumna(tablaSeleccionada, colIdx)}
-                            />
-                          ))}
-                          <th style={{ width: `${ACTION_COL_WIDTH}px`, borderBottom: `1px solid ${C.border}` }} />
-                        </tr>
-                      </thead>
-                    </SortableContext>
-
-                    <SortableContext items={rowIds} strategy={verticalListSortingStrategy}>
-                      <tbody>
-                        {tablaSeleccionada.filas.map((fila, filaIdx) => (
-                          <SortableRow
-                            key={rowIds[filaIdx]}
-                            id={rowIds[filaIdx]}
-                            index={filaIdx}
-                            valores={fila.valores}
-                            onCelda={handleCelda}
-                            onEliminarFila={(idx) => eliminarFila(tablaSeleccionada, idx)}
-                            isOnlyRow={tablaSeleccionada.filas.length <= 1}
-                          />
-                        ))}
-                      </tbody>
-                    </SortableContext>
-                  </table>
-                </DndContext>
-              </div>
+              <TablaGrid
+                tabla={tablaSeleccionada}
+                columnIds={columnIds}
+                rowIds={rowIds}
+                sensors={sensors}
+                onDragEnd={handleDragEnd}
+                editandoColumna={editandoColumna}
+                nombreColumnaTemp={nombreColumnaTemp}
+                setNombreColumnaTemp={setNombreColumnaTemp}
+                onStartEditColumna={iniciarEdicionColumna}
+                onSaveEditColumna={guardarNombreColumna}
+                onEliminarColumna={(idx) => eliminarColumna(tablaSeleccionada, idx)}
+                onEliminarFila={(idx) => eliminarFila(tablaSeleccionada, idx)}
+                onCelda={handleCelda}
+              />
             </>
           )}
         </div>
       </div>
+
+      {/* Modal de pantalla completa — mismo patrón de overlay+blur que el resto de la app */}
+      {expandido && tablaSeleccionada && (
+        <>
+          <div
+            onClick={() => setExpandido(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }}
+          />
+          <div style={{
+            position: 'fixed', top: '2vh', left: '2vw', width: '96vw', height: '96vh',
+            background: '#fff', borderRadius: '16px', boxShadow: '0 24px 48px rgba(0,0,0,0.18)',
+            zIndex: 1051, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px',
+              padding: '16px 20px', borderBottom: `1px solid ${C.borderSoft}`,
+            }}>
+              <div>
+                <Eyebrow>Lista de Precios</Eyebrow>
+                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: '#212529', marginTop: '2px' }}>
+                  {tablaSeleccionada.nombre}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <AddBtn onClick={() => agregarColumna(tablaSeleccionada)}>Columna</AddBtn>
+                <AddBtn onClick={() => agregarFila(tablaSeleccionada)}>Fila</AddBtn>
+                <button
+                  type="button"
+                  onClick={() => setExpandido(false)}
+                  title="Cerrar pantalla completa"
+                  style={{
+                    border: 'none', background: '#f3f4f6', borderRadius: '50%',
+                    width: '32px', height: '32px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: C.textMuted2, marginLeft: '6px',
+                  }}
+                >
+                  <IconCollapse />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <TablaGrid
+                tabla={tablaSeleccionada}
+                columnIds={columnIds}
+                rowIds={rowIds}
+                sensors={sensors}
+                onDragEnd={handleDragEnd}
+                editandoColumna={editandoColumna}
+                nombreColumnaTemp={nombreColumnaTemp}
+                setNombreColumnaTemp={setNombreColumnaTemp}
+                onStartEditColumna={iniciarEdicionColumna}
+                onSaveEditColumna={guardarNombreColumna}
+                onEliminarColumna={(idx) => eliminarColumna(tablaSeleccionada, idx)}
+                onEliminarFila={(idx) => eliminarFila(tablaSeleccionada, idx)}
+                onCelda={handleCelda}
+                maxBodyHeight="100%"
+              />
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
