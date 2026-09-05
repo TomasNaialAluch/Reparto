@@ -1358,6 +1358,29 @@ export const useTablasPrecios = () => {
     return await updateDocument(tabla.id, { filas: nuevasFilas });
   };
 
+  // Mueve el elemento en `desde` a la posición `hasta` (mismo criterio que arrayMove de @dnd-kit).
+  const moverEnArray = (arr, desde, hasta) => {
+    const copia = [...arr];
+    const [item] = copia.splice(desde, 1);
+    copia.splice(hasta, 0, item);
+    return copia;
+  };
+
+  const reordenarColumnas = async (tabla, desde, hasta) => {
+    if (desde === hasta) return;
+    return await updateDocument(tabla.id, {
+      columnas: moverEnArray(tabla.columnas, desde, hasta),
+      filas: tabla.filas.map(fila => ({ valores: moverEnArray(fila.valores, desde, hasta) })),
+    });
+  };
+
+  const reordenarFilas = async (tabla, desde, hasta) => {
+    if (desde === hasta) return;
+    return await updateDocument(tabla.id, {
+      filas: moverEnArray(tabla.filas, desde, hasta),
+    });
+  };
+
   return {
     tablas,
     loading,
@@ -1370,6 +1393,8 @@ export const useTablasPrecios = () => {
     agregarFila,
     eliminarFila,
     actualizarCelda,
+    reordenarColumnas,
+    reordenarFilas,
     eliminarTabla: deleteDocument,
   };
 };

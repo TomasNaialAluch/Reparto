@@ -172,7 +172,7 @@ const AppContent = () => {
               </div>
             } />
           <Route path="/tablas-precios" element={
-              <div style={{ backgroundColor: '#FAFBFF', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <TablasPrecios />
               </div>

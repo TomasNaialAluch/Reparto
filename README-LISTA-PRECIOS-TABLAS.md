@@ -1,123 +1,86 @@
 # Lista de Precios (tablas tipo Excel) — Sección Gestión
 
-## Qué se pide
+## Estado actual y por qué hay que rehacerlo
 
-Agregar una página nueva dentro de la sección **Gestión** del navbar, llamada **"Lista de Precios"**, que funcione como una mini planilla de cálculo conectada a Firebase:
+La v1 (`src/pages/TablasPrecios.jsx`) ya está en producción y usable, pero al probarla con una tabla real de 7+ columnas aparecieron problemas de fondo, no de detalle:
 
-- El usuario puede **crear varias tablas** (instancias independientes), cada una con su propio **nombre**.
-- Cada tabla es una grilla tipo Excel: **filas y columnas** donde se cargan **nombres y números** libremente en las celdas.
-- El usuario puede **agregar filas** y **agregar columnas** a una tabla existente.
-- El usuario puede **ver, crear y modificar** cualquiera de las tablas guardadas.
-- Todo se persiste en Firestore en tiempo real (igual que el resto de la app).
+1. **Las columnas se achican sin límite.** La tabla usa `table-layout: fixed` y reparte el ancho disponible entre todas las columnas por igual. Con 2 columnas se ve bien; con 7 u 8, cada columna queda de ~60px y el nombre ("Solomillo", "Recorte") se pisa contra el ícono de tacho.
+2. **El ícono de borrar en el header es mala idea tal como está.** Vive pegado al texto del nombre de columna, dentro del mismo `<th>` angosto. Cuando el header se angosta, texto e ícono compiten por el mismo espacio y se superponen. Un control destructivo (eliminar) no debería competir por espacio con el dato principal (el nombre).
+3. **No se pueden reordenar filas ni columnas.** Es una limitación real de "planilla": si el usuario carga "Producto, Precio" y después quiere "Precio" primero, hoy tiene que borrar y recrear.
 
-## ⚠️ Colisión de nombre a resolver
+Conclusión: no es un ajuste de CSS, es repensar el layout y la interacción de la grilla. Este documento reemplaza el diseño anterior de la sección "UI propuesta" del README original.
 
-Ya existe una página llamada "Lista de Precios" en el menú **Herramientas** (`/lista-precios` → [ListaPrecios.jsx](src/pages/ListaPrecios.jsx)), pero hace algo totalmente distinto: gestiona proveedores, "prónelis"/paquetes y comparación de precios entre proveedores.
+---
 
-Antes de implementar hay que decidir una de estas opciones:
-1. Renombrar la nueva página (ej. "Tablas de Precios", "Planillas") para no repetir el label "Lista de Precios" dos veces en el navbar.
-2. Reemplazar/fusionar la página existente de Herramientas con esta nueva (si el flujo de proveedores ya no se usa).
-3. Mantener ambos labels iguales pero en secciones distintas del menú (Herramientas vs Gestión) — funciona pero puede confundir al usuario al ver dos "Lista de Precios".
+## Principios para la v2
 
-Este documento asume que se resuelve con la opción 1 o 3 (no se toca [ListaPrecios.jsx](src/pages/ListaPrecios.jsx) existente).
+- **Nunca angostar una columna más allá de un mínimo legible.** Las columnas tienen un `min-width` fijo (ej. 120–140px). Si la suma de columnas supera el ancho disponible, la tabla scrollea horizontalmente — no se comprime.
+- **Las acciones destructivas no compiten por espacio con el dato.** El botón de borrar columna/fila no vive inline junto al texto. Aparece como overlay al hacer hover (desktop) o como acción secundaria en un menú, nunca reduce el espacio disponible para el nombre.
+- **Reordenar es una operación de primera clase**, no un extra: se agrega un handle de arrastre (drag handle) tanto para columnas como para filas.
+- Seguir usando la paleta y los tokens de [README-NEWLOOK.md](README-NEWLOOK.md) (acero `#6A8899`, radios 8/12px, iconos SVG, nada de Bootstrap crudo) — eso ya quedó bien encaminado, el problema es de layout/interacción, no de estética de color.
 
-## Dónde engancha en la app
+---
 
-- **Navbar**: agregar entrada en el submenu `gestion` de [navItems.js](src/config/navItems.js:59-68), junto a "Deudas" y "Libro de Cheques".
-  ```js
-  {
-    key: 'gestion',
-    label: 'Gestión',
-    submenu: [
-      { path: '/gestion-deudas',  label: 'Deudas' },
-      { path: '/libro-cheques',   label: 'Libro de Cheques' },
-      { path: '/tablas-precios',  label: 'Lista de Precios' }, // nueva
-    ],
-  },
-  ```
-- **Ruteo**: nueva ruta en [App.jsx](src/App.jsx), apuntando a un nuevo `src/pages/TablasPrecios.jsx` (o el nombre que se elija).
-- **Firestore**: nueva colección, ej. `tablas_precios`. Cada documento = una tabla completa.
+## Layout de la grilla (v2)
 
-## Modelo de datos propuesto (Firestore)
+### Columnas de ancho fijo + scroll horizontal, no `table-layout: fixed`
 
-Un documento por tabla en la colección `tablas_precios`:
+- Cada columna tiene un ancho mínimo fijo en píxeles (ej. `130px`), configurable por el usuario arrastrando el borde derecho del header (resize handle), como en Excel/Google Sheets/Notion.
+- El contenedor de la tabla tiene `overflow-x: auto`. Si hay muchas columnas, aparece scroll horizontal en vez de que las columnas se compriman.
+- La primera columna puede quedar "congelada" (`position: sticky; left: 0`) para que al scrollear horizontalmente el usuario no pierda de vista qué fila está mirando — patrón estándar de spreadsheets.
 
-```js
-{
-  nombre: "Lista Verduras",        // nombre de la tabla, editable
-  columnas: ["Producto", "Precio", "Stock"],  // nombres de columna, en orden
-  filas: [                          // cada fila es un array paralelo a columnas
-    ["Tomate", "1200", "50"],
-    ["Papa",   "800",  "120"],
-  ],
-  createdAt: <serverTimestamp>,
-  updatedAt: <serverTimestamp>,
-}
+### El header de columna separa "nombre" de "acciones"
+
+En vez de un `<th>` con `justify-content: space-between` entre nombre e ícono (lo que hoy se rompe), el header pasa a tener dos capas:
+
+```
+┌─────────────────────────────┐
+│ ⠿  Nombre columna       ⋮   │  ← fila normal: drag handle + nombre + menú "⋮" (kebab)
+└─────────────────────────────┘
 ```
 
-Notas de diseño:
-- Guardar celdas como `string` (no forzar tipo número) porque el pedido es "nombres y números" mezclados libremente, como en Excel.
-- `columnas` y cada fila de `filas` deben mantenerse en sincronía en longitud: agregar una columna implica agregarle un `""` a cada fila existente; agregar una fila implica crear un array del mismo largo que `columnas`.
-- Alternativa más "Firestore-friendly" para tablas grandes: subcolección `tablas_precios/{tablaId}/filas/{filaId}`. Se recomienda **no** hacer esto salvo que las tablas crezcan a cientos de filas — la playa de datos de este proyecto (listas de precios manuales) es chica, y guardar todo en un solo documento simplifica mucho la edición estilo grilla y el realtime listener (mismo patrón ya usado en [LibroCheques.jsx](src/pages/LibroCheques.jsx) y `gestion_semanal`).
+- **Drag handle** (`⠿`, ícono de 6 puntos) a la izquierda: agarrar y arrastrar para reordenar. Solo visible on-hover del header para no sumar ruido visual con muchas columnas.
+- **Nombre de columna**: texto que trunca con `ellipsis` si no entra (`text-overflow: ellipsis; white-space: nowrap; overflow: hidden`), nunca hace wrap ni empuja el ancho de la celda.
+- **Menú "⋮" (kebab)** a la derecha, también on-hover: al clickear despliega un mini menú con **Renombrar** y **Eliminar columna**. Esto saca la acción destructiva de estar siempre visible y compitiendo por espacio — solo aparece cuando el usuario la pide.
 
-## Hook de datos
+> Alternativa más simple si el menú kebab se siente sobre-ingenierizado para el uso real: dejar el ícono de tacho, pero **solo visible al hacer hover sobre todo el header de esa columna**, posicionado en `position: absolute` (no ocupa espacio en el flujo del texto) arriba a la derecha del `<th>`, con un pequeño fondo blanco/sombra para que no se lea encima del texto. Esto resuelve el problema de superposición sin agregar un menú nuevo. Recomendado como primer paso por ser más simple de implementar y de entender para el usuario.
 
-Seguir el patrón de hooks existentes ([hooks.js](src/firebase/hooks.js)) o crear uno dedicado `useTablasPrecios()`:
+### Igual criterio para filas
 
-```js
-export const useTablasPrecios = () => {
-  const { documents, loading, error } = useFirestoreRealtime('tablas_precios');
-  const { addDocument, updateDocument, deleteDocument } = useFirestore('tablas_precios');
+- Drag handle a la izquierda de cada fila (columna extra angosta, ~24px, con el ícono `⠿` visible on-hover de la fila).
+- El botón de eliminar fila pasa a la derecha del todo, también on-hover de la fila (hoy ya está razonablemente separado, pero se homologa al mismo patrón on-hover que columnas para consistencia).
 
-  const crearTabla = (nombre) => addDocument({
-    nombre,
-    columnas: ['Columna 1'],
-    filas: [['']],
-  });
+---
 
-  const renombrarTabla = (id, nombre) => updateDocument(id, { nombre });
+## Reordenar (drag & drop)
 
-  const agregarColumna = (tabla, nombreColumna = `Columna ${tabla.columnas.length + 1}`) =>
-    updateDocument(tabla.id, {
-      columnas: [...tabla.columnas, nombreColumna],
-      filas: tabla.filas.map(fila => [...fila, '']),
-    });
+- Se recomienda la librería **`@dnd-kit/core` + `@dnd-kit/sortable`** (liviana, sin dependencias de estilo propias, funciona bien con listas horizontales y verticales, y es la opción moderna estándar en React — alternativa a `react-beautiful-dnd`, que está en modo mantenimiento).
+- Dos contextos de sorteo independientes:
+  - Uno **horizontal** para las columnas (arrastrar por el drag handle del header).
+  - Uno **vertical** para las filas (arrastrar por el drag handle de la fila).
+- Al soltar, se recalcula el array `columnas` (y el orden correspondiente dentro de cada `fila.valores`) o el array `filas`, y se persiste con un solo `updateDoc` — mismo patrón que ya usa `useTablasPrecios` para agregar/eliminar.
+- Mientras se arrastra: la columna/fila fantasma sigue el cursor con opacidad reducida, y se muestra un indicador de línea vertical/horizontal en el punto de inserción (comportamiento estándar de `@dnd-kit/sortable`, no hay que reinventarlo).
 
-  const agregarFila = (tabla) =>
-    updateDocument(tabla.id, {
-      filas: [...tabla.filas, tabla.columnas.map(() => '')],
-    });
+---
 
-  const actualizarCelda = (tabla, filaIdx, colIdx, valor) => {
-    const nuevasFilas = tabla.filas.map(f => [...f]);
-    nuevasFilas[filaIdx][colIdx] = valor;
-    return updateDocument(tabla.id, { filas: nuevasFilas });
-  };
+## Resumen de cambios respecto a la v1
 
-  return {
-    tablas: documents,
-    loading, error,
-    crearTabla, renombrarTabla,
-    agregarColumna, agregarFila, actualizarCelda,
-    eliminarTabla: deleteDocument,
-  };
-};
-```
+| Problema v1 | Solución v2 |
+|---|---|
+| Columnas se comprimen sin límite | `min-width` fijo por columna + scroll horizontal del contenedor |
+| Ícono de borrar pisa el texto | Acciones (renombrar/eliminar) ocultas por defecto, aparecen on-hover en overlay `position: absolute`, no ocupan espacio en el flujo |
+| No se puede reordenar | Drag handle + `@dnd-kit/sortable`, un contexto horizontal (columnas) y uno vertical (filas) |
+| Primera columna se pierde al scrollear | `position: sticky; left: 0` en la primera columna |
+| Nombre de columna largo rompe el layout | `text-overflow: ellipsis` + tooltip nativo (`title`) con el nombre completo |
 
-## UI propuesta
+---
 
-- Lista lateral (o tabs) con las tablas existentes, botón "+ Nueva Tabla" que pide el nombre.
-- Al seleccionar una tabla: header editable con el nombre (input inline, guarda `onBlur`), y debajo la grilla.
-- Grilla: `<table>` con `<input>` en cada celda (sin bordes visibles hasta el hover/focus, para look de Excel), encabezados de columna editables (doble click para renombrar), botón "+ columna" al final de la fila de encabezados, botón "+ fila" al final de la tabla.
-- Guardado: on blur de cada celda (no on-change por cada tecla, para no saturar Firestore) — mismo criterio que otras pantallas de la app que evitan escrituras excesivas.
-- Botón eliminar tabla con `window.confirm`, siguiendo el patrón usado en [LibroCheques.jsx](src/pages/LibroCheques.jsx:224-227) y [ListaPrecios.jsx](src/pages/ListaPrecios.jsx:92-100).
+## Fuera de alcance (a menos que se pida)
 
-## Alcance no incluido (a menos que se pida)
-
-- Fórmulas tipo Excel (sumas automáticas, referencias entre celdas).
-- Importar/exportar CSV.
-- Compartir una tabla con permisos distintos por usuario (acá todo es `shared`, como el resto de la app).
+- Redimensionar columnas arrastrando el borde (resize handle) — se menciona como posible mejora futura pero no es parte de este rediseño; por ahora el ancho de columna es fijo.
+- Selección múltiple de celdas / copy-paste tipo Excel.
+- Undo/redo de cambios en la grilla.
 
 ## Próximo paso
 
-Confirmar el nombre final de la página (ver sección "Colisión de nombre") y la ruta (`/tablas-precios` u otra) antes de implementar `TablasPrecios.jsx`, el hook `useTablasPrecios`, y el link en el navbar.
+Este documento es la base para la próxima implementación. Cuando se apruebe el enfoque (en particular: ¿menú kebab o tacho on-hover con overlay absoluto para las acciones de columna?), se reescribe `TablasPrecios.jsx` aplicando este layout y se agrega `@dnd-kit` como dependencia nueva del proyecto.
