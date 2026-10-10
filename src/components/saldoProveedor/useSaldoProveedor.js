@@ -79,12 +79,18 @@ export const useSaldoProveedor = () => {
 
       // Extraer los índices de mercadería de las boletas vinculadas
       const indicesMercaderia = boletasConMercaderia.map(b => b.mercaderiaIndex);
+      // Identidad estable: id de cada entrada y semana a la que pertenecen (no cambian si se
+      // borra o reordena una entrada, a diferencia del índice).
+      const entradaIds = boletasConMercaderia.map(b => b.mercaderiaEntradaId).filter(Boolean);
+      const semanaId = (boletasConMercaderia.find(b => b.mercaderiaSemanaId) || {}).mercaderiaSemanaId || null;
 
       // Crear documento de vinculación
       const vinculacionData = {
         saldoClienteId: datos.saldoClienteId,
         proveedor: datos.proveedor,
-        boletasVinculadas: indicesMercaderia, // Array de índices de mercadería
+        boletasVinculadas: indicesMercaderia, // Array de índices de mercadería (legado)
+        entradaIds,
+        semanaId,
         saldoAFavor: datos.saldoAFavor,
         detalleSaldo: {
           totalVentas: datos.detalleSaldo?.totalVentas || 0,
@@ -123,8 +129,9 @@ export const useSaldoProveedor = () => {
 
     // Obtener los índices de las boletas seleccionadas
     const indicesSeleccionados = boletasSeleccionadas.map(b => b.index).filter(idx => idx !== undefined);
+    const idsSeleccionados = boletasSeleccionadas.map(b => b.entradaId).filter(Boolean);
 
-    if (indicesSeleccionados.length === 0) {
+    if (indicesSeleccionados.length === 0 && idsSeleccionados.length === 0) {
       return 0;
     }
 
@@ -140,7 +147,12 @@ export const useSaldoProveedor = () => {
         return false;
       }
 
-      // Verificar si alguna boleta vinculada está en las seleccionadas
+      // Con ids estables se compara por id (exacto). Solo las vinculaciones viejas, sin ids,
+      // caen al índice, que puede apuntar a otra boleta si hubo borrados.
+      const idsVinculados = vinculacion.entradaIds || [];
+      if (idsVinculados.length > 0) {
+        return idsVinculados.some(id => idsSeleccionados.includes(id));
+      }
       const boletasVinculadas = vinculacion.boletasVinculadas || [];
       const hayInterseccion = boletasVinculadas.some(idxVinculado => 
         indicesSeleccionados.includes(idxVinculado)
@@ -341,3 +353,4 @@ export const useSaldoProveedor = () => {
     limpiarTodosLosDescuentos
   };
 };
+

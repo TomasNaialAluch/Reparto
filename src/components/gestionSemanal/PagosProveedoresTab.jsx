@@ -1,3 +1,4 @@
+import { idBoleta } from '../../utils/boletas';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatCurrency, parseCurrencyValue } from '../../utils/money';
 import { getLocalDateString } from '../../utils/date';
@@ -62,8 +63,9 @@ export default function PagosProveedoresTab({
       );
       
       return {
-        id: `boleta-${index}`,
+        id: idBoleta(entrada, index),
         index,
+        entradaId: entrada.id || null,
         dia: entrada.dia,
         proveedor: entrada.proveedor,
         costoTotal,
@@ -729,7 +731,8 @@ export default function PagosProveedoresTab({
               monto: efectivo,
               metodoPago: 'Efectivo',
               descripcion: `Pago boleta ${boleta.dia} - ${boleta.proveedor}`,
-              boletaIndex: boleta.index
+              boletaIndex: boleta.index,
+              entradaId: boleta.entradaId || null
             });
           }
           if (transferencia > 0) {
@@ -739,7 +742,8 @@ export default function PagosProveedoresTab({
               monto: transferencia,
               metodoPago: 'Transferencia',
               descripcion: `Pago boleta ${boleta.dia} - ${boleta.proveedor}`,
-              boletaIndex: boleta.index
+              boletaIndex: boleta.index,
+              entradaId: boleta.entradaId || null
             });
           }
           if (cheques > 0) {
@@ -749,7 +753,8 @@ export default function PagosProveedoresTab({
               monto: cheques,
               metodoPago: 'Cheque',
               descripcion: `Pago boleta ${boleta.dia} - ${boleta.proveedor}`,
-              boletaIndex: boleta.index
+              boletaIndex: boleta.index,
+              entradaId: boleta.entradaId || null
             });
           }
 
@@ -1413,3 +1418,4 @@ export default function PagosProveedoresTab({
     </div>
   );
 }
+

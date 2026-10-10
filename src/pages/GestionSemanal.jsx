@@ -1,3 +1,4 @@
+import { idBoleta } from '../utils/boletas';
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -148,9 +149,12 @@ export default function GestionSemanal() {
 
   // Calcular boletas sin marcar como pagadas (para badge en tab)
   const totalBoletas = semanaActiva?.mercaderia?.length || 0;
-  const boletasPagadasCount = Object.values(
-    semanaActiva?.pagosProveedoresEstado?.boletasPagadas || {}
-  ).filter(Boolean).length;
+  // Se cuenta por entrada: con ids estables conviven claves viejas (por posición) y nuevas,
+  // y contar valores sueltos las duplicaría.
+  const boletasPagadasMapa = semanaActiva?.pagosProveedoresEstado?.boletasPagadas || {};
+  const boletasPagadasCount = (semanaActiva?.mercaderia || []).filter(
+    (entrada, index) => boletasPagadasMapa[idBoleta(entrada, index)] === true
+  ).length;
   const boletasPendientes = Math.max(0, totalBoletas - boletasPagadasCount);
 
   const TABS = [
@@ -393,3 +397,4 @@ export default function GestionSemanal() {
     </>
   );
 }
+

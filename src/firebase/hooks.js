@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { getLocalDateString } from '../utils/date';
+import { generarIdEntrada } from '../utils/boletas';
 
 // Hook para operaciones CRUD genéricas
 export const useFirestore = (collectionName) => {
@@ -808,7 +809,7 @@ export const useGestionSemanal = (userId) => {
     if (!semanaActiva) {
       const id = await crearNuevaSemana();
       await updateDoc(doc(db, 'gestion_semanal', id), {
-        mercaderia: [{ ...entrada, timestamp: new Date().toISOString() }]
+        mercaderia: [{ ...entrada, id: entrada.id || generarIdEntrada(), timestamp: new Date().toISOString() }]
       });
       return;
     }
@@ -816,7 +817,7 @@ export const useGestionSemanal = (userId) => {
     try {
       const mercaderiaActual = semanaActiva.mercaderia || [];
       await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
-        mercaderia: [...mercaderiaActual, { ...entrada, timestamp: new Date().toISOString() }]
+        mercaderia: [...mercaderiaActual, { ...entrada, id: entrada.id || generarIdEntrada(), timestamp: new Date().toISOString() }]
       });
     } catch (err) {
       console.error('Error al agregar mercadería:', err);
@@ -847,7 +848,13 @@ export const useGestionSemanal = (userId) => {
     try {
       const mercaderiaActual = semanaActiva.mercaderia || [];
       const nuevaMercaderia = [...mercaderiaActual];
-      nuevaMercaderia[index] = { ...entradaActualizada, timestamp: mercaderiaActual[index]?.timestamp || new Date().toISOString() };
+      // Se parte de la entrada existente para no perder su id estable ni otros campos.
+      nuevaMercaderia[index] = {
+        ...mercaderiaActual[index],
+        ...entradaActualizada,
+        id: mercaderiaActual[index]?.id || entradaActualizada.id || generarIdEntrada(),
+        timestamp: mercaderiaActual[index]?.timestamp || new Date().toISOString()
+      };
       await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
         mercaderia: nuevaMercaderia
       });

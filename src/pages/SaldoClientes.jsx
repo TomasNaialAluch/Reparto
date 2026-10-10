@@ -1,3 +1,4 @@
+import { esMismaBoleta } from '../utils/boletas';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
@@ -491,8 +492,10 @@ const SaldoClientes = () => {
     const boletasProveedor = obtenerBoletasPorProveedor(clientName.trim(), true);
     
     const boletasMapeadas = boletasProveedor.map((boleta) => ({
-      id: `mercaderia-${boleta.index}`,
+      id: `mercaderia-${boleta.entradaId || boleta.index}`,
       index: boleta.index,
+      entradaId: boleta.entradaId || null,
+      semanaId: boleta.semanaId || null,
       dia: boleta.dia,
       proveedor: boleta.proveedor,
       costoTotal: boleta.costoTotal,
@@ -512,9 +515,7 @@ const SaldoClientes = () => {
   // Vincular una boleta de mercadería
   const vincularBoletaMercaderia = (boletaMercaderia) => {
     // Verificar si ya existe esta boleta vinculada
-    const yaExiste = boletas.some(b => 
-      b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boletaMercaderia.index
-    );
+    const yaExiste = boletas.some(b => esMismaBoleta(b, boletaMercaderia));
     
     if (yaExiste) {
       showError('Esta boleta de mercadería ya está vinculada');
@@ -526,6 +527,8 @@ const SaldoClientes = () => {
       date: boletaMercaderia.timestamp ? boletaMercaderia.timestamp.split('T')[0] : getLocalDateString(),
       amount: formatCurrencyNoSymbol(boletaMercaderia.costoTotal),
       mercaderiaIndex: boletaMercaderia.index,
+      mercaderiaEntradaId: boletaMercaderia.entradaId || null,
+      mercaderiaSemanaId: boletaMercaderia.semanaId || null,
       esDeMercaderia: true
     };
     
@@ -1396,9 +1399,7 @@ const SaldoClientes = () => {
                     Seleccioná las boletas que querés vincular para <strong style={{ color: '#212529' }}>{clientName}</strong>
                   </div>
                   {obtenerBoletasMercaderia().map((boleta) => {
-                    const yaVinculada = boletas.some(b =>
-                      b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index
-                    );
+                    const yaVinculada = boletas.some(b => esMismaBoleta(b, boleta));
                     const accentColor = boleta.estaPagada ? '#28a745' : yaVinculada ? '#6A8899' : '#dde2e6';
 
                     return (
@@ -1473,3 +1474,4 @@ const SaldoClientes = () => {
 };
 
 export default SaldoClientes;
+

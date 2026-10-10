@@ -1,3 +1,4 @@
+import { idBoleta } from '../utils/boletas';
 import React, { createContext, useContext, useMemo } from 'react';
 import { useGestionSemanal } from '../firebase/hooks';
 
@@ -71,11 +72,13 @@ export const PagosProveedoresProvider = ({ children }) => {
         sum + (c.kg * (c.precioKg || 0)), 0
       );
       
-      const boletaId = `boleta-${index}`;
+      const boletaId = idBoleta(entrada, index);
       
       return {
         id: boletaId,
         index,
+        entradaId: entrada.id || null,
+        semanaId: semanaActiva?.id || null,
         dia: entrada.dia,
         proveedor: entrada.proveedor,
         costoTotal,
@@ -223,3 +226,4 @@ export const PagosProveedoresProvider = ({ children }) => {
 };
 
 export default PagosProveedoresContext;
+

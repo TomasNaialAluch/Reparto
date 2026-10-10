@@ -1,3 +1,5 @@
+import { esMismaBoleta } from '../utils/boletas';
+import { normalizarNombre } from '../utils/nombres';
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
@@ -115,10 +117,15 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
 
   const obtenerBoletasMercaderia = () => {
     if (!semanaActiva?.mercaderia || !formData.clientName.trim()) return [];
+    const buscado = normalizarNombre(formData.clientName);
     return semanaActiva.mercaderia
-      .filter(e => e.proveedor === formData.clientName.trim())
-      .map((e, index) => ({
-        id: `mercaderia-${index}`, index,
+      // El índice se toma ANTES de filtrar: tiene que ser la posición real de la entrada.
+      .map((e, index) => ({ e, index }))
+      .filter(({ e }) => normalizarNombre(e.proveedor) === buscado)
+      .map(({ e, index }) => ({
+        id: `mercaderia-${e.id || index}`, index,
+        entradaId: e.id || null,
+        semanaId: semanaActiva.id || null,
         dia: e.dia, proveedor: e.proveedor,
         costoTotal: e.cortes.reduce((s, c) => s + (c.kg * (c.precioKg || 0)), 0),
         cortes: e.cortes,
@@ -128,7 +135,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   };
 
   const vincularBoletaMercaderia = (boleta) => {
-    if (formData.boletas.some(b => b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index)) {
+    if (formData.boletas.some(b => esMismaBoleta(b, boleta))) {
       alert('Esta boleta de mercadería ya está vinculada');
       return;
     }
@@ -138,6 +145,8 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
         date: boleta.timestamp ? boleta.timestamp.split('T')[0] : getLocalDateString(),
         amount: formatCurrencyNoSymbol(boleta.costoTotal),
         mercaderiaIndex: boleta.index,
+        mercaderiaEntradaId: boleta.entradaId || null,
+        mercaderiaSemanaId: boleta.semanaId || null,
         esDeMercaderia: true
       }]
     }));
@@ -438,7 +447,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {obtenerBoletasMercaderia().map((boleta) => {
-                    const yaVinculada = formData.boletas.some(b => b.mercaderiaIndex !== undefined && b.mercaderiaIndex === boleta.index);
+                    const yaVinculada = formData.boletas.some(b => esMismaBoleta(b, boleta));
                     return (
                       <div key={boleta.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: yaVinculada ? '#f8f9fa' : 'white', border: `1px solid ${yaVinculada ? '#e9ecef' : '#dde2e6'}` }}>
                         <div>
@@ -478,3 +487,4 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
 };
 
 export default EditClienteModal;
+
