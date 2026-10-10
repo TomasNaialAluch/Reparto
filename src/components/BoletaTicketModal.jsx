@@ -29,38 +29,12 @@ const Fila = ({ etiqueta, valor, fuerte }) => (
   </div>
 );
 
-/**
- * Props:
- *  - isOpen, onClose
- *  - compra: { proveedor, dia, timestamp, modificadoEn, cortes, kg, costo, pagada, entradaId }
- */
-const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
-  const ticketRef = useRef(null);
-
-  useEffect(() => {
-    if (!isOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [isOpen, onClose]);
-
-  if (!isOpen || !compra) return null;
-
+/** Papel del ticket (reutilizable: modal, tarjeta expandida, ficha). */
+export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24px rgba(0,0,0,0.25))' }) => {
   const promedio = compra.kg > 0 ? compra.costo / compra.kg : 0;
   const sinPrecios = compra.costo === 0;
 
-  const imprimir = () => {
-    if (!ticketRef.current) return;
-    const w = window.open('', '_blank', 'width=420,height=700');
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante ${codigoReferencia(compra.entradaId)}</title>
-      <style>body{margin:0;padding:16px;background:#fff;display:flex;justify-content:center}@page{margin:8mm}</style></head>
-      <body>${ticketRef.current.outerHTML}</body></html>`);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 300);
-  };
-
-  // Borde dentado (sierra) arriba y abajo, dibujado con gradientes: se ve el fondo desenfocado detrás.
+  // Borde dentado (sierra) arriba y abajo, dibujado con gradientes.
   const sierra = (arriba) => ({
     height: '10px',
     background: arriba
@@ -71,17 +45,7 @@ const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
   });
 
   return (
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)', zIndex: 1070 }}
-      />
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1071, overflowY: 'auto',
-        display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px 12px', pointerEvents: 'none',
-      }}>
-        <div style={{ width: 'min(380px, 100%)', pointerEvents: 'auto' }}>
-          <div ref={ticketRef} style={{ filter: 'drop-shadow(0 12px 24px rgba(0,0,0,0.25))', fontFamily: MONO }}>
+    <div ref={innerRef} style={{ filter: sombra, fontFamily: MONO }}>
             <div style={sierra(true)} />
             <div style={{ background: '#fff', padding: '14px 20px', color: '#212529' }}>
               {/* Encabezado */}
@@ -156,7 +120,50 @@ const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
               </div>
             </div>
             <div style={sierra(false)} />
-          </div>
+    </div>
+  );
+};
+
+/**
+ * Props:
+ *  - isOpen, onClose
+ *  - compra: { proveedor, dia, timestamp, modificadoEn, cortes, kg, costo, pagada, entradaId }
+ */
+const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
+  const ticketRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !compra) return null;
+
+  const imprimir = () => {
+    if (!ticketRef.current) return;
+    const w = window.open('', '_blank', 'width=420,height=700');
+    if (!w) return;
+    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante ${codigoReferencia(compra.entradaId)}</title>
+      <style>body{margin:0;padding:16px;background:#fff;display:flex;justify-content:center}@page{margin:8mm}</style></head>
+      <body>${ticketRef.current.outerHTML}</body></html>`);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 300);
+  };
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)', zIndex: 1070 }}
+      />
+      <div style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1071, overflowY: 'auto',
+        display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px 12px', pointerEvents: 'none',
+      }}>
+        <div style={{ width: 'min(380px, 100%)', pointerEvents: 'auto' }}>
+          <BoletaTicket compra={compra} innerRef={ticketRef} />
 
           <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
             <button
@@ -181,5 +188,6 @@ const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
 };
 
 export default BoletaTicketModal;
+
 
 

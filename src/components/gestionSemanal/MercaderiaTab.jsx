@@ -4,8 +4,7 @@ import { DIAS_SEMANA, CORTES_CARNE, getDiaActual } from './constants';
 import { useContactos } from '../../hooks/useContactos';
 import { normalizarNombre } from '../../utils/nombres';
 import { idBoleta } from '../../utils/boletas';
-import { kgDeEntrada, costoDeEntrada } from '../../utils/cuentaContacto';
-import BoletaTicketModal from '../BoletaTicketModal';
+import { BoletaTicket } from '../BoletaTicketModal';
 import { usePreciosReferencia, FACTOR_PRECIO_ATIPICO } from '../../hooks/usePreciosReferencia';
 import { formatCurrency } from '../../utils/money';
 import ConfirmModal from '../ConfirmModal';
@@ -44,12 +43,12 @@ export default function MercaderiaTab({
   const proveedores = useMemo(() => contactosProveedor.map((c) => c.nombre), [contactosProveedor]);
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
   // Lista de entradas agrupada por proveedor (arranca todo colapsado)
-  const [filtroDiaEntradas, setFiltroDiaEntradas] = useState('todos');
+  // null = automático: arranca en el día actual (si ese día tiene entradas); el usuario puede cambiarlo
+  const [filtroDiaEntradas, setFiltroDiaEntradas] = useState(null);
   const [busquedaGrupo, setBusquedaGrupo] = useState('');
   const [ordenGrupos, setOrdenGrupos] = useState('compra');
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [busquedaModalProv, setBusquedaModalProv] = useState('');
-  const [ticketIndex, setTicketIndex] = useState(null);
   // Control de precios: aviso cuando un precio por kg es mucho mayor al habitual
   const { referenciaPara } = usePreciosReferencia();
   const [controlPrecios, setControlPrecios] = useState(null);
@@ -883,7 +882,7 @@ export default function MercaderiaTab({
                   const isExpanded = expandedMercaderia[index];
                   
                   return (
-                    <div key={index} className={`mb-3 card-transition ${editingMercaderia === index ? 'col-12 card-expand' : 'col-12 col-sm-6'}`}>
+                    <div key={index} className={`mb-3 card-transition ${editingMercaderia === index ? 'col-12 card-expand' : (isExpanded ? 'col-12' : 'col-12 col-sm-6')}`}>
                       <div
                         className="card h-100"
                         style={{
@@ -989,17 +988,6 @@ export default function MercaderiaTab({
                                   </>
                                 ) : (
                                   <>
-                                    <button
-                                      type="button"
-                                      className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
-                                      title="Ver comprobante"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setTicketIndex(index);
-                                      }}
-                                    >
-                                      Comprobante
-                                    </button>
                                     <button 
                                       className="btn btn-sm btn-warning d-inline-flex align-items-center"
                                       onClick={(e) => {
@@ -1115,53 +1103,23 @@ export default function MercaderiaTab({
                                 </div>
                               </div>
                             ) : (
-                              <div>
-                                <ul className="list-unstyled mb-0 small">
-                                  {entrada.cortes.map((corte, i) => (
-                                    <li key={i} className="mb-1 d-flex justify-content-between align-items-center">
-                                      <div>
-                                        • {corte.corte}: <strong>{corte.kg.toFixed(2)} kg</strong>
-                                        {corte.precioKg ? (
-                                          <span className="text-muted"> (${corte.precioKg}/kg = ${(corte.kg * corte.precioKg).toFixed(2)})</span>
-                                        ) : null}
-                                      </div>
-                                      <button
-                                        className="btn btn-sm btn-outline-danger d-inline-flex align-items-center"
-                                        style={{ padding: '0.15rem 0.3rem' }}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          confirmarEliminarCorte(index, i);
-                                        }}
-                                        title="Eliminar corte"
-                                      >
-                                        <IconX size={11} />
-                                      </button>
-                                    </li>
-                                  ))}
-                                </ul>
-                                <div className="mt-2 pt-2 border-top">
-                                  <div className="d-flex justify-content-between">
-                                    <strong>Total:</strong>
-                                    <strong className="text-primary">
-                                      {totalKilos.toFixed(2)} kg
-                                    </strong>
-                                  </div>
-                                  {entrada.cortes.some(c => c.precioKg) && (
-                                    <>
-                                      <div className="d-flex justify-content-between mt-1">
-                                        <strong>Costo Total:</strong>
-                                        <strong className="text-success">
-                                          ${entrada.cortes.reduce((sum, c) => sum + (c.kg * (c.precioKg || 0)), 0).toFixed(2)}
-                                        </strong>
-                                      </div>
-                                      <div className="d-flex justify-content-between mt-1">
-                                        <strong>Costo Promedio:</strong>
-                                        <strong className="text-info">
-                                          ${costoPromedioKg.toFixed(2)}/kg
-                                        </strong>
-                                      </div>
-                                    </>
-                                  )}
+                              <div style={{ background: '#eef1f3', borderRadius: '12px', padding: '14px 10px' }}>
+                                <div style={{ maxWidth: '360px', margin: '0 auto' }}>
+                                  <BoletaTicket
+                                    sombra="drop-shadow(0 4px 10px rgba(0,0,0,0.15))"
+                                    compra={{
+                                      proveedor: (contactos.find((c) => c.id === entrada.proveedorId) || {}).nombre || entrada.proveedor,
+                                      dia: entrada.dia,
+                                      timestamp: entrada.timestamp,
+                                      modificadoEn: entrada.modificadoEn,
+                                      cortes: entrada.cortes || [],
+                                      kg: totalKilos,
+                                      costo: costoTotal,
+                                      pagada: (semanaActiva.pagosProveedoresEstado?.boletasPagadas || {})[idBoleta(entrada, index)] === true,
+                                      entradaId: entrada.id || null,
+                                      semanaCerrada: false,
+                                    }}
+                                  />
                                 </div>
                               </div>
                             )}
@@ -1180,12 +1138,16 @@ export default function MercaderiaTab({
 
               // Días que realmente tienen mercadería (para el filtro)
               const diasPresentes = DIAS_SEMANA.filter((d) => mercaderia.some((e) => e.dia === d));
+              const diaHoy = getDiaActual();
+              const filtroDia = filtroDiaEntradas !== null
+                ? filtroDiaEntradas
+                : (diasPresentes.includes(diaHoy) ? diaHoy : 'todos');
 
               // 1) Agrupar por proveedor conservando el índice REAL de cada entrada
               //    (editar, borrar y expandir trabajan por índice).
               const mapa = new Map();
               mercaderia.forEach((entrada, index) => {
-                if (filtroDiaEntradas !== 'todos' && entrada.dia !== filtroDiaEntradas) return;
+                if (filtroDia !== 'todos' && entrada.dia !== filtroDia) return;
                 const clave = claveDe(entrada);
                 if (!mapa.has(clave)) {
                   mapa.set(clave, {
@@ -1246,7 +1208,7 @@ export default function MercaderiaTab({
                   <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px', overflowX: 'auto' }}>
                       {['todos', ...diasPresentes].map((d) => (
-                        <button key={d} type="button" onClick={() => setFiltroDiaEntradas(d)} style={seg(filtroDiaEntradas === d)}>
+                        <button key={d} type="button" onClick={() => setFiltroDiaEntradas(d)} style={seg(filtroDia === d)}>
                           {d === 'todos' ? 'Todos los días' : d}
                         </button>
                       ))}
@@ -1518,30 +1480,6 @@ export default function MercaderiaTab({
         );
       })()}
 
-      {ticketIndex !== null && semanaActiva?.mercaderia?.[ticketIndex] && (() => {
-        const entrada = semanaActiva.mercaderia[ticketIndex];
-        const pagadas = semanaActiva.pagosProveedoresEstado?.boletasPagadas || {};
-        const contacto = contactos.find((c) => c.id === entrada.proveedorId);
-        return (
-          <BoletaTicketModal
-            isOpen
-            onClose={() => setTicketIndex(null)}
-            compra={{
-              proveedor: contacto?.nombre || entrada.proveedor,
-              dia: entrada.dia,
-              timestamp: entrada.timestamp,
-              modificadoEn: entrada.modificadoEn,
-              cortes: entrada.cortes || [],
-              kg: kgDeEntrada(entrada),
-              costo: costoDeEntrada(entrada),
-              pagada: pagadas[idBoleta(entrada, ticketIndex)] === true,
-              entradaId: entrada.id || null,
-              semanaCerrada: false,
-            }}
-          />
-        );
-      })()}
-
       {controlPrecios && (
         <>
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)', zIndex: 1080 }} />
@@ -1665,6 +1603,8 @@ export default function MercaderiaTab({
     </div>
   );
 }
+
+
 
 
 
