@@ -292,6 +292,86 @@ export const styles = `
   @media (prefers-reduced-motion: reduce) {
     .gs-totales-glow::before { animation: none; }
   }
+
+  /* ===== Cortes en filas (formulario de carga y edición de entradas) =====
+     Una fila por corte: el nombre ocupa lo que sobra y kg / $/kg tienen ancho propio.
+     Se adapta al ANCHO DEL CONTENEDOR (no de la pantalla): en tablet, con la columna
+     angosta, y en celular, los campos pasan debajo del nombre en vez de aplastarse. */
+  .gs-cortes-lista { container-type: inline-size; }
+  .gs-cortes-head,
+  .gs-corte-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px 120px;
+    column-gap: 8px;
+    align-items: center;
+  }
+  .gs-cortes-lista.gs-cortes-edicion .gs-cortes-head,
+  .gs-cortes-lista.gs-cortes-edicion .gs-corte-row {
+    grid-template-columns: minmax(0, 1fr) 104px 120px 28px;
+  }
+  .gs-cortes-head {
+    padding: 0 0 4px;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid #d3d9de;
+  }
+  .gs-corte-row {
+    padding: 7px 0;
+    border-bottom: 1px solid #eef1f3;
+  }
+  .gs-corte-nombre {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: #212529;
+  }
+  .gs-corte-nombre > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gs-corte-etiqueta {
+    display: none;
+    margin: 0 0 2px;
+    font-size: 0.64rem;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .gs-corte-campo input { text-align: right; }
+  .gs-corte-aviso {
+    grid-column: 1 / -1;
+    margin-top: 3px;
+    color: #dc3545;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+  .gs-corte-quitar {
+    border: none;
+    background: transparent;
+    color: #dc3545;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    line-height: 1;
+  }
+  /* Contenedor angosto (celular o columna chica): nombre arriba, campos debajo */
+  @container (max-width: 340px) {
+    .gs-cortes-head { display: none; }
+    .gs-corte-row,
+    .gs-cortes-lista.gs-cortes-edicion .gs-corte-row {
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      row-gap: 6px;
+    }
+    .gs-corte-nombre { grid-column: 1 / -1; }
+    .gs-corte-etiqueta { display: block; }
+    .gs-cortes-lista.gs-cortes-edicion .gs-corte-quitar-celda { grid-column: 1 / -1; justify-self: end; }
+  }
 `;
+
 
 

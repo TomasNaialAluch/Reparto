@@ -760,93 +760,88 @@ export default function MercaderiaTab({
                 </div>
               )}
 
-              <div className="row">
+              <div className="gs-cortes-lista">
+                <div className="gs-cortes-head">
+                  <span>Corte</span>
+                  <span style={{ textAlign: 'right' }}>Kg</span>
+                  <span style={{ textAlign: 'right' }}>$/Kg</span>
+                </div>
                 {ordenCortesPorUso.map((corte, index) => {
                   const esPersonalizado = !CORTES_CARNE.includes(corte);
                   if (!corteInputRefs.current[index]) corteInputRefs.current[index] = [null, null];
+                  const precioActual = formMercaderia.cortes[corte]?.precioKg;
+                  const refPrecio = referenciaSiAtipico(formMercaderia.proveedorId, formMercaderia.proveedor, corte, precioActual);
                   return (
                     <motion.div
                       key={corte}
                       layout
                       transition={{ duration: 0.35, ease: 'easeInOut' }}
-                      className="col-lg-4 col-md-6 mb-3"
+                      className="gs-corte-row"
                     >
-                      <div className={`card h-100 ${esPersonalizado ? 'border-success' : ''}`}>
-                        <div className="card-body p-2">
-                          <div className="d-flex justify-content-between align-items-center mb-2">
-                            <label className="form-label mb-0 fw-bold" style={{ fontSize: '0.9rem' }}>
-                              {corte}
-                              {esPersonalizado && (
-                                <span className="badge bg-success ms-1" style={{ fontSize: '0.6rem' }}>Personalizado</span>
-                              )}
-                            </label>
-                            {esPersonalizado && (
-                              <button
-                                className="btn btn-sm btn-outline-danger d-inline-flex align-items-center"
-                                style={{ padding: '0.15rem 0.3rem' }}
-                                onClick={() => eliminarCorteDelFormulario(corte)}
-                                title="Eliminar corte"
-                              >
-                                <IconX size={12} />
-                              </button>
-                            )}
-                          </div>
-                          <div className="d-flex flex-column gap-1">
-                            <div className="input-group input-group-sm">
-                              <span className="input-group-text">Kg</span>
-                              <input
-                                ref={(el) => { corteInputRefs.current[index][0] = el; }}
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                step="0.1"
-                                value={formMercaderia.cortes[corte]?.kg || ''}
-                                onChange={(e) => setFormMercaderia({
-                                  ...formMercaderia,
-                                  cortes: {
-                                    ...formMercaderia.cortes,
-                                    [corte]: {
-                                      ...formMercaderia.cortes[corte],
-                                      kg: e.target.value
-                                    }
-                                  }
-                                })}
-                              />
-                            </div>
-                            <div className={`input-group input-group-sm${preciosHighlight.has(corte) ? ' precio-alert-highlight' : ''}`}>
-                              <span className="input-group-text">$/Kg</span>
-                              <input
-                                ref={(el) => { corteInputRefs.current[index][1] = el; }}
-                                type="number"
-                                className="form-control"
-                                placeholder="0"
-                                step="0.01"
-                                value={formMercaderia.cortes[corte]?.precioKg || ''}
-                                onChange={(e) => setFormMercaderia({
-                                  ...formMercaderia,
-                                  cortes: {
-                                    ...formMercaderia.cortes,
-                                    [corte]: {
-                                      ...formMercaderia.cortes[corte],
-                                      precioKg: e.target.value
-                                    }
-                                  }
-                                })}
-                                style={referenciaSiAtipico(formMercaderia.proveedorId, formMercaderia.proveedor, corte, formMercaderia.cortes[corte]?.precioKg)
-                                  ? { borderColor: '#dc3545', background: 'rgba(220,53,69,0.06)' } : undefined}
-                              />
-                            </div>
-                            {(() => {
-                              const ref = referenciaSiAtipico(formMercaderia.proveedorId, formMercaderia.proveedor, corte, formMercaderia.cortes[corte]?.precioKg);
-                              return ref ? (
-                                <div style={{ color: '#dc3545', fontSize: '0.7rem', fontWeight: 600, marginTop: '3px', lineHeight: 1.2 }}>
-                                  Precio muy alto: lo habitual ronda {formatCurrency(ref)}/kg
-                                </div>
-                              ) : null;
-                            })()}
-                          </div>
-                        </div>
+                      <div className="gs-corte-nombre">
+                        <span>{corte}</span>
+                        {esPersonalizado && (
+                          <span className="badge bg-success" style={{ fontSize: '0.58rem' }}>Personalizado</span>
+                        )}
+                        {esPersonalizado && (
+                          <button
+                            type="button"
+                            className="gs-corte-quitar"
+                            onClick={() => eliminarCorteDelFormulario(corte)}
+                            title="Eliminar corte"
+                          >
+                            <IconX size={13} />
+                          </button>
+                        )}
                       </div>
+                      <div className="gs-corte-campo">
+                        <label className="gs-corte-etiqueta">Kg</label>
+                        <input
+                          ref={(el) => { corteInputRefs.current[index][0] = el; }}
+                          type="number"
+                          className="form-control form-control-sm"
+                          placeholder="0"
+                          step="0.1"
+                          value={formMercaderia.cortes[corte]?.kg || ''}
+                          onChange={(e) => setFormMercaderia({
+                            ...formMercaderia,
+                            cortes: {
+                              ...formMercaderia.cortes,
+                              [corte]: {
+                                ...formMercaderia.cortes[corte],
+                                kg: e.target.value
+                              }
+                            }
+                          })}
+                        />
+                      </div>
+                      <div className={`gs-corte-campo${preciosHighlight.has(corte) ? ' precio-alert-highlight' : ''}`}>
+                        <label className="gs-corte-etiqueta">$/Kg</label>
+                        <input
+                          ref={(el) => { corteInputRefs.current[index][1] = el; }}
+                          type="number"
+                          className="form-control form-control-sm"
+                          placeholder="0"
+                          step="0.01"
+                          value={precioActual || ''}
+                          onChange={(e) => setFormMercaderia({
+                            ...formMercaderia,
+                            cortes: {
+                              ...formMercaderia.cortes,
+                              [corte]: {
+                                ...formMercaderia.cortes[corte],
+                                precioKg: e.target.value
+                              }
+                            }
+                          })}
+                          style={refPrecio ? { borderColor: '#dc3545', background: 'rgba(220,53,69,0.06)' } : undefined}
+                        />
+                      </div>
+                      {refPrecio && (
+                        <div className="gs-corte-aviso">
+                          Precio muy alto: lo habitual ronda {formatCurrency(refPrecio)}/kg
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })}
@@ -1013,65 +1008,82 @@ export default function MercaderiaTab({
                             
                             {editingMercaderia === index ? (
                               <div className="fade-in">
-                                <div className="row g-2">
-                                  {tempMercaderiaData.cortes.map((corte, i) => (
-                                    <div key={i} className="col-md-3 col-sm-6">
-                                      <div className="border rounded p-2 position-relative">
-                                        <button 
-                                          className="btn btn-sm btn-danger position-absolute d-inline-flex align-items-center"
-                                          style={{ top: '2px', right: '2px', padding: '0.15rem 0.3rem' }}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            eliminarCorteEnEdicion(i);
-                                          }}
-                                          title="Eliminar corte"
-                                        >
-                                          <IconX size={11} />
-                                        </button>
-                                        <input 
-                                          type="text" 
-                                          className="form-control form-control-sm mb-1" 
-                                          value={corte.corte}
-                                          onChange={(e) => updateCorte(i, 'corte', e.target.value)}
-                                          placeholder="Nombre del corte"
-                                        />
-                                        <div className="input-group input-group-sm mb-1">
-                                          <span className="input-group-text" style={{fontSize: '0.75rem'}}>Kg</span>
+                                <div className="gs-cortes-lista gs-cortes-edicion" onClick={(e) => e.stopPropagation()}>
+                                  <div className="gs-cortes-head">
+                                    <span>Corte</span>
+                                    <span style={{ textAlign: 'right' }}>Kg</span>
+                                    <span style={{ textAlign: 'right' }}>$/Kg</span>
+                                    <span />
+                                  </div>
+                                  {tempMercaderiaData.cortes.map((corte, i) => {
+                                    const refPrecio = referenciaSiAtipico(
+                                      buscarExacto(tempMercaderiaData.proveedor)?.id || null,
+                                      tempMercaderiaData.proveedor,
+                                      corte.corte,
+                                      corte.precioKg
+                                    );
+                                    return (
+                                      <div key={i} className="gs-corte-row">
+                                        <div className="gs-corte-nombre">
+                                          <input
+                                            type="text"
+                                            className="form-control form-control-sm"
+                                            value={corte.corte}
+                                            onChange={(e) => updateCorte(i, 'corte', e.target.value)}
+                                            placeholder="Nombre del corte"
+                                          />
+                                        </div>
+                                        <div className="gs-corte-campo">
+                                          <label className="gs-corte-etiqueta">Kg</label>
                                           <input
                                             type="number"
-                                            className="form-control"
+                                            className="form-control form-control-sm"
                                             value={corte.kg}
                                             onChange={(e) => updateCorte(i, 'kg', e.target.value)}
                                             step="0.1"
                                             placeholder="0"
                                           />
                                         </div>
-                                        <div className="input-group input-group-sm">
-                                          <span className="input-group-text" style={{fontSize: '0.75rem'}}>$/Kg</span>
+                                        <div className="gs-corte-campo">
+                                          <label className="gs-corte-etiqueta">$/Kg</label>
                                           <input
                                             type="number"
-                                            className="form-control"
+                                            className="form-control form-control-sm"
                                             value={corte.precioKg ?? ''}
                                             onChange={(e) => updateCorte(i, 'precioKg', e.target.value)}
                                             step="0.01"
                                             placeholder="0"
+                                            style={refPrecio ? { borderColor: '#dc3545', background: 'rgba(220,53,69,0.06)' } : undefined}
                                           />
                                         </div>
+                                        <div className="gs-corte-quitar-celda">
+                                          <button
+                                            type="button"
+                                            className="gs-corte-quitar"
+                                            onClick={() => eliminarCorteEnEdicion(i)}
+                                            title="Eliminar corte"
+                                          >
+                                            <IconX size={14} />
+                                          </button>
+                                        </div>
+                                        {refPrecio && (
+                                          <div className="gs-corte-aviso">
+                                            Precio muy alto: lo habitual ronda {formatCurrency(refPrecio)}/kg
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                  ))}
-                                  <div className="col-md-3 col-sm-6">
-                                    <button 
-                                      className="btn btn-outline-primary w-100 h-100 d-flex align-items-center justify-content-center"
-                                      style={{ minHeight: '80px' }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        agregarCorteEnEdicion();
-                                      }}
-                                    >
-                                      <span style={{ fontSize: '2rem' }}>+</span>
-                                    </button>
-                                  </div>
+                                    );
+                                  })}
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-primary mt-2 d-inline-flex align-items-center gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      agregarCorteEnEdicion();
+                                    }}
+                                  >
+                                    <IconPlus size={12} /> Agregar corte
+                                  </button>
                                 </div>
                                 <div className="mt-3 pt-2 border-top">
                                   {(() => {
@@ -1603,6 +1615,7 @@ export default function MercaderiaTab({
     </div>
   );
 }
+
 
 
 
