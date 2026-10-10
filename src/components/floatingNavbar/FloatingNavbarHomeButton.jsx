@@ -20,7 +20,7 @@ const HomeIcon = ({ size = 18 }) => (
 /**
  * Botón fijo a la izquierda de la barra en modo contextual (ver
  * README-NAVBAR-CONTEXTUAL.md). Alterna la barra al modo global (Mi Reparto,
- * Saldo Clientes, etc.) sin salir de la página en la que estás.
+ * Saldo Proveedores, etc.) sin salir de la página en la que estás.
  */
 const FloatingNavbarHomeButton = ({ onClick }) => (
   <button

@@ -16,9 +16,9 @@ export const NAV_ITEMS = [
     Icon: IconTruck,
   },
   {
-    path: '/saldo-clientes',
-    label: 'Saldo Clientes',
-    desc: 'Calculá y guardá saldos de clientes',
+    path: '/saldo-proveedores',
+    label: 'Saldo Proveedores',
+    desc: 'Calculá y guardá saldos de proveedores',
     Icon: IconUsers,
   },
   {

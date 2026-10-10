@@ -270,7 +270,7 @@ const SaldoClientes = () => {
       }
 
       // Mostrar notificación de éxito
-      showSuccess('✓ Cliente actualizado exitosamente');
+      showSuccess('✓ Saldo actualizado exitosamente');
 
       // Actualizar el estado local para reflejar los cambios inmediatamente
       setSavedClientes(prev => prev.map(cliente => 
@@ -280,7 +280,7 @@ const SaldoClientes = () => {
       ));
     } catch (error) {
       console.error('❌ Error al actualizar cliente:', error);
-      showError('Error al actualizar el cliente: ' + error.message);
+      showError('Error al actualizar el saldo: ' + error.message);
     }
   };
 
@@ -413,11 +413,11 @@ const SaldoClientes = () => {
     if (clientName.trim() && summaryData) {
       try {
         await guardarEnFirebase();
-        showSuccess('✓ Cliente guardado exitosamente');
+        showSuccess('✓ Saldo guardado exitosamente');
         clearForm();
       } catch (error) {
         console.error('❌ Error al guardar cliente:', error);
-        showError('Error al guardar el cliente: ' + error.message);
+        showError('Error al guardar el saldo: ' + error.message);
       }
     }
   };
@@ -586,7 +586,7 @@ const SaldoClientes = () => {
   // Calcular saldo
   const calculateSaldo = () => {
     if (!clientName.trim()) {
-      showError('Por favor ingrese el nombre del cliente');
+      showError('Por favor ingrese el nombre del proveedor');
       return;
     }
 
@@ -783,7 +783,7 @@ const SaldoClientes = () => {
               {/* Título de sección */}
               <div style={{ marginBottom: '20px' }}>
                 <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  Datos del Cliente
+                  Datos del Proveedor
                 </span>
                 {isDragOver && (
                   <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(106,136,153,0.12)', borderRadius: '8px', fontSize: '0.8rem', color: '#3a5060', textAlign: 'center' }}>
@@ -795,7 +795,7 @@ const SaldoClientes = () => {
               {/* Campo nombre */}
               <div style={{ marginBottom: '20px' }}>
                 <label htmlFor="clientName" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
-                  Nombre del Cliente
+                  Proveedor
                 </label>
                 <input
                   type="text"
@@ -1212,7 +1212,7 @@ const SaldoClientes = () => {
                         <button
                           type="button"
                           onClick={() => importarBoletasDesdeGestion(cliente)}
-                          title="Importar boletas a Saldo Clientes"
+                          title="Importar boletas a Saldo Proveedores"
                           className="d-inline-flex align-items-center gap-1"
                           style={{ border: '1px solid #6A8899', borderRadius: '8px', padding: '5px 10px', background: 'transparent', color: '#3a5060', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
                         >
@@ -1231,10 +1231,10 @@ const SaldoClientes = () => {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 2px' }}>
               <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Clientes Guardados
+                Proveedores Guardados
               </span>
               <span style={{ fontSize: '0.72rem', color: '#6c757d' }}>
-                {getFilteredClientes().length} {getFilteredClientes().length === 1 ? 'cliente' : 'clientes'}
+                {getFilteredClientes().length} {getFilteredClientes().length === 1 ? 'proveedor' : 'proveedores'}
               </span>
             </div>
 
@@ -1307,7 +1307,7 @@ const SaldoClientes = () => {
                         <IconInbox size={28} />
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#6c757d', fontWeight: 500 }}>
-                        {savedClientes.length === 0 ? 'Sin clientes guardados' : `Sin clientes en ${getFilterLabel()}`}
+                        {savedClientes.length === 0 ? 'Sin proveedores guardados' : `Sin proveedores en ${getFilterLabel()}`}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: '#8a939c', marginTop: '3px' }}>
                         {savedClientes.length === 0 ? 'Calculá y guardá un saldo para verlo acá' : 'Cambiá el filtro para ver más'}
@@ -1370,7 +1370,7 @@ const SaldoClientes = () => {
                   Vincular mercadería
                 </div>
                 <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
-                  {clientName.trim() || 'Sin cliente'}
+                  {clientName.trim() || 'Sin proveedor'}
                 </div>
               </div>
               <button type="button" onClick={() => setShowMercaderiaModal(false)}

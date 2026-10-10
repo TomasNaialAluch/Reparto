@@ -157,7 +157,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
   };
 
   const handleSave = () => {
-    if (!formData.clientName.trim()) { alert('Ingrese el nombre del cliente'); return; }
+    if (!formData.clientName.trim()) { alert('Ingrese el nombre del proveedor'); return; }
     const boletasFiltradas        = formData.boletas.filter(b => b.date && b.amount);
     const ventasFiltradas         = showSections.ventas         ? formData.ventas.filter(v => v.date && v.amount) : [];
     const plataFiltrada           = showSections.plataFavor     ? formData.plataFavor.filter(p => p.amount) : [];
@@ -214,7 +214,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
         <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #dde2e6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
-              Editar cliente
+              Editar saldo
             </div>
             <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>
               {cliente?.nombreCliente}
@@ -231,7 +231,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
         <div style={{ overflowY: 'auto', padding: '20px 22px', flex: 1 }}>
 
           {/* Nombre */}
-          <ModalSection label="Datos del cliente">
+          <ModalSection label="Datos del proveedor">
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
               Nombre
             </label>
@@ -383,7 +383,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
             </div>
             <div style={{ paddingTop: '10px', borderTop: '1px solid #e9ecef', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', color: '#6c757d' }}>
-                {esAFavor ? `${formData.clientName || 'El cliente'} te debe` : finalBalance < 0 ? `Le debés a ${formData.clientName || 'el cliente'}` : 'Saldado'}
+                {esAFavor ? `${formData.clientName || 'El proveedor'} te debe` : finalBalance < 0 ? `Le debés a ${formData.clientName || 'el proveedor'}` : 'Saldado'}
               </span>
               <span style={{ fontWeight: 700, fontSize: '1rem', color: esAFavor ? '#28a745' : finalBalance < 0 ? '#dc3545' : '#6c757d',
                 background: esAFavor ? 'rgba(40,167,69,0.1)' : finalBalance < 0 ? 'rgba(220,53,69,0.1)' : '#e9ecef',
@@ -429,7 +429,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
             <div style={{ overflowY: 'auto', padding: '16px 20px', flex: 1 }}>
               {!formData.clientName.trim() ? (
                 <div style={{ background: 'rgba(255,193,7,0.12)', borderLeft: '3px solid #ffc107', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#856404' }}>
-                  Ingresá el nombre del cliente primero
+                  Ingresá el nombre del proveedor primero
                 </div>
               ) : obtenerBoletasMercaderia().length === 0 ? (
                 <div style={{ background: '#f8f9fa', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', color: '#6c757d' }}>

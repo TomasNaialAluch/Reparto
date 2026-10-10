@@ -8,7 +8,7 @@ import { parseCurrencyValue } from '../../utils/money';
  * 
  * NUEVA LÓGICA:
  * - Las vinculaciones se guardan SOLO cuando se crea/guarda un saldo cliente con boletas vinculadas
- * - El descuento solo aplica si las boletas seleccionadas en Pagos a Proveedores están vinculadas en Saldo Clientes
+ * - El descuento solo aplica si las boletas seleccionadas en Pagos a Proveedores están vinculadas en Saldo Proveedores
  * - No se arrastran valores de semanas anteriores o ya pagados
  */
 export const useSaldoProveedor = () => {
@@ -319,7 +319,7 @@ export const useSaldoProveedor = () => {
     vinculaciones,
     loading,
     
-    // Funciones para guardar vinculaciones (llamar desde Saldo Clientes)
+    // Funciones para guardar vinculaciones (llamar desde Saldo Proveedores)
     guardarVinculacionSaldoCliente,
     
     // Funciones para obtener información

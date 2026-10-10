@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 // Components
@@ -99,7 +99,9 @@ const AppContent = () => {
                 <MiReparto />
               </div>
             } />
-            <Route path="/saldo-clientes" element={
+            {/* Ruta anterior: se mantiene redirigiendo para no romper marcadores ni enlaces guardados */}
+            <Route path="/saldo-clientes" element={<Navigate to="/saldo-proveedores" replace />} />
+            <Route path="/saldo-proveedores" element={
               <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <SaldoClientes />
