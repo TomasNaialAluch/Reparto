@@ -211,6 +211,16 @@ Orden interno:
 
 **Listo cuando:** en la pestaña Mercadería cada proveedor tiene un solo bloque con sus entradas y su resumen de la semana.
 
+### Resultado (10/10/2026) — ✅ cerrada
+
+- **Entradas agrupadas por proveedor** (por `proveedorId`; las entradas sin id, por nombre normalizado). Cada grupo muestra proveedor, cantidad de entradas y días, kg, costo, costo promedio por kg y chips de los productos de la semana (los 4 principales + "+N más").
+- **Todos los grupos arrancan colapsados** (decisión del usuario); se abre el grupo al tocarlo y, al cargar mercadería, el del proveedor recién cargado. Los grupos con costo 0 se marcan "Sin precios".
+- **Controles:** filtro por día (solo días con mercadería), buscador de proveedor, orden (Mayor compra / A–Z / Último) y línea de totales de lo que se está viendo.
+- **Tarjetas de entrada** planas con acento izquierdo (amarillo si no tiene precios), sin repetir el nombre del proveedor; edición, expandir y borrar siguen funcionando por posición real.
+- **Modal "Proveedores"** NEWLOOK: buscador fijo, resumen por proveedor ("2 entradas esta semana · 95 kg"), archivar y alta inline.
+- **Pagos Proveedores:** agrupa por el nombre del contacto, así dos escrituras del mismo proveedor quedan en un solo grupo. El nombre propio de cada entrada no se tocó (lo usan descuentos y vínculos).
+- **No se tocó:** datos, ni la lógica de pagos ni de saldos.
+
 ---
 
 ## Fase 6 — Movimientos y ficha del contacto
@@ -289,7 +299,7 @@ Orden interno:
 | 2 Contacto + alta rápida | ✅ Hecha (10/10/2026) |
 | 3 `proveedorId` e ids estables | ✅ Hecha (10/10/2026) |
 | 4 Botón de selección en Saldo | ✅ Hecha (10/10/2026) |
-| 5 Mejoras de Gestión (UI) | Pendiente |
+| 5 Mejoras de Gestión (UI) | ✅ Hecha (10/10/2026) |
 | 6 Movimientos y ficha | Pendiente |
 | 7 Seguimiento de repartos | ⏸ En pausa (Mi Reparto fuera de alcance) |
 | 8 Rol cliente y unificación | Pendiente |
