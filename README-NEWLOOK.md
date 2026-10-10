@@ -697,8 +697,8 @@ En orden de impacto visual sugerido:
 7. ~~**Modal de impresión** (`PrintDocument`)~~ ✅ Hecho — mismo shell de modal, segmented control para ancho, indicadores de scroll como pills semitransparentes sticky.
 8. **Navbar** — rediseño mobile-first pendiente.
 9. ~~**Página Mi Reparto** (`MiReparto.jsx` + sidebar)~~ ✅ Hecho — íconos SVG, contraste, bloque gris unificado filtros+lista, títulos con día de semana, altura de lista alineada a Deudores. Ver sección 13.
-10. ~~**Página Saldo Clientes** (`SaldoClientes.jsx` + `ClienteDeudorCard` + `EditClienteModal`)~~ ✅ Hecho — alineación completa con GS/Mi Reparto: fondo tinte, bloque filtros+lista, sin "Todos", íconos SVG, cards flat, `.saldo-clientes-page`, altura de lista alineada a columna izquierda. Ver sección 14.
-11. ~~**Página Transferencias** (`Transferencias.jsx` + `TransferenciaCard` + `EditTransferenciaModal`)~~ ✅ Hecho — mismo paquete que Saldo Clientes: fondo tinte, bloque filtros+lista con `layoutId="transferencias-filter-indicator"`, filtros de fecha unificados, íconos SVG, cards flat, `.transferencias-page`, altura de lista con ancla de contenido izquierdo. Ver sección 15.
+10. ~~**Página Saldo Proveedores** (`SaldoClientes.jsx` + `ClienteDeudorCard` + `EditClienteModal`)~~ ✅ Hecho — alineación completa con GS/Mi Reparto: fondo tinte, bloque filtros+lista, sin "Todos", íconos SVG, cards flat, `.saldo-clientes-page`, altura de lista alineada a columna izquierda. Ver sección 14.
+11. ~~**Página Transferencias** (`Transferencias.jsx` + `TransferenciaCard` + `EditTransferenciaModal`)~~ ✅ Hecho — mismo paquete que Saldo Proveedores: fondo tinte, bloque filtros+lista con `layoutId="transferencias-filter-indicator"`, filtros de fecha unificados, íconos SVG, cards flat, `.transferencias-page`, altura de lista con ancla de contenido izquierdo. Ver sección 15.
 
 ---
 
@@ -768,7 +768,7 @@ El fondo de la ruta `/gestion-semanal` usa un tinte muy sutil del color primario
 <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
 ```
 
-> **Regla:** El fondo de página de Gestión Semanal **no** es blanco puro (`#FAFBFF`) sino `rgba(106,136,153,0.08)` — suficiente para dar temperatura fría sin competir con el contenido. Esto permite que el bloque de tabs/contenido destaque sobre el fondo. La misma regla aplica a **`/saldo-clientes`**, **`/transferencias`**, **`/mi-reparto`**, **`/reparto`** y **`/balance`** (ver secciones 13–15).
+> **Regla:** El fondo de página de Gestión Semanal **no** es blanco puro (`#FAFBFF`) sino `rgba(106,136,153,0.08)` — suficiente para dar temperatura fría sin competir con el contenido. Esto permite que el bloque de tabs/contenido destaque sobre el fondo. La misma regla aplica a **`/saldo-proveedores`**, **`/transferencias`**, **`/mi-reparto`**, **`/reparto`** y **`/balance`** (ver secciones 13–15).
 
 ---
 
@@ -863,7 +863,7 @@ El fondo blanco del tab activo no es el `background` del botón sino un `motion.
 
 El contenido del botón (ícono, label, badge) usa `position: relative; zIndex: 1` para quedar sobre el indicador.
 
-> **Regla:** El indicador de tab activo es siempre un `motion.div` con `layoutId`. **Nunca** cambiar el `background` del botón directamente para lograr este efecto — el `layoutId` es lo que produce la animación de deslizamiento fluida entre pestañas. En **Mi Reparto**: `layoutId="reparto-filter-indicator"`; **Saldo Clientes**: `saldo-filter-indicator`; **Transferencias**: `transferencias-filter-indicator` (ids distintos para no colisionar). Ver secciones 13–15.
+> **Regla:** El indicador de tab activo es siempre un `motion.div` con `layoutId`. **Nunca** cambiar el `background` del botón directamente para lograr este efecto — el `layoutId` es lo que produce la animación de deslizamiento fluida entre pestañas. En **Mi Reparto**: `layoutId="reparto-filter-indicator"`; **Saldo Proveedores**: `saldo-filter-indicator`; **Transferencias**: `transferencias-filter-indicator` (ids distintos para no colisionar). Ver secciones 13–15.
 
 ---
 
@@ -1120,7 +1120,7 @@ import { IconCheck, IconX, IconEdit, IconTrash, IconPlus } from './icons';
 
 Íconos disponibles: `IconPlus`, `IconX`, `IconCheck`, `IconEdit`, `IconTrash`, `IconCalendar`, `IconCash`, `IconMoney`, `IconBank`, `IconCheque`, `IconChart`, `IconClipboard`, `IconCreditCard`, `IconRefresh`, `IconWarning`, `IconPrinter`, `IconUsers`, `IconBox`, `IconSettings`, `IconChevronDown`, `IconLock`, `IconHistory`, `IconEye`, `IconFilter`, `IconArrowLeft`, `IconInfo`, `IconSave`, `IconTrophy`, `IconTrendDown`, `IconDownload`, `IconInbox`.
 
-> `IconUsers` … `IconInfo` se agregaron con **Balance Semanal** (sección 12). `IconSave`, `IconTrophy`, `IconTrendDown` con **Mi Reparto** (sección 13). `IconDownload`, `IconInbox` con **Saldo Clientes** (sección 14). Todos son de propósito general — reutilizar en futuras pantallas.
+> `IconUsers` … `IconInfo` se agregaron con **Balance Semanal** (sección 12). `IconSave`, `IconTrophy`, `IconTrendDown` con **Mi Reparto** (sección 13). `IconDownload`, `IconInbox` con **Saldo Proveedores** (sección 14). Todos son de propósito general — reutilizar en futuras pantallas.
 
 #### Mapa de reemplazo emoji → ícono
 
@@ -1349,7 +1349,7 @@ En mobile: `max-height: 50vh` en `.clientes-list-scroll` (scroll interno).
 
 ---
 
-### 14. Saldo Clientes — rediseño NEWLOOK (17/06/2026)
+### 14. Saldo Proveedores — rediseño NEWLOOK (17/06/2026)
 
 #### Contexto
 
@@ -1357,7 +1357,7 @@ En mobile: `max-height: 50vh` en `.clientes-list-scroll` (scroll interno).
 
 #### Fondo de página
 
-Ruta `/saldo-clientes` en `App.jsx`:
+Ruta `/saldo-proveedores` en `App.jsx`:
 
 ```jsx
 <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh' }}>
@@ -1395,7 +1395,7 @@ Migrados a `gestionSemanal/icons.jsx` en `SaldoClientes.jsx`, `ClienteDeudorCard
 - `clientesListRef` en `.clientes-list-scroll`.
 - `ResizeObserver` calcula `maxHeight` = borde inferior de la columna izquierda − tope de la lista.
 
-> **Regla:** En Saldo Clientes el ancla es el **contenido** del formulario/resumen (wrapper interno), no la columna Bootstrap estirada por flexbox — igual que en Transferencias (sección 15).
+> **Regla:** En Saldo Proveedores el ancla es el **contenido** del formulario/resumen (wrapper interno), no la columna Bootstrap estirada por flexbox — igual que en Transferencias (sección 15).
 
 ---
 
@@ -1403,7 +1403,7 @@ Migrados a `gestionSemanal/icons.jsx` en `SaldoClientes.jsx`, `ClienteDeudorCard
 
 #### Contexto
 
-`Transferencias.jsx` compartía el patrón legacy de Saldo Clientes: slider manual de filtros, FontAwesome, cards con sombra, fondo `#FAFBFF`, filtro `mes` mezclado con picker de mes, `default` devolviendo todo el histórico, y lista sin límite de altura en desktop.
+`Transferencias.jsx` compartía el patrón legacy de Saldo Proveedores: slider manual de filtros, FontAwesome, cards con sombra, fondo `#FAFBFF`, filtro `mes` mezclado con picker de mes, `default` devolviendo todo el histórico, y lista sin límite de altura en desktop.
 
 #### Fondo de página
 
@@ -1424,7 +1424,7 @@ Ruta `/transferencias` en `App.jsx`:
 
 `layoutId="transferencias-filter-indicator"`. Filtros: Hoy | Semana | Mes | Año | `IconCalendar` (`elegir_mes`). Default: `semana`.
 
-#### Filtros de fecha (alineados con Saldo Clientes)
+#### Filtros de fecha (alineados con Saldo Proveedores)
 
 - `semana` = semana calendario (domingo–sábado), no últimos 7 días.
 - `mes` = mes actual.

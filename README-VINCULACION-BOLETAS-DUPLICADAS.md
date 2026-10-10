@@ -17,7 +17,7 @@ hoy solo distingue:
    compara contra el array `boletas` del **formulario actual en memoria** — se resetea al guardar
    (`clearForm`), así que no recuerda nada entre un Saldo Cliente y el siguiente.
 2. **`estaPagada`**: viene de `pagosProveedoresEstado.boletasPagadas`, un flujo aparte (pestaña
-   Pagos a Proveedores), no relacionado con Saldo Clientes.
+   Pagos a Proveedores), no relacionado con Saldo Proveedores.
 
 **Nunca se consulta `clientBalances`** (los Saldos Cliente ya guardados en Firebase), que es donde
 en realidad queda registrado qué boleta se vinculó a qué Saldo. Esa es la fuente de verdad que

@@ -8,7 +8,7 @@ Tercer README de esta serie. Complementa a:
    con las 5 secciones de primer nivel, conviviendo con el FAB).
 
 Esto es el siguiente nivel: hoy la barra siempre muestra lo mismo (Mi Reparto,
-Saldo Clientes, Transferencias, Gestión Semanal, Facturación). La idea nueva es
+Saldo Proveedores, Transferencias, Gestión Semanal, Facturación). La idea nueva es
 que la barra **cambie de contenido según en qué sección estás**, para navegar
 rápido *dentro* de una sección sin perder la barra de navegación general.
 
@@ -32,7 +32,7 @@ A la izquierda de todo, siempre fijo (no cambia), un botón Home/Menú:
 - **Modo contextual (default en una página con tabs propios):** la barra
   muestra los tabs de esa sección (ej. Mercadería, Embutidos...).
 - **Tocás el botón Home/Menú:** la barra "vuelve" a mostrar la lista global
-  (Mi Reparto, Saldo Clientes, Transferencias, Gestión Semanal, Facturación)
+  (Mi Reparto, Saldo Proveedores, Transferencias, Gestión Semanal, Facturación)
   — sin salir de la página en la que estás.
 - **Tocás una sección global ahí:** navegás a esa página. Si esa página tiene
   su propio set contextual, la barra entra directo en modo contextual de esa
@@ -46,7 +46,7 @@ duplicar el espacio con dos barras.
 
 Por ahora **solo Gestión Semanal** tiene un set contextual definido (sus 6
 tabs ya existen en el código, no hay que inventarlos). El resto de las
-secciones (Mi Reparto, Saldo Clientes, Transferencias, Facturación) se quedan
+secciones (Mi Reparto, Saldo Proveedores, Transferencias, Facturación) se quedan
 mostrando la barra global tal cual está hoy, hasta que se decida qué iría en
 cada una. No hay que resolver eso ahora — el sistema tiene que soportar
 "esta ruta no tiene contextual, mostrar global" como caso normal, no como
@@ -164,7 +164,7 @@ el estado en el que quedó la barra en la página anterior.
    de que el paso está mal cortado.
 5. **No construir contextual para páginas que todavía no lo necesitan.**
    `NAV_CONTEXTUAL` empieza con una sola entrada (Gestión Semanal). No se arma
-   una entrada vacía o placeholder para Mi Reparto/Saldo Clientes/etc.
+   una entrada vacía o placeholder para Mi Reparto/Saldo Proveedores/etc.
    "por si después se decide algo" — eso es la abstracción prematura que ya
    evita el roadmap anterior. Cuando haya una decisión concreta para otra
    sección, se agrega una entrada más al mismo archivo.
@@ -210,7 +210,7 @@ el estado en el que quedó la barra en la página anterior.
 
 ## Fuera de alcance (todavía)
 
-- Qué contextual les correspondería a Mi Reparto, Saldo Clientes,
+- Qué contextual les correspondería a Mi Reparto, Saldo Proveedores,
   Transferencias o Facturación — no hay una propuesta concreta para esas
   todavía. El sistema soporta agregarlas después sin cambios estructurales:
   cada una es una entrada nueva en `navContextual.js` cuando se decida qué va

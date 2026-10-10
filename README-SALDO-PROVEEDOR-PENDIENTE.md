@@ -2,7 +2,7 @@
 
 ## Resumen
 
-El módulo `src/components/saldoProveedor/` maneja saldos a favor de proveedores y permite aplicar descuentos en Pagos a Proveedores. **La implementación fue completamente reescrita** para usar un sistema de vinculaciones explícitas entre Saldo Clientes y boletas de mercadería.
+El módulo `src/components/saldoProveedor/` maneja saldos a favor de proveedores y permite aplicar descuentos en Pagos a Proveedores. **La implementación fue completamente reescrita** para usar un sistema de vinculaciones explícitas entre Saldo Proveedores y boletas de mercadería.
 
 ## Archivos del módulo
 
@@ -13,11 +13,11 @@ El módulo `src/components/saldoProveedor/` maneja saldos a favor de proveedores
 ## Arquitectura Nueva
 
 ### Principio fundamental
-**El único lugar donde se vinculan Saldo Cliente ↔ Mercadería ↔ Pagos a Proveedores es en Saldo Clientes.**
+**El único lugar donde se vinculan Saldo Cliente ↔ Mercadería ↔ Pagos a Proveedores es en Saldo Proveedores.**
 
 ### Flujo de funcionamiento
 
-#### 1. En Saldo Clientes (`src/pages/SaldoClientes.jsx`)
+#### 1. En Saldo Proveedores (`src/pages/SaldoClientes.jsx`)
 - El usuario crea un saldo para un proveedor/cliente
 - Vincula boletas de mercadería usando el botón "📦 Vincular Boleta de Mercadería"
 - Las boletas vinculadas se guardan con `mercaderiaIndex` y `esDeMercaderia: true`
@@ -37,7 +37,7 @@ El módulo `src/components/saldoProveedor/` maneja saldos a favor de proveedores
 
 ✅ **No se arrastran valores de semanas anteriores** – El descuento solo existe si hay vinculación explícita  
 ✅ **No se descuenta dos veces** – Las vinculaciones son específicas por boletas  
-✅ **Fuente única de verdad** – Todo se guarda en Saldo Clientes  
+✅ **Fuente única de verdad** – Todo se guarda en Saldo Proveedores  
 ✅ **Trazabilidad completa** – Se sabe exactamente qué boletas están vinculadas a qué saldo
 
 ## Estructura de datos en Firebase
@@ -107,7 +107,7 @@ Cada documento contiene:
 
 - ✅ **Funcionalidad**: Implementada y funcionando
 - ✅ **Arquitectura**: Sistema de vinculaciones explícitas
-- ✅ **Integración**: Completa con Saldo Clientes y Pagos a Proveedores
+- ✅ **Integración**: Completa con Saldo Proveedores y Pagos a Proveedores
 - ✅ **Firebase**: Nueva colección `saldoProveedorVinculaciones` creada
 
 ## Notas técnicas

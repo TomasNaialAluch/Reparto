@@ -17,7 +17,7 @@ Mi Reparto es una aplicación web desarrollada en React para la gestión eficien
 - **Guardar repartos** para consulta posterior
 - **Imprimir listas** de repartos optimizadas
 
-### 💰 **Gestión de Saldos de Clientes**
+### 💰 **Saldo Proveedores**
 - **Calcular saldos** detallados por cliente
 - **Registrar boletas vendidas** con fechas
 - **Registrar ventas** y plata a favor
@@ -87,7 +87,7 @@ npm run preview
 - Panel de repartos guardados
 - Gráficos de reportes
 
-### **💰 Saldo Clientes**
+### **💰 Saldo Proveedores**
 - Formulario completo para calcular saldos
 - Secciones para boletas, ventas, pagos
 - Cálculo automático de saldo final

@@ -1,4 +1,4 @@
-# Auto-guardado al Imprimir en Saldo Clientes
+# Auto-guardado al Imprimir en Saldo Proveedores
 
 ## 🎯 Problema Resuelto
 

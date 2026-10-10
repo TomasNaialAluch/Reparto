@@ -16,7 +16,7 @@ El sistema de impresión fue completamente rediseñado usando un enfoque modular
 
 #### **Características de Impresión:**
 
-**Saldo Clientes:**
+**Saldo Proveedores:**
 - Resumen de cuenta con nombre del cliente
 - Boletas vendidas con fechas
 - Ventas, plata a favor, pagos detallados
@@ -277,7 +277,7 @@ Sistema unificado donde los clientes aparezcan consistentemente en todas las sec
 - ✅ Historial de repartos por cliente
 - ✅ Estados de pago históricos
 
-#### **Saldo Clientes:**
+#### **Saldo Proveedores:**
 - ✅ Información completa del cliente
 - ✅ Historial de transacciones
 - ✅ Alertas de límites de crédito
@@ -364,7 +364,7 @@ AI: "Te muestro el historial de repartos de ayer..."
 → Navega a Gestión Semanal → Balance
 
 "¿Quién me debe dinero?"
-→ Navega a Saldo Clientes → Filtra deudores
+→ Navega a Saldo Proveedores → Filtra deudores
 
 "Quiero imprimir los repartos de hoy"
 → Navega a Mi Reparto → Filtra hoy → Abre modal de impresión

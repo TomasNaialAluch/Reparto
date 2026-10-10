@@ -138,7 +138,7 @@ const pagos = obtenerPagosPorProveedor('Tito');
 // Retorna: Array de registros de pago
 ```
 
-## Ejemplo Completo: Saldo Clientes
+## Ejemplo Completo: Saldo Proveedores
 
 ```jsx
 import { usePagosProveedores } from '../contexts/PagosProveedoresContext';

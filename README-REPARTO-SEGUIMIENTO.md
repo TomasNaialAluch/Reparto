@@ -126,7 +126,7 @@ Una pestaña/sección nueva que junta los deudores de **todos los repartos guard
 - **Antigüedad de la deuda** en tramos: 0–7 días · 8–30 · más de 30, con total por tramo.
 - Total general adeudado arriba.
 - Filtros: por rango de fechas (segmented control, sin "Todos" por defecto, siguiendo la regla de NEWLOOK) y por cliente (buscador).
-- Acción por cliente: **Cobrar** (abre el mismo formulario) y **Pasar a Saldo Clientes** para reutilizar el cálculo de saldos que ya existe en [SaldoClientes.jsx](src/pages/SaldoClientes.jsx), en lugar de duplicarlo.
+- Acción por cliente: **Cobrar** (abre el mismo formulario) y **Pasar a Saldo Proveedores** para reutilizar el cálculo de saldos que ya existe en [SaldoClientes.jsx](src/pages/SaldoClientes.jsx), en lugar de duplicarlo.
 
 ---
 

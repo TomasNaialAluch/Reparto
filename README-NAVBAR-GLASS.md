@@ -42,7 +42,7 @@ Reusar/exportar `NAV_ITEMS` de `Home.jsx` (moverlo a algo como
 `FloatingNavbar.jsx`, sin duplicar la lista de secciones).
 
 Para la barra flotante conviene una versión "aplanada" (sin submenús anidados) con
-las secciones de primer nivel más usadas: Reparto, Saldo Clientes, Transferencias,
+las secciones de primer nivel más usadas: Reparto, Saldo Proveedores, Transferencias,
 Facturación, Gestión Semanal, y un botón "Más" que despliega el resto (Herramientas,
 Gestión, etc.) en un panel glass adicional.
 
