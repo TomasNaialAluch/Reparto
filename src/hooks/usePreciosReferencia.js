@@ -46,11 +46,37 @@ export const usePreciosReferencia = () => {
         });
       });
     }));
-    const resultado = { proveedorCorte: {}, corte: {} };
+    const resultado = { proveedorCorte: {}, corte: {}, usoProveedor: {}, usoGlobal: {} };
     Object.entries(porProveedorCorte).forEach(([k, v]) => { if (v.length >= 3) resultado.proveedorCorte[k] = mediana(v); });
     Object.entries(porCorte).forEach(([k, v]) => { if (v.length >= 5) resultado.corte[k] = mediana(v); });
+
+    // Cuántas veces se compró cada corte (con o sin precio): global y por proveedor.
+    semanas.forEach((s) => (s.mercaderia || []).forEach((e) => {
+      const claves = [];
+      if (e.proveedorId) claves.push(`id:${e.proveedorId}`);
+      claves.push(`n:${normalizarNombre(e.proveedor)}`);
+      (e.cortes || []).forEach((c) => {
+        const corte = normalizarNombre(c.corte);
+        if (!corte) return;
+        resultado.usoGlobal[corte] = (resultado.usoGlobal[corte] || 0) + 1;
+        claves.forEach((k) => {
+          const uso = (resultado.usoProveedor[k] = resultado.usoProveedor[k] || {});
+          uso[corte] = (uso[corte] || 0) + 1;
+        });
+      });
+    }));
     return resultado;
   }, [semanas]);
+
+  /** { corteNormalizado: veces } para ese proveedor, o null si nunca se le compró nada. */
+  const usoCortesDe = useCallback((proveedorId, proveedorNombre) => {
+    const porId = proveedorId ? tablas.usoProveedor[`id:${proveedorId}`] : null;
+    const porNombre = tablas.usoProveedor[`n:${normalizarNombre(proveedorNombre)}`];
+    if (!porId && !porNombre) return null;
+    const unido = { ...(porNombre || {}) };
+    Object.entries(porId || {}).forEach(([k, v]) => { unido[k] = Math.max(unido[k] || 0, v); });
+    return unido;
+  }, [tablas]);
 
   /** Precio habitual del corte para ese proveedor (o null si no hay datos suficientes). */
   const referenciaPara = useCallback((proveedorId, proveedorNombre, corte) => {
@@ -62,6 +88,6 @@ export const usePreciosReferencia = () => {
     return tablas.corte[c] || null;
   }, [tablas]);
 
-  return { referenciaPara };
+  return { referenciaPara, usoCortesDe, usoGlobalCortes: tablas.usoGlobal };
 };
 

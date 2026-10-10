@@ -371,7 +371,55 @@ export const styles = `
     .gs-corte-etiqueta { display: block; }
     .gs-cortes-lista.gs-cortes-edicion .gs-corte-quitar-celda { grid-column: 1 / -1; justify-self: end; }
   }
+
+  .gs-cortes-otros {
+    margin-top: 10px;
+    padding: 6px 0 2px;
+    font-size: 0.66rem;
+    font-weight: 600;
+    color: #6A8899;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-top: 2px solid #d3d9de;
+  }
+  .gs-cortes-mas {
+    margin-top: 10px;
+    width: 100%;
+    border: 1px dashed #b8c4cc;
+    background: transparent;
+    color: #6A8899;
+    border-radius: 12px;
+    padding: 8px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .gs-cortes-mas:hover { background: #f4f7f9; }
+
+  .gs-cortes-filtros {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #fff;
+    padding: 8px 0 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid #eef1f3;
+  }
+  .gs-cortes-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .gs-chip {
+    border: 1px solid #d3d9de;
+    background: #fff;
+    border-radius: 999px;
+    padding: 3px 12px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+  }
+  .gs-chip.activo { background: #6A8899; border-color: #6A8899; color: #fff; }
+  .gs-cortes-vacio { padding: 14px 0; text-align: center; color: #9ca3af; font-size: 0.85rem; }
 `;
+
 
 
 

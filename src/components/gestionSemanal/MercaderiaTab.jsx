@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { DIAS_SEMANA, CORTES_CARNE, getDiaActual } from './constants';
 import { useContactos } from '../../hooks/useContactos';
+import { useCortes } from '../../hooks/useCortes';
+import GestionCortesModal from './GestionCortesModal';
 import { normalizarNombre } from '../../utils/nombres';
 import { idBoleta } from '../../utils/boletas';
 import { BoletaTicket } from '../BoletaTicketModal';
@@ -50,7 +52,17 @@ export default function MercaderiaTab({
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [busquedaModalProv, setBusquedaModalProv] = useState('');
   // Control de precios: aviso cuando un precio por kg es mucho mayor al habitual
-  const { referenciaPara } = usePreciosReferencia();
+  const { referenciaPara, usoCortesDe, usoGlobalCortes } = usePreciosReferencia();
+  // Catálogo de cortes (persistente) y cuáles se muestran para el proveedor elegido
+  const {
+    cortes: catalogoCortes, activos: cortesActivos, categorias: categoriasCortes,
+    crearCorte, renombrarCorte, cambiarCategoria, archivarCorte, reactivarCorte,
+  } = useCortes();
+  const [showCortesModal, setShowCortesModal] = useState(false);
+  const [mostrarMasCortes, setMostrarMasCortes] = useState(false);
+  const [busquedaCorte, setBusquedaCorte] = useState('');
+  const [categoriaCorte, setCategoriaCorte] = useState('');
+  const buscarCorteInputRef = useRef(null);
   const [controlPrecios, setControlPrecios] = useState(null);
   const [preciosCorregidos, setPreciosCorregidos] = useState({});
   const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
@@ -114,21 +126,58 @@ export default function MercaderiaTab({
     };
   }, [showProveedoresModal]);
 
-  const ordenCortesPorUso = useMemo(() => {
+  // Al cambiar de proveedor se vuelve a mostrar sólo lo habitual.
+  useEffect(() => {
+    setMostrarMasCortes(false);
+    setBusquedaCorte('');
+  }, [formMercaderia.proveedorId, formMercaderia.proveedor]);
+
+  // Cortes del formulario: los que ese proveedor suele traer (historial completo) y los que ya
+  // tienen datos cargados. Sin historial se ofrecen los 9 base. El resto queda detrás de "Mostrar más".
+  const { cortesVisibles, cortesOcultos } = useMemo(() => {
     const proveedor = formMercaderia.proveedor?.trim();
-    const customCortes = Object.keys(formMercaderia.cortes).filter((c) => !CORTES_CARNE.includes(c));
-    const todos = [...CORTES_CARNE, ...customCortes];
-    if (!proveedor || !semanaActiva?.mercaderia?.length) return todos;
-    const entradasDelProveedor = semanaActiva.mercaderia.filter((e) => e.proveedor === proveedor);
-    const conteo = {};
-    entradasDelProveedor.forEach((entrada) => {
-      entrada.cortes?.forEach((c) => {
-        const n = c.corte ?? c;
-        conteo[n] = (conteo[n] ?? 0) + 1;
-      });
+    const uso = proveedor || formMercaderia.proveedorId
+      ? usoCortesDe(formMercaderia.proveedorId, proveedor)
+      : null;
+    const nombres = cortesActivos.length ? cortesActivos.map((c) => c.nombre) : [...CORTES_CARNE];
+    const conocidos = new Set(nombres.map(normalizarNombre));
+    Object.keys(formMercaderia.cortes).forEach((c) => {
+      if (!conocidos.has(normalizarNombre(c))) nombres.push(c);
     });
-    return [...todos].sort((a, b) => (conteo[b] ?? 0) - (conteo[a] ?? 0));
-  }, [formMercaderia.proveedor, formMercaderia.cortes, semanaActiva?.mercaderia]);
+    const base = new Set(CORTES_CARNE.map(normalizarNombre));
+    // "Habitual" = 3 o más compras (así no entran errores de tipeo ni compras únicas).
+    // Si con eso casi no queda nada (proveedor con poca historia), vale cualquier compra.
+    let umbral = 3;
+    if (uso && nombres.filter((n) => (uso[normalizarNombre(n)] || 0) >= umbral).length < 4) umbral = 1;
+    const visibles = [];
+    const ocultos = [];
+    nombres.forEach((n) => {
+      const k = normalizarNombre(n);
+      const habitual = uso ? (uso[k] || 0) >= umbral : base.has(k);
+      if (habitual || formMercaderia.cortes[n] !== undefined) visibles.push(n);
+      else ocultos.push(n);
+    });
+    const peso = (n) => (uso ? (uso[normalizarNombre(n)] || 0) : (usoGlobalCortes[normalizarNombre(n)] || 0));
+    visibles.sort((x, y) => peso(y) - peso(x));
+    ocultos.sort((x, y) => (usoGlobalCortes[normalizarNombre(y)] || 0) - (usoGlobalCortes[normalizarNombre(x)] || 0));
+    return { cortesVisibles: visibles, cortesOcultos: ocultos };
+  }, [formMercaderia.proveedor, formMercaderia.proveedorId, formMercaderia.cortes, cortesActivos, usoCortesDe, usoGlobalCortes]);
+
+  // Buscador y filtro por categoría: al filtrar se busca en TODO el catálogo (no sólo lo habitual).
+  // Los cortes con datos cargados siempre quedan a la vista.
+  const consultaCorte = normalizarNombre(busquedaCorte);
+  const filtrandoCortes = !!consultaCorte || !!categoriaCorte;
+
+  // Orden en pantalla (y para navegar con teclado)
+  const ordenCortesPorUso = useMemo(() => {
+    if (!filtrandoCortes) return mostrarMasCortes ? [...cortesVisibles, ...cortesOcultos] : cortesVisibles;
+    const categoriaDe = new Map(catalogoCortes.map((c) => [c.nombreNormalizado, c.categoria || '']));
+    return [...cortesVisibles, ...cortesOcultos].filter((n) => {
+      if (formMercaderia.cortes[n] !== undefined) return true;
+      const k = normalizarNombre(n);
+      return (!consultaCorte || k.includes(consultaCorte)) && (!categoriaCorte || categoriaDe.get(k) === categoriaCorte);
+    });
+  }, [filtrandoCortes, mostrarMasCortes, cortesVisibles, cortesOcultos, catalogoCortes, consultaCorte, categoriaCorte, formMercaderia.cortes]);
 
   // ----- Selector de proveedor -----
   const consultaProveedor = normalizarNombre(busquedaProveedor);
@@ -328,40 +377,38 @@ export default function MercaderiaTab({
     }));
   };
 
-  const agregarNuevoCorte = () => {
-    const corteTrimmed = nuevoCorte.trim();
+  const agregarNuevoCorte = async (nombreCrudo) => {
+    const corteTrimmed = String(typeof nombreCrudo === 'string' ? nombreCrudo : nuevoCorte).trim();
     if (!corteTrimmed) {
       addNotification('Ingrese un nombre para el nuevo corte', 'warning');
       return;
     }
 
-    if (formMercaderia.cortes[corteTrimmed]) {
-      addNotification('Este corte ya existe', 'warning');
-      return;
-    }
+    try {
+      // Queda en el catálogo: la próxima vez ya está disponible para cualquier proveedor.
+      const resultado = await crearCorte(corteTrimmed, categoriaCorte);
+      const nombre = resultado.nombre;
 
-    setFormMercaderia(prev => ({
-      ...prev,
-      cortes: {
-        ...prev.cortes,
-        [corteTrimmed]: { kg: '', precioKg: '' }
+      if (formMercaderia.cortes[nombre]) {
+        addNotification('Este corte ya está en el formulario', 'warning');
+        return;
       }
-    }));
 
-    setNuevoCorte('');
-    setMostrarInputNuevoCorte(false);
-    addNotification(`Corte "${corteTrimmed}" agregado`, 'success');
-  };
-
-  const eliminarCorteDelFormulario = (corte) => {
-    setFormMercaderia(prev => {
-      const nuevosCortes = { ...prev.cortes };
-      delete nuevosCortes[corte];
-      return {
+      setFormMercaderia(prev => ({
         ...prev,
-        cortes: nuevosCortes
-      };
-    });
+        cortes: {
+          ...prev.cortes,
+          [nombre]: { kg: '', precioKg: '' }
+        }
+      }));
+
+      setNuevoCorte('');
+      setBusquedaCorte('');
+      setMostrarInputNuevoCorte(false);
+      addNotification(resultado.creado ? `Corte "${nombre}" creado` : `Corte "${nombre}" agregado`, 'success');
+    } catch (err) {
+      addNotification('No se pudo guardar el corte', 'error');
+    }
   };
 
   const handleAgregarMercaderia = async (forzarSinPrecios = false, opciones = {}) => {
@@ -555,6 +602,12 @@ export default function MercaderiaTab({
 
     if (e.key === 'Enter') {
       if (nuevoCorteInputRef.current && target === nuevoCorteInputRef.current) return;
+      if (buscarCorteInputRef.current && target === buscarCorteInputRef.current) {
+        e.preventDefault();
+        const primero = corteInputRefs.current[0];
+        if (primero && primero[0]) primero[0].focus();
+        return;
+      }
       if (target === agregarEntradaBtnRef.current) return;
       if (target.tagName === 'BUTTON' && target !== agregarEntradaBtnRef.current) return;
       e.preventDefault();
@@ -720,16 +773,25 @@ export default function MercaderiaTab({
             </div>
 
             <div className="mb-3">
-              <div className="d-flex justify-content-between align-items-center mb-2">
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
                 <label className="form-label fw-bold mb-0">Cortes (kg y precio por kg):</label>
-                <button
-                  className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2"
-                  onClick={() => setMostrarInputNuevoCorte(!mostrarInputNuevoCorte)}
-                >
-                  {mostrarInputNuevoCorte
-                    ? <><IconX size={13} /> Cancelar</>
-                    : <><IconPlus size={13} /> Agregar Corte</>}
-                </button>
+                <div className="d-flex gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={() => setShowCortesModal(true)}
+                  >
+                    Gestionar cortes
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-2"
+                    onClick={() => setMostrarInputNuevoCorte(!mostrarInputNuevoCorte)}
+                  >
+                    {mostrarInputNuevoCorte
+                      ? <><IconX size={13} /> Cancelar</>
+                      : <><IconPlus size={13} /> Agregar Corte</>}
+                  </button>
+                </div>
               </div>
 
               {mostrarInputNuevoCorte && (
@@ -760,39 +822,75 @@ export default function MercaderiaTab({
                 </div>
               )}
 
+              <div className="gs-cortes-filtros">
+                <input
+                  ref={buscarCorteInputRef}
+                  type="search"
+                  className="form-control form-control-sm"
+                  placeholder={`Buscar corte entre ${cortesVisibles.length + cortesOcultos.length}…`}
+                  value={busquedaCorte}
+                  onChange={(e) => setBusquedaCorte(e.target.value)}
+                />
+                {categoriasCortes.length > 0 && (
+                  <div className="gs-cortes-chips">
+                    <button
+                      type="button"
+                      className={`gs-chip${categoriaCorte === '' ? ' activo' : ''}`}
+                      onClick={() => setCategoriaCorte('')}
+                    >
+                      Todos
+                    </button>
+                    {categoriasCortes.map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        className={`gs-chip${categoriaCorte === k ? ' activo' : ''}`}
+                        onClick={() => setCategoriaCorte(categoriaCorte === k ? '' : k)}
+                      >
+                        {k}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="gs-cortes-lista">
                 <div className="gs-cortes-head">
                   <span>Corte</span>
                   <span style={{ textAlign: 'right' }}>Kg</span>
                   <span style={{ textAlign: 'right' }}>$/Kg</span>
                 </div>
+                {filtrandoCortes && ordenCortesPorUso.length === 0 && (
+                  <div className="gs-cortes-vacio">
+                    Ningún corte coincide.
+                    {consultaCorte && !catalogoCortes.some((c) => c.nombreNormalizado === consultaCorte) && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-success"
+                          onClick={() => agregarNuevoCorte(busquedaCorte)}
+                        >
+                          + Crear corte "{busquedaCorte.trim()}"{categoriaCorte ? ` en ${categoriaCorte}` : ''}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {ordenCortesPorUso.map((corte, index) => {
-                  const esPersonalizado = !CORTES_CARNE.includes(corte);
                   if (!corteInputRefs.current[index]) corteInputRefs.current[index] = [null, null];
                   const precioActual = formMercaderia.cortes[corte]?.precioKg;
                   const refPrecio = referenciaSiAtipico(formMercaderia.proveedorId, formMercaderia.proveedor, corte, precioActual);
                   return (
+                    <Fragment key={corte}>
+                    {mostrarMasCortes && !filtrandoCortes && index === cortesVisibles.length && (
+                      <div className="gs-cortes-otros">Otros cortes</div>
+                    )}
                     <motion.div
-                      key={corte}
                       layout
                       transition={{ duration: 0.35, ease: 'easeInOut' }}
                       className="gs-corte-row"
                     >
                       <div className="gs-corte-nombre">
                         <span>{corte}</span>
-                        {esPersonalizado && (
-                          <span className="badge bg-success" style={{ fontSize: '0.58rem' }}>Personalizado</span>
-                        )}
-                        {esPersonalizado && (
-                          <button
-                            type="button"
-                            className="gs-corte-quitar"
-                            onClick={() => eliminarCorteDelFormulario(corte)}
-                            title="Eliminar corte"
-                          >
-                            <IconX size={13} />
-                          </button>
-                        )}
                       </div>
                       <div className="gs-corte-campo">
                         <label className="gs-corte-etiqueta">Kg</label>
@@ -843,8 +941,18 @@ export default function MercaderiaTab({
                         </div>
                       )}
                     </motion.div>
+                    </Fragment>
                   );
                 })}
+                {!filtrandoCortes && cortesOcultos.length > 0 && (
+                  <button
+                    type="button"
+                    className="gs-cortes-mas"
+                    onClick={() => setMostrarMasCortes((v) => !v)}
+                  >
+                    {mostrarMasCortes ? 'Ocultar otros cortes' : `Mostrar más cortes (${cortesOcultos.length})`}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1031,6 +1139,7 @@ export default function MercaderiaTab({
                                             value={corte.corte}
                                             onChange={(e) => updateCorte(i, 'corte', e.target.value)}
                                             placeholder="Nombre del corte"
+                                            list="gs-cortes-sugeridos"
                                           />
                                         </div>
                                         <div className="gs-corte-campo">
@@ -1355,6 +1464,23 @@ export default function MercaderiaTab({
         )}
       </div>
 
+      <datalist id="gs-cortes-sugeridos">
+        {cortesActivos.map((c) => <option key={c.id} value={c.nombre} />)}
+      </datalist>
+      <GestionCortesModal
+        isOpen={showCortesModal}
+        onClose={() => setShowCortesModal(false)}
+        cortes={catalogoCortes}
+        usoGlobal={usoGlobalCortes}
+        categorias={categoriasCortes}
+        crearCorte={crearCorte}
+        renombrarCorte={renombrarCorte}
+        cambiarCategoria={cambiarCategoria}
+        archivarCorte={archivarCorte}
+        reactivarCorte={reactivarCorte}
+        addNotification={addNotification}
+      />
+
       {showProveedoresModal && (() => {
         const q = normalizarNombre(busquedaModalProv);
         const resumenDe = (c) => {
@@ -1615,6 +1741,7 @@ export default function MercaderiaTab({
     </div>
   );
 }
+
 
 
 
