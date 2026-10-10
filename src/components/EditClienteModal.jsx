@@ -1,5 +1,7 @@
 import { esMismaBoleta } from '../utils/boletas';
 import { normalizarNombre } from '../utils/nombres';
+import SelectorContactoModal from './SelectorContactoModal';
+import { useContactos } from '../hooks/useContactos';
 import React, { useState, useEffect } from 'react';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString } from '../utils/date';
@@ -71,11 +73,15 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     efectivo: false, cheques: false, transferencias: false
   });
   const [showMercaderiaModal, setShowMercaderiaModal] = useState(false);
+  const [showSelectorContacto, setShowSelectorContacto] = useState(false);
+  const { contactos } = useContactos();
+  const contactoActual = formData.contactoId ? contactos.find((c) => c.id === formData.contactoId) : null;
 
   useEffect(() => {
     if (isOpen && cliente) {
       setFormData({
         clientName: cliente.nombreCliente || '',
+        contactoId: cliente.contactoId || null,
         boletas: cliente.boletas?.length > 0 ? cliente.boletas : [{ date: '', amount: '' }],
         ventas: cliente.ventas || [],
         plataFavor: cliente.plataFavor || [],
@@ -121,7 +127,8 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     return semanaActiva.mercaderia
       // El índice se toma ANTES de filtrar: tiene que ser la posición real de la entrada.
       .map((e, index) => ({ e, index }))
-      .filter(({ e }) => normalizarNombre(e.proveedor) === buscado)
+      .filter(({ e }) => (formData.contactoId && e.proveedorId === formData.contactoId)
+        || normalizarNombre(e.proveedor) === buscado)
       .map(({ e, index }) => ({
         id: `mercaderia-${e.id || index}`, index,
         entradaId: e.id || null,
@@ -184,6 +191,7 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
     const totalPagos = totalVentas + totalPlata + totalEfectivo + totalCheque + totalTransferencia;
     onSave(cliente.id, {
       clientName: formData.clientName.trim(),
+      contactoId: formData.contactoId || null,
       boletas: boletasFiltradas, ventas: ventasFiltradas, plataFavor: plataFiltrada,
       deudas: deudasFiltradas, efectivo: efectivoFiltrado, cheques: chequesFiltrados,
       transferencias: transferenciasFiltradas,
@@ -244,9 +252,32 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
               Nombre
             </label>
-            <input type="text" className="form-control" value={formData.clientName}
-              onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
-              style={{ borderRadius: '8px', fontSize: '0.9rem' }} required />
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <input type="text" className="form-control" value={formData.clientName}
+                onChange={(e) => setFormData(prev => ({ ...prev, clientName: e.target.value }))}
+                style={{ borderRadius: '8px', fontSize: '0.9rem', flex: '2 1 180px', minWidth: 0 }} required />
+              <button type="button" onClick={() => setShowSelectorContacto(true)}
+                style={{ flex: '1 1 130px', minWidth: 0, borderRadius: '8px', fontSize: '0.74rem', fontWeight: 600, border: '1px solid #ccd3d9', background: 'transparent', color: '#506878', padding: '6px 10px', cursor: 'pointer', lineHeight: 1.2 }}>
+                Seleccionar proveedor o cliente
+              </button>
+            </div>
+            {formData.contactoId && (
+              <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(106,136,153,0.12)', color: '#3a5060', borderRadius: '999px', padding: '3px 6px 3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>
+                Vinculado{contactoActual ? ` a ${contactoActual.nombre}` : ''}
+                <button type="button" onClick={() => setFormData(prev => ({ ...prev, contactoId: null }))}
+                  title="Quitar vínculo"
+                  style={{ border: 'none', background: 'rgba(106,136,153,0.18)', color: '#3a5060', width: '18px', height: '18px', borderRadius: '50%', lineHeight: 1, cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}>
+                  ×
+                </button>
+              </div>
+            )}
+            <SelectorContactoModal
+              isOpen={showSelectorContacto}
+              onClose={() => setShowSelectorContacto(false)}
+              consulta={formData.clientName}
+              rolPreferido="proveedor"
+              onSelect={(c) => setFormData(prev => ({ ...prev, contactoId: c.id, clientName: c.nombre }))}
+            />
           </ModalSection>
 
           {/* Deuda */}
@@ -487,4 +518,5 @@ const EditClienteModal = ({ isOpen, onClose, cliente, onSave }) => {
 };
 
 export default EditClienteModal;
+
 

@@ -328,6 +328,7 @@ export const useClientBalances = () => {
   const addClientBalance = async (clientData) => {
     return await addDocument({
       clientName: clientData.clientName,
+      contactoId: clientData.contactoId || null, // vínculo opcional al catálogo de contactos
       boletas: clientData.boletas || [], // Preserva campos adicionales como mercaderiaIndex y esDeMercaderia
       ventas: clientData.ventas || [],
       plataFavor: clientData.plataFavor || [],
@@ -1405,3 +1406,4 @@ export const useTablasPrecios = () => {
     eliminarTabla: deleteDocument,
   };
 };
+

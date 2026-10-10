@@ -1,4 +1,6 @@
 import { esMismaBoleta } from '../utils/boletas';
+import { normalizarNombre } from '../utils/nombres';
+import SelectorContactoModal from '../components/SelectorContactoModal';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useClientBalances, useGestionSemanal } from '../firebase/hooks';
@@ -13,7 +15,7 @@ import PrintDocument from '../components/PrintDocument';
 import NotificationContainer from '../components/NotificationContainer';
 import { formatCurrency, parseCurrencyValue, formatCurrencyNoSymbol } from '../utils/money';
 import { getLocalDateString, formatDateSafe } from '../utils/date';
-import { IconPrinter, IconCalendar, IconDownload, IconInbox, IconX } from '../components/gestionSemanal/icons';
+import { IconUsers, IconPrinter, IconCalendar, IconDownload, IconInbox, IconX } from '../components/gestionSemanal/icons';
 import CurrencyInput from '../components/CurrencyInput';
 
 const FILTER_OPTIONS = [
@@ -69,6 +71,9 @@ const AddBtn = ({ onClick, children }) => (
 const SaldoClientes = () => {
   const { user } = useFirebase();
   const [clientName, setClientName] = useState('');
+  // Contacto elegido con el botón (opcional). Si es null, el nombre es texto libre como siempre.
+  const [contactoVinculado, setContactoVinculado] = useState(null);
+  const [showSelectorContacto, setShowSelectorContacto] = useState(false);
   const [boletas, setBoletas] = useState([{ date: '', amount: '' }]);
   const [showVentas, setShowVentas] = useState(false);
   const [ventas, setVentas] = useState([]);
@@ -225,6 +230,7 @@ const SaldoClientes = () => {
       // Mapear datos del modal al formato de Firebase
       const dataWithTotals = {
         clientName: updatedData.clientName,
+        contactoId: updatedData.contactoId || null,
         boletas: updatedData.boletas || [],
         ventas: updatedData.ventas || [],
         plataFavor: updatedData.plataFavor || [],
@@ -315,6 +321,7 @@ const SaldoClientes = () => {
     const clienteData = {
       id: `cliente_${Date.now()}`,
       nombreCliente: clientName.trim(),
+      contactoId: contactoVinculado?.id || null,
       fecha: getLocalDateString(),
       boletas: boletas.filter(b => b.date && b.amount),
       ventas: showVentas ? ventas.filter(v => v.date && v.amount) : [],
@@ -336,6 +343,7 @@ const SaldoClientes = () => {
 
     const firebaseData = {
       clientName: clienteData.nombreCliente,
+      contactoId: clienteData.contactoId,
       boletas: clienteData.boletas,
       ventas: clienteData.ventas,
       plataFavor: plataFavorData,
@@ -392,6 +400,7 @@ const SaldoClientes = () => {
   // Limpiar formulario (usado al guardar y al imprimir con auto-guardado)
   const clearForm = () => {
     setClientName('');
+    setContactoVinculado(null);
     setBoletas([{ date: '', amount: '' }]);
     setShowVentas(false);
     setVentas([]);
@@ -489,7 +498,7 @@ const SaldoClientes = () => {
     if (!clientName.trim()) return [];
     
     // Usar el contexto para obtener boletas (incluye estado de pagada)
-    const boletasProveedor = obtenerBoletasPorProveedor(clientName.trim(), true);
+    const boletasProveedor = obtenerBoletasPorProveedor(clientName.trim(), true, contactoVinculado?.id || null);
     
     const boletasMapeadas = boletasProveedor.map((boleta) => ({
       id: `mercaderia-${boleta.entradaId || boleta.index}`,
@@ -654,7 +663,8 @@ const SaldoClientes = () => {
     const timer = setTimeout(() => {
       const nombreBuscado = clientName.trim().toLowerCase();
       const coincidentes = savedClientes
-        .filter(c => c.nombreCliente?.toLowerCase() === nombreBuscado)
+        .filter(c => (contactoVinculado?.id && c.contactoId === contactoVinculado.id)
+          || c.nombreCliente?.toLowerCase() === nombreBuscado)
         .sort((a, b) => {
           if (a.fecha > b.fecha) return -1;
           if (a.fecha < b.fecha) return 1;
@@ -674,7 +684,7 @@ const SaldoClientes = () => {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [clientName, savedClientes, saldoPrevioDismissed]);
+  }, [clientName, savedClientes, saldoPrevioDismissed, contactoVinculado]);
 
   useEffect(() => {
     if (balances && balances.length > 0) {
@@ -693,6 +703,7 @@ const SaldoClientes = () => {
         return {
           id: balance.id,
           nombreCliente: balance.clientName,
+          contactoId: balance.contactoId || null,
           fecha: balance.date,
           boletas: balance.boletas || [],
           ventas: balance.ventas || [],
@@ -764,6 +775,17 @@ const SaldoClientes = () => {
 
   return (
     <div className="container mt-4 printable saldo-clientes-page">
+      <SelectorContactoModal
+        isOpen={showSelectorContacto}
+        onClose={() => setShowSelectorContacto(false)}
+        consulta={clientName}
+        rolPreferido="proveedor"
+        onSelect={(contacto) => {
+          setContactoVinculado(contacto);
+          setClientName(contacto.nombre);
+          setSaldoPrevioDismissed('');
+        }}
+      />
       <div className="row align-items-stretch">
         {/* Formulario Principal - Izquierda */}
         <div className="col-lg-7 col-md-12 saldo-main-col">
@@ -800,16 +822,55 @@ const SaldoClientes = () => {
                 <label htmlFor="clientName" style={{ fontSize: '0.75rem', fontWeight: 600, color: '#6c757d', display: 'block', marginBottom: '5px' }}>
                   Proveedor
                 </label>
-                <input
-                  type="text"
-                  id="clientName"
-                  className="form-control"
-                  placeholder="Ingrese nombre"
-                  value={clientName}
-                  onChange={(e) => { setClientName(e.target.value); setSaldoPrevioDismissed(''); }}
-                  required
-                  style={{ borderRadius: '8px', fontSize: '0.95rem' }}
-                />
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'stretch' }}>
+                  <input
+                    type="text"
+                    id="clientName"
+                    className="form-control"
+                    placeholder="Ingrese nombre"
+                    value={clientName}
+                    onChange={(e) => {
+                      const nuevo = e.target.value;
+                      setClientName(nuevo);
+                      setSaldoPrevioDismissed('');
+                      // Si se retoca el texto y ya no es el contacto elegido, se desvincula.
+                      if (contactoVinculado) {
+                        const clave = normalizarNombre(nuevo);
+                        const sigue = clave === normalizarNombre(contactoVinculado.nombre)
+                          || (contactoVinculado.alias || []).some((a) => normalizarNombre(a) === clave);
+                        if (!sigue) setContactoVinculado(null);
+                      }
+                    }}
+                    required
+                    style={{ borderRadius: '8px', fontSize: '0.95rem', flex: '2 1 0', minWidth: '160px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSelectorContacto(true)}
+                    style={{
+                      flex: '1 1 0', minWidth: '130px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 600,
+                      border: '1px solid #ccd3d9', background: 'transparent', color: '#506878',
+                      padding: '6px 10px', cursor: 'pointer', lineHeight: 1.2,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    }}
+                    title="Elegir un proveedor o cliente ya cargado (opcional)"
+                  >
+                    <IconUsers size={14} /> Seleccionar proveedor o cliente
+                  </button>
+                </div>
+                {contactoVinculado && (
+                  <div style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(106,136,153,0.12)', color: '#3a5060', borderRadius: '999px', padding: '3px 6px 3px 10px', fontSize: '0.72rem', fontWeight: 600 }}>
+                    Vinculado a {contactoVinculado.nombre}
+                    <button
+                      type="button"
+                      onClick={() => setContactoVinculado(null)}
+                      title="Quitar vínculo (el nombre queda como texto libre)"
+                      style={{ border: 'none', background: 'rgba(106,136,153,0.18)', color: '#3a5060', width: '18px', height: '18px', borderRadius: '50%', lineHeight: 1, cursor: 'pointer', fontSize: '0.8rem', padding: 0 }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Banner saldo previo */}
@@ -1474,4 +1535,5 @@ const SaldoClientes = () => {
 };
 
 export default SaldoClientes;
+
 

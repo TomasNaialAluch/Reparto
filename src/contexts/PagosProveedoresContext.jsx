@@ -81,6 +81,7 @@ export const PagosProveedoresProvider = ({ children }) => {
         semanaId: semanaActiva?.id || null,
         dia: entrada.dia,
         proveedor: entrada.proveedor,
+        proveedorId: entrada.proveedorId || null,
         costoTotal,
         cortes: entrada.cortes,
         timestamp: entrada.timestamp || new Date().toISOString(),
@@ -95,14 +96,18 @@ export const PagosProveedoresProvider = ({ children }) => {
    * @param {boolean} incluirPagadas - Si incluir o no las boletas pagadas (default: true)
    * @returns {Array} - Array de boletas filtradas por proveedor
    */
-  const obtenerBoletasPorProveedor = (nombreProveedor, incluirPagadas = true) => {
-    if (!nombreProveedor) return [];
+  const obtenerBoletasPorProveedor = (nombreProveedor, incluirPagadas = true, contactoId = null) => {
+    if (!nombreProveedor && !contactoId) return [];
     
     const todasLasBoletas = obtenerBoletas;
     
     return todasLasBoletas.filter(boleta => {
-      const coincideProveedor = boleta.proveedor.trim().toLowerCase() === 
+      // Con contacto elegido se compara por id (exacto, no depende de cómo se escribió);
+      // sin contacto se mantiene la coincidencia por texto de siempre.
+      const coincidePorId = !!contactoId && boleta.proveedorId === contactoId;
+      const coincidePorNombre = !!nombreProveedor && boleta.proveedor.trim().toLowerCase() ===
                                 nombreProveedor.trim().toLowerCase();
+      const coincideProveedor = coincidePorId || coincidePorNombre;
       
       if (!incluirPagadas) {
         return coincideProveedor && !boleta.estaPagada;
@@ -226,4 +231,5 @@ export const PagosProveedoresProvider = ({ children }) => {
 };
 
 export default PagosProveedoresContext;
+
 
