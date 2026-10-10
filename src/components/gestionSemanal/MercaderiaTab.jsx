@@ -39,6 +39,12 @@ export default function MercaderiaTab({
   } = useContactos();
   const proveedores = useMemo(() => contactosProveedor.map((c) => c.nombre), [contactosProveedor]);
   const [busquedaProveedor, setBusquedaProveedor] = useState('');
+  // Lista de entradas agrupada por proveedor (arranca todo colapsado)
+  const [filtroDiaEntradas, setFiltroDiaEntradas] = useState('todos');
+  const [busquedaGrupo, setBusquedaGrupo] = useState('');
+  const [ordenGrupos, setOrdenGrupos] = useState('compra');
+  const [gruposAbiertos, setGruposAbiertos] = useState({});
+  const [busquedaModalProv, setBusquedaModalProv] = useState('');
   const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
   const [showProveedoresModal, setShowProveedoresModal] = useState(false);
   const [dropdownProveedorOpen, setDropdownProveedorOpen] = useState(false);
@@ -344,6 +350,11 @@ export default function MercaderiaTab({
         cortes: {}
       });
       setBusquedaProveedor('');
+      // Dejar a la vista el grupo donde quedó la entrada recién cargada.
+      setGruposAbiertos((prev) => ({
+        ...prev,
+        [formMercaderia.proveedorId || `n:${normalizarNombre(proveedor)}`]: true,
+      }));
 
       addNotification('Mercadería agregada', 'success');
     } catch (err) {
@@ -767,53 +778,62 @@ export default function MercaderiaTab({
             {!semanaActiva?.mercaderia || semanaActiva.mercaderia.length === 0 ? (
               <p className="text-muted text-center">No hay entradas registradas</p>
             ) : (
-              <div className="row">
-                {semanaActiva.mercaderia.map((entrada, index) => {
+            (() => {
+              const renderEntrada = (entrada, index) => {
                   const totalKilos = entrada.cortes.reduce((sum, corte) => sum + corte.kg, 0);
                   const costoTotal = entrada.cortes.reduce((sum, corte) => sum + (corte.kg * (corte.precioKg || 0)), 0);
                   const costoPromedioKg = totalKilos > 0 ? costoTotal / totalKilos : 0;
                   const isExpanded = expandedMercaderia[index];
                   
                   return (
-                    <div key={index} className={`mb-3 card-transition ${editingMercaderia === index ? 'col-12 card-expand' : 'col-lg-4 col-md-6 col-sm-6'}`}>
-                      <div 
-                        className={`card border-primary h-100 ${editingMercaderia !== index ? 'smooth-hover' : ''}`}
-                        style={{ cursor: editingMercaderia === index ? 'default' : 'pointer' }}
+                    <div key={index} className={`mb-3 card-transition ${editingMercaderia === index ? 'col-12 card-expand' : 'col-12 col-sm-6'}`}>
+                      <div
+                        className="card h-100"
+                        style={{
+                          cursor: editingMercaderia === index ? 'default' : 'pointer',
+                          border: '1px solid #d3d9de',
+                          borderLeft: `3px solid ${costoTotal > 0 ? '#6A8899' : '#FFD166'}`,
+                          borderRadius: '12px',
+                          boxShadow: 'none',
+                          background: '#fff',
+                        }}
                         onClick={() => editingMercaderia === index ? null : toggleExpandedMercaderia(index)}
                       >
                         {!isExpanded ? (
-                          <div className="card-body p-2 text-center">
-                            <div className="d-flex justify-content-between align-items-center mb-2">
-                              <h6 className="mb-0">
-                                <span className="badge bg-primary">{entrada.dia}</span>
-                                {' '}
-                                <strong>{entrada.proveedor}</strong>
-                              </h6>
-                              <button 
-                                className="btn btn-sm btn-danger d-inline-flex align-items-center"
+                          <div className="card-body p-2">
+                            <div className="d-flex justify-content-between align-items-center mb-1">
+                              <span style={{ background: 'rgba(106,136,153,0.12)', color: '#3a5060', fontWeight: 600, fontSize: '0.72rem', padding: '2px 9px', borderRadius: '999px' }}>
+                                {entrada.dia}
+                              </span>
+                              <button
+                                type="button"
+                                title="Eliminar entrada"
+                                style={{ border: 'none', background: 'transparent', color: '#dc3545', cursor: 'pointer', padding: '2px', display: 'flex', lineHeight: 1 }}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   eliminarMercaderia(index);
                                 }}
                               >
-                                <IconX size={13} />
+                                <IconX size={14} />
                               </button>
                             </div>
-                            <h5 className="text-primary mb-1">
-                              <strong>{Math.round(totalKilos)} kg</strong>
-                            </h5>
-                            {costoTotal > 0 && (
-                              <h6 className="text-success mb-1" style={{ fontSize: '0.9rem' }}>
-                                <strong>{formatCurrency(costoTotal)}</strong>
+                            <div style={{ fontWeight: 700, fontSize: '1.15rem', color: '#3a5060', lineHeight: 1.2 }}>
+                              {Math.round(totalKilos)} kg
+                            </div>
+                            {costoTotal > 0 ? (
+                              <div style={{ fontSize: '0.8rem', color: '#1a5c2a', fontWeight: 600 }}>
+                                {formatCurrency(costoTotal)}
                                 {costoPromedioKg > 0 && (
-                                  <span className="text-muted fw-normal ms-1" style={{ fontSize: '0.85rem' }}>
+                                  <span style={{ color: '#6c757d', fontWeight: 400, marginLeft: '4px', fontSize: '0.74rem' }}>
                                     ({formatCurrency(costoPromedioKg)}/kg)
                                   </span>
                                 )}
-                              </h6>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '0.74rem', color: '#7a5000' }}>Sin precios</div>
                             )}
-                            <small className="text-muted">
-                              {entrada.cortes.length} tipos de corte
+                            <small style={{ color: '#9ca3af' }}>
+                              {entrada.cortes.length} {entrada.cortes.length === 1 ? 'corte' : 'cortes'}
                             </small>
                           </div>
                         ) : (
@@ -1042,8 +1062,182 @@ export default function MercaderiaTab({
                       </div>
                     </div>
                   );
-                })}
-              </div>
+              };
+
+              const mercaderia = semanaActiva.mercaderia;
+              const claveDe = (e) => e.proveedorId || `n:${normalizarNombre(e.proveedor)}`;
+              const nombreDeContacto = (id) => (contactos.find((c) => c.id === id) || {}).nombre;
+              const kgDe = (e) => (e.cortes || []).reduce((s, c) => s + (c.kg || 0), 0);
+              const costoDe = (e) => (e.cortes || []).reduce((s, c) => s + (c.kg || 0) * (c.precioKg || 0), 0);
+
+              // Días que realmente tienen mercadería (para el filtro)
+              const diasPresentes = DIAS_SEMANA.filter((d) => mercaderia.some((e) => e.dia === d));
+
+              // 1) Agrupar por proveedor conservando el índice REAL de cada entrada
+              //    (editar, borrar y expandir trabajan por índice).
+              const mapa = new Map();
+              mercaderia.forEach((entrada, index) => {
+                if (filtroDiaEntradas !== 'todos' && entrada.dia !== filtroDiaEntradas) return;
+                const clave = claveDe(entrada);
+                if (!mapa.has(clave)) {
+                  mapa.set(clave, {
+                    clave,
+                    nombre: nombreDeContacto(entrada.proveedorId) || entrada.proveedor,
+                    entradas: [],
+                    ultimo: '',
+                  });
+                }
+                const g = mapa.get(clave);
+                g.entradas.push({ entrada, index });
+                if ((entrada.timestamp || '') > g.ultimo) g.ultimo = entrada.timestamp || '';
+              });
+
+              // 2) Totales y resumen de productos por grupo
+              let grupos = [...mapa.values()].map((g) => {
+                const porCorte = {};
+                const dias = [];
+                let kg = 0;
+                let costo = 0;
+                g.entradas.forEach(({ entrada }) => {
+                  kg += kgDe(entrada);
+                  costo += costoDe(entrada);
+                  if (!dias.includes(entrada.dia)) dias.push(entrada.dia);
+                  (entrada.cortes || []).forEach((c) => {
+                    porCorte[c.corte] = (porCorte[c.corte] || 0) + (c.kg || 0);
+                  });
+                });
+                const productos = Object.entries(porCorte).sort((a, b) => b[1] - a[1]);
+                return { ...g, kg, costo, promedio: kg > 0 ? costo / kg : 0, productos, dias };
+              });
+
+              const q = normalizarNombre(busquedaGrupo);
+              if (q) grupos = grupos.filter((g) => normalizarNombre(g.nombre).includes(q));
+
+              if (ordenGrupos === 'az') grupos.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+              else if (ordenGrupos === 'ultimo') grupos.sort((a, b) => (b.ultimo || '').localeCompare(a.ultimo || ''));
+              else grupos.sort((a, b) => b.costo - a.costo || b.kg - a.kg);
+
+              const totalKgSemana = grupos.reduce((s, g) => s + g.kg, 0);
+              const totalCostoSemana = grupos.reduce((s, g) => s + g.costo, 0);
+              const totalEntradas = grupos.reduce((s, g) => s + g.entradas.length, 0);
+
+              // Todos los grupos arrancan colapsados; se abre solo el que se elige (o el recién cargado).
+              const estaAbierto = (clave) => gruposAbiertos[clave] === true;
+
+              const seg = (activo) => ({
+                flex: '0 0 auto', border: 'none', borderRadius: '8px', padding: '5px 10px', whiteSpace: 'nowrap',
+                fontSize: '0.74rem', fontWeight: activo ? 600 : 400, cursor: 'pointer',
+                background: activo ? '#fff' : 'transparent',
+                boxShadow: activo ? '0 1px 3px rgba(0,0,0,0.12)' : 'none',
+                color: activo ? '#212529' : '#6c757d',
+              });
+
+              return (
+                <div>
+                  {/* Controles: filtro por día, orden y buscador */}
+                  <div style={{ marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px', overflowX: 'auto' }}>
+                      {['todos', ...diasPresentes].map((d) => (
+                        <button key={d} type="button" onClick={() => setFiltroDiaEntradas(d)} style={seg(filtroDiaEntradas === d)}>
+                          {d === 'todos' ? 'Todos los días' : d}
+                        </button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <input
+                        type="text"
+                        value={busquedaGrupo}
+                        onChange={(e) => setBusquedaGrupo(e.target.value)}
+                        placeholder="Buscar proveedor…"
+                        style={{ flex: '1 1 160px', minWidth: 0, border: '1px solid #ced4da', borderRadius: '8px', padding: '6px 10px', fontSize: '0.82rem', outline: 'none' }}
+                      />
+                      <div style={{ display: 'flex', background: '#e9ecef', borderRadius: '10px', padding: '3px', gap: '2px' }}>
+                        {[['compra', 'Mayor compra'], ['az', 'A–Z'], ['ultimo', 'Último']].map(([k, label]) => (
+                          <button key={k} type="button" onClick={() => setOrdenGrupos(k)} style={seg(ordenGrupos === k)}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: '#6c757d' }}>
+                      {grupos.length} {grupos.length === 1 ? 'proveedor' : 'proveedores'} · {totalEntradas} {totalEntradas === 1 ? 'entrada' : 'entradas'} · <strong style={{ color: '#3a5060' }}>{Math.round(totalKgSemana)} kg</strong>
+                      {totalCostoSemana > 0 && <> · <strong style={{ color: '#1a5c2a' }}>{formatCurrency(totalCostoSemana)}</strong></>}
+                    </div>
+                  </div>
+
+                  {grupos.length === 0 && (
+                    <p className="text-muted text-center mb-0">No hay entradas para ese filtro.</p>
+                  )}
+
+                  {grupos.map((g) => {
+                    const abierto = estaAbierto(g.clave);
+                    const sinPrecios = g.costo === 0;
+                    const visibles = g.productos.slice(0, 4);
+                    const resto = g.productos.length - visibles.length;
+                    return (
+                      <div
+                        key={g.clave}
+                        style={{
+                          background: '#fff', border: '1px solid #d3d9de', borderLeft: `3px solid ${sinPrecios ? '#FFD166' : '#6A8899'}`,
+                          borderRadius: '12px', marginBottom: '10px', overflow: 'hidden',
+                        }}
+                      >
+                        {/* Encabezado del grupo (siempre visible) */}
+                        <div
+                          onClick={() => setGruposAbiertos((prev) => ({ ...prev, [g.clave]: !abierto }))}
+                          style={{ padding: '10px 12px', cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#212529' }}>{g.nombre}</span>
+                              <span style={{ marginLeft: '8px', fontSize: '0.72rem', color: '#6c757d' }}>
+                                {g.entradas.length} {g.entradas.length === 1 ? 'entrada' : 'entradas'} · {g.dias.join(', ')}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#3a5060' }}>{Math.round(g.kg)} kg</span>
+                              <span style={{ display: 'inline-flex', color: '#9ca3af', transform: abierto ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                              </span>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '6px' }}>
+                            {g.costo > 0 ? (
+                              <span style={{ background: 'rgba(40,167,69,0.1)', color: '#1a5c2a', fontWeight: 700, fontSize: '0.74rem', padding: '2px 9px', borderRadius: '999px' }}>
+                                {formatCurrency(g.costo)}
+                                <span style={{ fontWeight: 400, marginLeft: '4px' }}>({formatCurrency(g.promedio)}/kg)</span>
+                              </span>
+                            ) : (
+                              <span style={{ background: 'rgba(255,209,102,0.2)', color: '#7a5000', fontWeight: 600, fontSize: '0.72rem', padding: '2px 9px', borderRadius: '999px' }}>
+                                Sin precios
+                              </span>
+                            )}
+                            {visibles.map(([corte, kg]) => (
+                              <span key={corte} style={{ background: 'rgba(106,136,153,0.1)', color: '#3a5060', fontSize: '0.7rem', padding: '2px 8px', borderRadius: '999px' }}>
+                                {corte} · {Math.round(kg)} kg
+                              </span>
+                            ))}
+                            {resto > 0 && (
+                              <span style={{ fontSize: '0.7rem', color: '#6c757d' }}>+{resto} más</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Entradas del proveedor */}
+                        <div style={{ maxHeight: abierto ? '4000px' : '0px', overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(.4,0,.2,1)' }}>
+                          <div style={{ padding: '4px 12px 4px', borderTop: '1px solid #dde2e6' }}>
+                            <div className="row" style={{ paddingTop: '10px' }}>
+                              {g.entradas.map(({ entrada, index }) => renderEntrada(entrada, index))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
             )}
           </div>
         </div>
@@ -1079,99 +1273,142 @@ export default function MercaderiaTab({
         )}
       </div>
 
-      {showProveedoresModal && (
-        <div
-          className="modal show d-block"
-          tabIndex={-1}
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setShowProveedoresModal(false)}
-        >
-          <div
-            className="modal-dialog modal-dialog-centered modal-dialog-scrollable"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Gestionar proveedores</h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  aria-label="Cerrar"
-                  onClick={() => setShowProveedoresModal(false)}
-                />
-              </div>
-              <div className="modal-body">
-                <p className="text-muted small mb-3">
-                  Agregá o archivá proveedores. Los archivados ya no aparecen al cargar mercadería, pero conservan su historial.
-                </p>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Agregar proveedor</label>
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Nombre del proveedor"
-                      value={nuevoProveedorInput}
-                      onChange={(e) => setNuevoProveedorInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && agregarProveedor()}
-                    />
-                    <button type="button" className="btn btn-primary" onClick={agregarProveedor}>
-                      Agregar
-                    </button>
+      {showProveedoresModal && (() => {
+        const q = normalizarNombre(busquedaModalProv);
+        const resumenDe = (c) => {
+          const entradas = (semanaActiva?.mercaderia || []).filter(
+            (e) => e.proveedorId === c.id || normalizarNombre(e.proveedor) === c.nombreNormalizado
+          );
+          const kg = entradas.reduce((s, e) => s + (e.cortes || []).reduce((a, x) => a + (x.kg || 0), 0), 0);
+          return { n: entradas.length, kg };
+        };
+        const lista = contactosProveedor.filter((c) => !q
+          || normalizarNombre(c.nombre).includes(q)
+          || (c.alias || []).some((a) => normalizarNombre(a).includes(q)));
+        const existente = q ? buscarExacto(busquedaModalProv) : null;
+
+        return (
+          <>
+            <div
+              onClick={() => setShowProveedoresModal(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }}
+            />
+            <div style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              width: 'min(520px, 95vw)', maxHeight: '88vh', background: '#fff', borderRadius: '16px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.18)', zIndex: 1051, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}>
+              {/* Header */}
+              <div style={{ padding: '18px 22px 12px', borderBottom: '1px solid #dde2e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
+                    Gestión
                   </div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>Proveedores</div>
                 </div>
-                <div className="mb-3">
-                  <label className="form-label fw-bold">Lista actual</label>
-                  <p className="text-muted small mb-2">Hacé clic en un nombre para elegirlo e ingresar mercadería.</p>
-                  {contactosProveedor.length === 0 ? (
-                    <p className="text-muted small mb-0">No hay proveedores. Agregá uno arriba.</p>
-                  ) : (
-                    <ul className="list-group list-group-flush">
-                      {contactosProveedor.map((c) => (
-                        <li
-                          key={c.id}
-                          className="list-group-item d-flex justify-content-between align-items-center px-0"
-                        >
-                          <button
-                            type="button"
-                            className="btn btn-link text-dark text-decoration-none p-0 text-start flex-grow-1"
-                            onClick={() => {
-                              seleccionarProveedor(c);
-                              setShowProveedoresModal(false);
-                            }}
-                          >
-                            {c.nombre}
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger ms-2"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              eliminarProveedor(c);
-                            }}
-                            title="Archivar proveedor (conserva su historial)"
-                          >
-                            Archivar
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-              <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-primary"
                   onClick={() => setShowProveedoresModal(false)}
+                  aria-label="Cerrar"
+                  style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6c757d' }}
                 >
-                  Cerrar
+                  <IconX size={14} />
                 </button>
               </div>
+
+              {/* Buscador (fijo) */}
+              <div style={{ padding: '12px 22px', borderBottom: '1px solid #dde2e6' }}>
+                <input
+                  type="text"
+                  autoFocus
+                  value={busquedaModalProv}
+                  onChange={(e) => setBusquedaModalProv(e.target.value)}
+                  placeholder={`Buscar entre ${contactosProveedor.length} proveedores…`}
+                  style={{ width: '100%', border: '1px solid #ced4da', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', outline: 'none' }}
+                />
+              </div>
+
+              {/* Lista */}
+              <div style={{ overflowY: 'auto', flex: 1, minHeight: '120px' }}>
+                {lista.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>
+                    {q ? `Sin resultados para "${busquedaModalProv.trim()}".` : 'No hay proveedores. Agregá uno abajo.'}
+                  </div>
+                ) : (
+                  lista.map((c) => {
+                    const r = resumenDe(c);
+                    return (
+                      <div
+                        key={c.id}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 22px', borderBottom: '1px solid #eef1f3' }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { seleccionarProveedor(c); setShowProveedoresModal(false); }}
+                          style={{ flex: 1, minWidth: 0, textAlign: 'left', border: 'none', background: 'transparent', padding: 0, cursor: 'pointer' }}
+                          title="Elegir para cargar mercadería"
+                        >
+                          <span style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', color: '#212529', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.nombre}
+                          </span>
+                          <span style={{ display: 'block', fontSize: '0.72rem', color: '#9ca3af' }}>
+                            {r.n > 0
+                              ? `${r.n} ${r.n === 1 ? 'entrada' : 'entradas'} esta semana · ${Math.round(r.kg)} kg`
+                              : 'Sin ingresos esta semana'}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => eliminarProveedor(c)}
+                          title="Archivar (conserva su historial)"
+                          style={{ border: '1px solid #dde2e6', background: 'transparent', color: '#6c757d', borderRadius: '8px', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Archivar
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Alta inline */}
+              <div style={{ padding: '12px 22px', borderTop: '1px solid #dde2e6' }}>
+                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Agregar proveedor
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    value={nuevoProveedorInput}
+                    onChange={(e) => setNuevoProveedorInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && agregarProveedor()}
+                    placeholder="Nombre del proveedor"
+                    style={{ flex: 1, minWidth: 0, border: '1px solid #ced4da', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={agregarProveedor}
+                    disabled={!nuevoProveedorInput.trim()}
+                    style={{
+                      border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: 700, fontSize: '0.85rem',
+                      background: nuevoProveedorInput.trim() ? '#6A8899' : '#e9ecef',
+                      color: nuevoProveedorInput.trim() ? '#fff' : '#9ca3af',
+                      cursor: nuevoProveedorInput.trim() ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {existente && existente.activo === false && (
+                  <div style={{ marginTop: '6px', fontSize: '0.74rem', color: '#7a5000' }}>
+                    "{existente.nombre}" está archivado. Podés reactivarlo desde Inicio → Proveedores y Clientes.
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        );
+      })()}
 
       <ConfirmModal
         isOpen={showWarningPrecios}
@@ -1200,5 +1437,6 @@ export default function MercaderiaTab({
     </div>
   );
 }
+
 
 

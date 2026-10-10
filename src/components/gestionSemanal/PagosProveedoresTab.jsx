@@ -1,4 +1,5 @@
 import { idBoleta } from '../../utils/boletas';
+import { useContactos } from '../../hooks/useContactos';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { formatCurrency, parseCurrencyValue } from '../../utils/money';
 import { getLocalDateString } from '../../utils/date';
@@ -54,6 +55,14 @@ export default function PagosProveedoresTab({
   const isSyncingRef = useRef(false); // Evitar sincronizaciones simultáneas
 
   // Obtener todas las entradas de mercadería (boletas)
+  // Nombre canónico del contacto para agrupar ("J&L paulin" y "J & L Paulin" son un solo grupo).
+  // El nombre propio de cada entrada (boleta.proveedor) no se toca: lo usan los descuentos y vínculos.
+  const { contactos: contactosCatalogo } = useContactos();
+  const nombreDeGrupo = (entrada) => (
+    (entrada.proveedorId && (contactosCatalogo.find((c) => c.id === entrada.proveedorId) || {}).nombre)
+    || entrada.proveedor
+  );
+
   const obtenerBoletas = () => {
     if (!semanaActiva?.mercaderia) return [];
     
@@ -66,6 +75,7 @@ export default function PagosProveedoresTab({
         id: idBoleta(entrada, index),
         index,
         entradaId: entrada.id || null,
+        grupo: nombreDeGrupo(entrada),
         dia: entrada.dia,
         proveedor: entrada.proveedor,
         costoTotal,
@@ -480,7 +490,7 @@ export default function PagosProveedoresTab({
 
   // Marcar todas las boletas de un proveedor como pagadas
   const marcarTodasPagadasProveedor = (proveedor) => {
-    const boletasProveedor = boletas.filter(b => b.proveedor === proveedor);
+    const boletasProveedor = boletas.filter(b => (b.grupo || b.proveedor) === proveedor);
     
     // Verificar si todas las boletas ya están marcadas como pagadas
     const todasPagadas = boletasProveedor.every(boleta => boletasPagadas[boleta.id]);
@@ -521,7 +531,7 @@ export default function PagosProveedoresTab({
   // Funciona como toggle: si todas están seleccionadas, las deselecciona
   const seleccionarTodasProveedor = (proveedor) => {
     const boletasProveedor = boletas.filter(b => {
-      return b.proveedor === proveedor && !boletasPagadas[b.id];
+      return (b.grupo || b.proveedor) === proveedor && !boletasPagadas[b.id];
     });
     
     // Verificar si todas las boletas ya están seleccionadas
@@ -801,10 +811,11 @@ export default function PagosProveedoresTab({
 
   // Agrupar boletas por proveedor
   const boletasPorProveedor = boletas.reduce((acc, boleta) => {
-    if (!acc[boleta.proveedor]) {
-      acc[boleta.proveedor] = [];
+    const clave = boleta.grupo || boleta.proveedor;
+    if (!acc[clave]) {
+      acc[clave] = [];
     }
-    acc[boleta.proveedor].push(boleta);
+    acc[clave].push(boleta);
     return acc;
   }, {});
 
@@ -1418,4 +1429,5 @@ export default function PagosProveedoresTab({
     </div>
   );
 }
+
 
