@@ -51,15 +51,15 @@ export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24
               {/* Encabezado */}
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontWeight: 800, letterSpacing: '0.12em', fontSize: '0.95rem' }}>COMPROBANTE DE INGRESO</div>
-                <div style={{ fontSize: '0.72rem', color: '#5f6b73', marginTop: '2px' }}>Mercadería · Carne</div>
+                <div style={{ fontSize: '0.72rem', color: '#5f6b73', marginTop: '2px' }}>{compra.subtitulo || 'Mercadería · Carne'}</div>
               </div>
 
               <Linea />
 
-              <Fila etiqueta="Proveedor" valor={<strong>{compra.proveedor}</strong>} />
+              {compra.proveedor && <Fila etiqueta="Proveedor" valor={<strong>{compra.proveedor}</strong>} />}
               <Fila etiqueta="Día" valor={compra.dia || '—'} />
               <Fila etiqueta="Cargada" valor={fechaHora(compra.timestamp)} />
-              <Fila etiqueta="Referencia" valor={<strong>{codigoReferencia(compra.entradaId)}</strong>} />
+              {compra.entradaId && <Fila etiqueta="Referencia" valor={<strong>{codigoReferencia(compra.entradaId)}</strong>} />}
 
               <Linea />
 
@@ -89,6 +89,7 @@ export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24
               <Linea />
 
               {/* Estado y sello */}
+              {!compra.sinEstadoPago && (
               <div style={{ textAlign: 'center', marginTop: '4px' }}>
                 <div style={{
                   display: 'inline-block', fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.08em',
@@ -99,6 +100,7 @@ export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24
                   {compra.pagada ? 'PAGADA' : compra.semanaCerrada ? 'SIN MARCAR COMO PAGADA' : 'PENDIENTE DE PAGO'}
                 </div>
               </div>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 4px' }}>
                 <div style={{

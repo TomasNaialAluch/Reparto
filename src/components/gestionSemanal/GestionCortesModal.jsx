@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { normalizarNombre } from '../../utils/nombres';
-import { IconX, IconPlus, IconCheck, IconEdit } from './icons';
+import { IconX, IconPlus, IconEdit } from './icons';
 
 /**
  * Gestión del catálogo de cortes: ver (con cuántas veces se compró cada uno), crear,
@@ -12,9 +12,11 @@ export default function GestionCortesModal({
   archivarCorte, reactivarCorte, addNotification,
 }) {
   const [busqueda, setBusqueda] = useState('');
-  const [editandoId, setEditandoId] = useState(null);
-  const [nombreEditado, setNombreEditado] = useState('');
-  const [categoriaEditada, setCategoriaEditada] = useState('');
+  // Editor del corte: { corte, modo: 'editar' | 'archivar', nombre, categoria, paso: 'form' | 'confirmar' }
+  const [edicion, setEdicion] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [arrastrando, setArrastrando] = useState(null); // id del corte que se está arrastrando
+  const [sobreCategoria, setSobreCategoria] = useState(null);
   const [verArchivados, setVerArchivados] = useState(false);
   // '' = todas · SIN_CATEGORIA = los que no tienen · cualquier otro valor = esa categoría
   const SIN_CATEGORIA = '__sin';
@@ -22,14 +24,18 @@ export default function GestionCortesModal({
 
   useEffect(() => {
     if (!isOpen) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (edicion) setEdicion(null);
+      else onClose();
+    };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, edicion]);
 
   const q = normalizarNombre(busqueda);
   const lista = useMemo(() => cortes
@@ -62,16 +68,49 @@ export default function GestionCortesModal({
     }
   };
 
-  const guardarNombre = async (id) => {
-    const actual = cortes.find((c) => c.id === id);
-    if (actual && nombreEditado.trim() !== actual.nombre) {
-      const r = await renombrarCorte(id, nombreEditado);
-      if (!r.ok) { addNotification(r.motivo, 'warning'); return; }
+  const abrirEditor = (corte, extra = {}) => setEdicion({
+    corte, modo: 'editar', nombre: corte.nombre, categoria: corte.categoria || '', paso: 'form', ...extra,
+  });
+
+  const confirmarEdicion = async () => {
+    if (!edicion || guardando) return;
+    const { corte, modo } = edicion;
+    setGuardando(true);
+    try {
+      if (modo === 'archivar') {
+        await archivarCorte(corte.id);
+        addNotification(`Corte "${corte.nombre}" archivado`, 'success');
+      } else {
+        if (edicion.nombre.trim() !== corte.nombre) {
+          const r = await renombrarCorte(corte.id, edicion.nombre);
+          if (!r.ok) {
+            addNotification(r.motivo, 'warning');
+            setEdicion({ ...edicion, paso: 'form' });
+            return;
+          }
+        }
+        if (edicion.categoria.trim() !== (corte.categoria || '')) {
+          await cambiarCategoria(corte.id, edicion.categoria);
+        }
+        addNotification('Cambios guardados', 'success');
+      }
+      setEdicion(null);
+    } catch (e) {
+      addNotification('No se pudo guardar el cambio', 'error');
+    } finally {
+      setGuardando(false);
     }
-    if (actual && categoriaEditada.trim() !== (actual.categoria || '')) {
-      await cambiarCategoria(id, categoriaEditada);
-    }
-    setEditandoId(null);
+  };
+
+  // Soltar un corte arrastrado sobre una categoría: abre el editor ya en el paso de confirmación
+  const soltarEnCategoria = (categoria) => {
+    const corte = cortes.find((c) => c.id === arrastrando);
+    setArrastrando(null);
+    setSobreCategoria(null);
+    if (!corte) return;
+    const destino = categoria === SIN_CATEGORIA ? '' : categoria;
+    if (destino === (corte.categoria || '')) return;
+    abrirEditor(corte, { categoria: destino, paso: 'confirmar' });
   };
 
   return (
@@ -102,9 +141,6 @@ export default function GestionCortesModal({
           </button>
         </div>
 
-        <datalist id="gs-categorias-cortes">
-          {categorias.map((k) => <option key={k} value={k} />)}
-        </datalist>
         <div style={{ padding: '12px 22px', borderBottom: '1px solid #dde2e6' }}>
           <input
             type="text"
@@ -129,7 +165,11 @@ export default function GestionCortesModal({
                   key={k}
                   type="button"
                   className={`gs-chip${filtroCategoria === k ? ' activo' : ''}`}
+                  style={arrastrando ? { borderStyle: 'dashed', borderColor: '#6A8899', background: sobreCategoria === k ? 'rgba(106,136,153,0.18)' : undefined } : undefined}
                   onClick={() => setFiltroCategoria(filtroCategoria === k ? '' : k)}
+                  onDragOver={(e) => { if (arrastrando) { e.preventDefault(); setSobreCategoria(k); } }}
+                  onDragLeave={() => setSobreCategoria(null)}
+                  onDrop={(e) => { e.preventDefault(); soltarEnCategoria(k); }}
                 >
                   {k} ({cantidadDe(k)})
                 </button>
@@ -154,66 +194,42 @@ export default function GestionCortesModal({
             </div>
           ) : lista.map((c) => {
             const veces = usoGlobal[c.nombreNormalizado] || 0;
-            const editando = editandoId === c.id;
             return (
               <div
                 key={c.id}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 22px', borderBottom: '1px solid #eef1f3' }}
+                draggable={c.activo !== false}
+                onDragStart={(e) => { setArrastrando(c.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', c.nombre); }}
+                onDragEnd={() => { setArrastrando(null); setSobreCategoria(null); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '10px', padding: '9px 22px', borderBottom: '1px solid #eef1f3',
+                  cursor: c.activo !== false ? 'grab' : 'default', opacity: arrastrando === c.id ? 0.5 : 1,
+                }}
               >
-                {editando ? (
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    <input
-                      type="text"
-                      autoFocus
-                      value={nombreEditado}
-                      onChange={(e) => setNombreEditado(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') guardarNombre(c.id);
-                        if (e.key === 'Escape') { e.stopPropagation(); setEditandoId(null); }
-                      }}
-                      placeholder="Nombre"
-                      style={{ flex: '1 1 130px', minWidth: 0, border: '1px solid #ced4da', borderRadius: '8px', padding: '5px 10px', fontSize: '0.88rem' }}
-                    />
-                    <input
-                      type="text"
-                      list="gs-categorias-cortes"
-                      value={categoriaEditada}
-                      onChange={(e) => setCategoriaEditada(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') guardarNombre(c.id);
-                        if (e.key === 'Escape') { e.stopPropagation(); setEditandoId(null); }
-                      }}
-                      placeholder="Categoría"
-                      style={{ flex: '1 1 110px', minWidth: 0, border: '1px solid #ced4da', borderRadius: '8px', padding: '5px 10px', fontSize: '0.88rem' }}
-                    />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: c.activo === false ? '#9ca3af' : '#212529' }}>{c.nombre}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
+                    {c.categoria ? `${c.categoria} · ` : 'Sin categoría · '}
+                    {veces > 0 ? `${veces} ${veces === 1 ? 'compra' : 'compras'}` : 'Sin compras'}
                   </div>
-                ) : (
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: c.activo === false ? '#9ca3af' : '#212529' }}>{c.nombre}</div>
-                    <div style={{ fontSize: '0.72rem', color: '#9ca3af' }}>
-                      {c.categoria ? `${c.categoria} · ` : 'Sin categoría · '}
-                      {veces > 0 ? `${veces} ${veces === 1 ? 'compra' : 'compras'}` : 'Sin compras'}
-                    </div>
-                  </div>
-                )}
-                {editando ? (
-                  <>
-                    <button type="button" className="btn btn-sm btn-success" onClick={() => guardarNombre(c.id)} title="Guardar"><IconCheck size={13} /></button>
-                    <button type="button" className="btn btn-sm btn-secondary" onClick={() => setEditandoId(null)} title="Cancelar"><IconX size={13} /></button>
-                  </>
-                ) : c.activo === false ? (
+                </div>
+                {c.activo === false ? (
                   <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => reactivarCorte(c.id)}>Reactivar</button>
                 ) : (
                   <>
                     <button
                       type="button"
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => { setEditandoId(c.id); setNombreEditado(c.nombre); setCategoriaEditada(c.categoria || ''); }}
-                      title="Renombrar"
+                      className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-1"
+                      onClick={() => abrirEditor(c)}
+                      title="Editar nombre y categoría"
                     >
-                      <IconEdit size={13} />
+                      <IconEdit size={13} /> Editar
                     </button>
-                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => archivarCorte(c.id)} title="Archivar: deja de ofrecerse al cargar">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => setEdicion({ corte: c, modo: 'archivar', nombre: c.nombre, categoria: c.categoria || '', paso: 'confirmar' })}
+                      title="Archivar: deja de ofrecerse al cargar"
+                    >
                       Archivar
                     </button>
                   </>
@@ -236,6 +252,190 @@ export default function GestionCortesModal({
           )}
         </div>
       </div>
+
+      {edicion && (() => {
+        const { corte, modo, paso } = edicion;
+        const nombreNuevo = edicion.nombre.trim();
+        const categoriaNueva = edicion.categoria.trim();
+        const cambioNombre = nombreNuevo !== corte.nombre;
+        const cambioCategoria = categoriaNueva !== (corte.categoria || '');
+        const hayCambios = cambioNombre || cambioCategoria;
+        const categoriaEsNueva = !!categoriaNueva && !categorias.includes(categoriaNueva);
+        const etiqueta = { fontSize: '0.66rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' };
+        const campo = { width: '100%', border: '1px solid #ced4da', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', outline: 'none' };
+        const Resumen = ({ titulo, antes, despues }) => (
+          <div style={{ padding: '10px 12px', background: '#f4f7f9', borderRadius: '10px', borderLeft: '3px solid #6A8899', marginBottom: '8px' }}>
+            <div style={etiqueta}>{titulo}</div>
+            <div style={{ fontSize: '0.9rem' }}>
+              <span style={{ color: '#9ca3af', textDecoration: 'line-through' }}>{antes}</span>
+              <span style={{ margin: '0 8px', color: '#6A8899' }}>→</span>
+              <strong>{despues}</strong>
+            </div>
+          </div>
+        );
+
+        return (
+          <>
+            <div
+              onClick={() => !guardando && setEdicion(null)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1060 }}
+            />
+            <div style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              width: 'min(460px, 94vw)', maxHeight: '88vh', background: '#fff', borderRadius: '16px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.22)', zIndex: 1061, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            }}>
+              <div style={{ padding: '18px 22px 12px', borderBottom: '1px solid #dde2e6' }}>
+                <div style={{ ...etiqueta, marginBottom: '2px' }}>
+                  {modo === 'archivar' ? 'Archivar corte' : paso === 'confirmar' ? 'Confirmar cambios' : 'Editar corte'}
+                </div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529' }}>{corte.nombre}</div>
+              </div>
+
+              <div style={{ padding: '16px 22px', overflowY: 'auto' }}>
+                {modo === 'archivar' ? (
+                  <div style={{ fontSize: '0.88rem', color: '#495057', lineHeight: 1.5 }}>
+                    <strong>{corte.nombre}</strong> dejará de ofrecerse al cargar mercadería.
+                    Las compras anteriores se conservan tal cual, y podés reactivarlo cuando quieras
+                    desde <em>Ver archivados</em>.
+                  </div>
+                ) : paso === 'form' ? (
+                  <>
+                    <div style={{ marginBottom: '16px' }}>
+                      <div style={etiqueta}>Nombre del corte</div>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={edicion.nombre}
+                        onChange={(e) => setEdicion({ ...edicion, nombre: e.target.value })}
+                        placeholder="Nombre"
+                        style={campo}
+                      />
+                    </div>
+
+                    <div>
+                      <div style={etiqueta}>Categoría</div>
+                      <div style={{ fontSize: '0.76rem', color: '#6c757d', marginBottom: '8px' }}>
+                        Elegí una, arrastrá el corte a una categoría o escribí una nueva.
+                      </div>
+
+                      {/* Ficha arrastrable del corte */}
+                      <div
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.setData('text/plain', corte.nombre); e.dataTransfer.effectAllowed = 'move'; }}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 12px', marginBottom: '10px',
+                          background: '#fff', border: '1px solid #6A8899', borderRadius: '10px', cursor: 'grab',
+                          fontWeight: 600, fontSize: '0.88rem', boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        }}
+                      >
+                        <span style={{ color: '#9ca3af', letterSpacing: '-2px' }}>⋮⋮</span>
+                        {nombreNuevo || corte.nombre}
+                      </div>
+
+                      <div className="gs-cortes-chips" style={{ marginTop: 0 }}>
+                        {categorias.map((k) => {
+                          const activa = categoriaNueva === k;
+                          return (
+                            <button
+                              key={k}
+                              type="button"
+                              className={`gs-chip${activa ? ' activo' : ''}`}
+                              style={sobreCategoria === `ed:${k}` ? { background: 'rgba(106,136,153,0.25)', borderColor: '#6A8899' } : undefined}
+                              onClick={() => setEdicion({ ...edicion, categoria: activa ? '' : k })}
+                              onDragOver={(e) => { e.preventDefault(); setSobreCategoria(`ed:${k}`); }}
+                              onDragLeave={() => setSobreCategoria(null)}
+                              onDrop={(e) => { e.preventDefault(); setSobreCategoria(null); setEdicion({ ...edicion, categoria: k }); }}
+                            >
+                              {k}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          className={`gs-chip${!categoriaNueva ? ' activo' : ''}`}
+                          onClick={() => setEdicion({ ...edicion, categoria: '' })}
+                          onDragOver={(e) => { e.preventDefault(); }}
+                          onDrop={(e) => { e.preventDefault(); setEdicion({ ...edicion, categoria: '' }); }}
+                        >
+                          Sin categoría
+                        </button>
+                      </div>
+
+                      <input
+                        type="text"
+                        value={edicion.categoria}
+                        onChange={(e) => setEdicion({ ...edicion, categoria: e.target.value })}
+                        placeholder="…o escribí una categoría nueva"
+                        style={{ ...campo, marginTop: '10px' }}
+                      />
+                      {categoriaEsNueva && (
+                        <div style={{ fontSize: '0.74rem', color: '#7a5000', marginTop: '6px' }}>
+                          Se va a crear la categoría nueva <strong>«{categoriaNueva}»</strong>.
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: '0.85rem', color: '#495057', marginBottom: '12px' }}>
+                      Revisá los cambios antes de guardar:
+                    </div>
+                    {cambioNombre && <Resumen titulo="Nombre" antes={corte.nombre} despues={nombreNuevo || '(vacío)'} />}
+                    {cambioCategoria && (
+                      <Resumen
+                        titulo="Categoría"
+                        antes={corte.categoria || 'Sin categoría'}
+                        despues={categoriaNueva || 'Sin categoría'}
+                      />
+                    )}
+                    {cambioNombre && (
+                      <div style={{ fontSize: '0.76rem', color: '#7a5000', marginTop: '4px' }}>
+                        El cambio de nombre afecta al catálogo y a las cargas nuevas. Las entradas ya
+                        cargadas conservan el nombre con el que se guardaron.
+                      </div>
+                    )}
+                    {categoriaEsNueva && (
+                      <div style={{ fontSize: '0.76rem', color: '#7a5000', marginTop: '4px' }}>
+                        «{categoriaNueva}» es una categoría nueva: aparecerá como filtro.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div style={{ padding: '12px 22px', borderTop: '1px solid #dde2e6', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                {modo === 'editar' && paso === 'confirmar' && (
+                  <button type="button" className="btn btn-sm btn-outline-secondary me-auto" disabled={guardando} onClick={() => setEdicion({ ...edicion, paso: 'form' })}>
+                    Volver
+                  </button>
+                )}
+                <button type="button" className="btn btn-sm btn-outline-secondary" disabled={guardando} onClick={() => setEdicion(null)}>
+                  Cancelar
+                </button>
+                {modo === 'archivar' ? (
+                  <button type="button" className="btn btn-sm btn-warning" disabled={guardando} onClick={confirmarEdicion}>
+                    {guardando ? 'Archivando…' : 'Archivar corte'}
+                  </button>
+                ) : paso === 'form' ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    disabled={!hayCambios || !nombreNuevo}
+                    onClick={() => setEdicion({ ...edicion, paso: 'confirmar' })}
+                  >
+                    Revisar cambios
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-sm btn-success" disabled={guardando || !hayCambios || !nombreNuevo} onClick={confirmarEdicion}>
+                    {guardando ? 'Guardando…' : 'Confirmar y guardar'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        );
+      })()}
     </>
   );
 }

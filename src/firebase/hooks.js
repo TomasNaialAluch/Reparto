@@ -871,7 +871,7 @@ export const useGestionSemanal = (userId) => {
     if (!semanaActiva) {
       const id = await crearNuevaSemana();
       await updateDoc(doc(db, 'gestion_semanal', id), {
-        embutidos: [{ ...entrada, timestamp: new Date().toISOString() }]
+        embutidos: [{ ...entrada, id: entrada.id || generarIdEntrada(), timestamp: new Date().toISOString() }]
       });
       return;
     }
@@ -879,7 +879,7 @@ export const useGestionSemanal = (userId) => {
     try {
       const embutidosActual = semanaActiva.embutidos || [];
       await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
-        embutidos: [...embutidosActual, { ...entrada, timestamp: new Date().toISOString() }]
+        embutidos: [...embutidosActual, { ...entrada, id: entrada.id || generarIdEntrada(), timestamp: new Date().toISOString() }]
       });
     } catch (err) {
       console.error('Error al agregar embutidos:', err);
@@ -910,7 +910,13 @@ export const useGestionSemanal = (userId) => {
     try {
       const embutidosActual = semanaActiva.embutidos || [];
       const nuevosEmbutidos = [...embutidosActual];
-      nuevosEmbutidos[index] = { ...entradaActualizada, timestamp: embutidosActual[index]?.timestamp || new Date().toISOString() };
+      nuevosEmbutidos[index] = {
+        ...embutidosActual[index],
+        ...entradaActualizada,
+        id: embutidosActual[index]?.id || entradaActualizada.id || generarIdEntrada(),
+        modificadoEn: new Date().toISOString(),
+        timestamp: embutidosActual[index]?.timestamp || new Date().toISOString(),
+      };
       await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
         embutidos: nuevosEmbutidos
       });
