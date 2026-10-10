@@ -293,6 +293,18 @@ Orden interno:
 
 ---
 
+## Extra: control de precios al cargar mercadería (10/10/2026)
+
+Surgió de los precios con error de tipeo encontrados en los datos (ej. $6.200.142 por kg).
+
+- **Referencia:** mediana del precio por kg de ese corte para ese proveedor (mínimo 3 compras; si no, la de todos los proveedores con al menos 5), calculada del historial. Un precio más de **3 veces** la referencia es sospechoso.
+- **Aviso en rojo** bajo el campo `$/Kg` mientras se escribe ("Precio muy alto: lo habitual ronda $6.200/kg").
+- **Modal que traba la pantalla** al guardar: lista los cortes sospechosos con un input (en rojo) para poner el precio correcto y el total que daría. Botones: *Corregir y continuar*, *El precio es correcto* (para precios altos legítimos) y *Volver*.
+- Aplica al **alta** y a la **edición** de una entrada.
+- **No corrige** las 5 entradas ya cargadas en semanas cerradas: eso queda a la espera de los precios reales.
+
+---
+
 ## Pendiente para el final (anotado)
 
 Cosas pedidas que se hacen **después de cerrar las fases**, para no frenar el resto:
