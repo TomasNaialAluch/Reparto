@@ -10,7 +10,7 @@ import './FloatingNavbar.css';
 // El panel "Más" (Herramientas, Gestión, submenu de Gestión Semanal) está
 // desactivado por ahora — FloatingNavbarMore queda en el código para cuando
 // se retome (ver README-NAVBAR-GLASS-ROADMAP.md, Fase 3).
-const TOP_LEVEL_ITEMS = NAV_ITEMS.filter((item) => !!item.path);
+const TOP_LEVEL_ITEMS = NAV_ITEMS.filter((item) => !!item.path && !item.soloInicio);
 
 // Home ya muestra las secciones como tarjetas — la barra ahí es redundante.
 const HIDDEN_ON = ['/'];

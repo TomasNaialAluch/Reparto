@@ -26,6 +26,7 @@ import GestionDeudas from './pages/GestionDeudas';
 import LibroCheques from './pages/LibroCheques';
 import Facturacion from './pages/Facturacion';
 import TablasPrecios from './pages/TablasPrecios';
+import Contactos from './pages/Contactos';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -171,6 +172,12 @@ const AppContent = () => {
               <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <Facturacion />
+              </div>
+            } />
+          <Route path="/contactos" element={
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
+                <Navbar />
+                <Contactos />
               </div>
             } />
           <Route path="/tablas-precios" element={

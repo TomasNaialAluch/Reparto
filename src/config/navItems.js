@@ -22,6 +22,14 @@ export const NAV_ITEMS = [
     Icon: IconUsers,
   },
   {
+    // Solo en Inicio: no se muestra en la barra flotante para no saturarla.
+    path: '/contactos',
+    soloInicio: true,
+    label: 'Proveedores y Clientes',
+    desc: 'Creá, mirá y editá tus proveedores y clientes',
+    Icon: IconUsers,
+  },
+  {
     path: '/transferencias',
     label: 'Transferencias',
     desc: 'Transferencias vs boletas vendidas',
