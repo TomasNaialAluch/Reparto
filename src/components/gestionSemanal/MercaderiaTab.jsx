@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { DIAS_SEMANA, PROVEEDORES, CORTES_CARNE, getDiaActual } from './constants';
+import { DIAS_SEMANA, CORTES_CARNE, getDiaActual } from './constants';
+import { useContactos } from '../../hooks/useContactos';
+import { normalizarNombre } from '../../utils/nombres';
 import { formatCurrency } from '../../utils/money';
 import ConfirmModal from '../ConfirmModal';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -25,7 +27,18 @@ export default function MercaderiaTab({
   const [showWarningPrecios, setShowWarningPrecios] = useState(false);
   const [preciosHighlight, setPreciosHighlight] = useState(new Set());
 
-  const [proveedores, setProveedores] = useState([]);
+  // Catálogo único de contactos: los proveedores salen de acá (ya no de user_configs).
+  const {
+    proveedores: contactosProveedor,
+    contactos,
+    buscarExacto,
+    buscarParecidos,
+    crearContacto,
+    agregarRol,
+    archivarContacto,
+  } = useContactos();
+  const proveedores = useMemo(() => contactosProveedor.map((c) => c.nombre), [contactosProveedor]);
+  const [busquedaProveedor, setBusquedaProveedor] = useState('');
   const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
   const [showProveedoresModal, setShowProveedoresModal] = useState(false);
   const [dropdownProveedorOpen, setDropdownProveedorOpen] = useState(false);
@@ -39,6 +52,7 @@ export default function MercaderiaTab({
   const [formMercaderia, setFormMercaderia] = useState({
     dia: getDiaActual(),
     proveedor: '',
+    proveedorId: null,
     cortes: {}
   });
 
@@ -50,18 +64,11 @@ export default function MercaderiaTab({
       if (!user?.uid || !getConfiguracionesUsuario || !guardarConfiguracionesUsuario) return;
       try {
         const config = await getConfiguracionesUsuario();
-        if (config?.proveedores?.length) {
-          setProveedores(config.proveedores);
-        } else {
-          setProveedores(PROVEEDORES);
-          await guardarConfiguracionesUsuario({ proveedores: PROVEEDORES });
-        }
         if (Array.isArray(config?.ultimosProveedoresUsados)) {
           setUltimosProveedoresUsados(config.ultimosProveedoresUsados);
         }
       } catch (e) {
-        console.error('Error cargando proveedores:', e);
-        setProveedores(PROVEEDORES);
+        console.error('Error cargando últimos proveedores:', e);
       }
     };
     cargar();
@@ -109,6 +116,37 @@ export default function MercaderiaTab({
     return [...todos].sort((a, b) => (conteo[b] ?? 0) - (conteo[a] ?? 0));
   }, [formMercaderia.proveedor, formMercaderia.cortes, semanaActiva?.mercaderia]);
 
+  // ----- Selector de proveedor -----
+  const consultaProveedor = normalizarNombre(busquedaProveedor);
+
+  // Sin texto: últimos usados (o los primeros). Con texto: los que coinciden por nombre o alias.
+  const ultimosVisibles = useMemo(() => {
+    const porNombre = new Map(contactosProveedor.map((c) => [normalizarNombre(c.nombre), c]));
+    return ultimosProveedoresUsados
+      .map((n) => porNombre.get(normalizarNombre(n)))
+      .filter(Boolean);
+  }, [ultimosProveedoresUsados, contactosProveedor]);
+
+  const opcionesProveedor = useMemo(() => {
+    if (!consultaProveedor) {
+      return ultimosVisibles.length ? ultimosVisibles : contactosProveedor.slice(0, 8);
+    }
+    return contactosProveedor.filter(
+      (c) => normalizarNombre(c.nombre).includes(consultaProveedor)
+        || (c.alias || []).some((a) => normalizarNombre(a).includes(consultaProveedor))
+    );
+  }, [consultaProveedor, ultimosVisibles, contactosProveedor]);
+
+  const contactoExacto = consultaProveedor ? buscarExacto(busquedaProveedor) : null;
+  // Existe como contacto pero no figura como proveedor (ej. solo cliente).
+  const contactoExistenteSinRol = contactoExacto && contactoExacto.activo !== false && !contactoExacto.roles?.proveedor
+    ? contactoExacto : null;
+  // Se puede crear si hay texto y no hay ya un proveedor con ese nombre exacto.
+  const puedeCrearProveedor = !!consultaProveedor
+    && !contactoExistenteSinRol
+    && !(contactoExacto && contactoExacto.activo !== false && contactoExacto.roles?.proveedor);
+  const parecidosAlBuscado = puedeCrearProveedor ? buscarParecidos(busquedaProveedor) : [];
+
   const toggleExpandedMercaderia = (index) => {
     if (editingMercaderia !== null) {
       cancelEditingMercaderia();
@@ -143,8 +181,12 @@ export default function MercaderiaTab({
 
   const saveEditingMercaderia = async (index) => {
     try {
+      const nombreProveedor = (tempMercaderiaData.proveedor || '').trim();
+      const contactoDelNombre = buscarExacto(nombreProveedor);
       const dataToSave = {
         ...tempMercaderiaData,
+        proveedor: nombreProveedor,
+        proveedorId: contactoDelNombre ? contactoDelNombre.id : null,
         cortes: tempMercaderiaData.cortes.map(c => ({
           ...c,
           kg: parseFloat(c.kg) || 0,
@@ -283,6 +325,7 @@ export default function MercaderiaTab({
       await agregarMercaderia({
         dia: formMercaderia.dia,
         proveedor,
+        proveedorId: formMercaderia.proveedorId || null,
         cortes: cortesConDatos
       });
 
@@ -297,8 +340,10 @@ export default function MercaderiaTab({
       setFormMercaderia({
         dia: formMercaderia.dia,
         proveedor: '',
+        proveedorId: null,
         cortes: {}
       });
+      setBusquedaProveedor('');
 
       addNotification('Mercadería agregada', 'success');
     } catch (err) {
@@ -322,18 +367,50 @@ export default function MercaderiaTab({
     return { porCorte, total };
   };
 
-  const eliminarProveedor = async (nombre) => {
-    const nuevaLista = proveedores.filter((p) => p !== nombre);
-    setProveedores(nuevaLista);
-    if (formMercaderia.proveedor === nombre) {
-      setFormMercaderia((prev) => ({ ...prev, proveedor: '' }));
-    }
+  /** Elige un contacto para la entrada que se está cargando. */
+  const seleccionarProveedor = (contacto) => {
+    setFormMercaderia((prev) => ({ ...prev, proveedor: contacto.nombre, proveedorId: contacto.id }));
+    setBusquedaProveedor('');
+    setDropdownProveedorOpen(false);
+  };
+
+  /** Alta rápida: crea el contacto (o reutiliza el existente) y lo deja elegido. */
+  const crearYSeleccionarProveedor = async (nombre) => {
     try {
-      await guardarConfiguracionesUsuario({ proveedores: nuevaLista });
-      addNotification('Proveedor eliminado', 'success');
+      const resultado = await crearContacto(nombre, { proveedor: true, cliente: true });
+      setFormMercaderia((prev) => ({ ...prev, proveedor: resultado.nombre, proveedorId: resultado.id }));
+      setBusquedaProveedor('');
+      setDropdownProveedorOpen(false);
+      addNotification(
+        resultado.creado ? `"${resultado.nombre}" creado como proveedor` : `"${resultado.nombre}" ya existía, se seleccionó`,
+        'success'
+      );
     } catch (e) {
-      addNotification('Error al guardar', 'error');
-      setProveedores(proveedores);
+      console.error('Error al crear proveedor:', e);
+      addNotification('No se pudo crear el proveedor', 'error');
+    }
+  };
+
+  /** El contacto existe pero no tenía el rol proveedor (ej. solo cliente): se lo prendemos. */
+  const habilitarRolProveedor = async (contacto) => {
+    try {
+      await agregarRol(contacto.id, 'proveedor');
+      seleccionarProveedor(contacto);
+      addNotification(`"${contacto.nombre}" ahora también es proveedor`, 'success');
+    } catch (e) {
+      addNotification('No se pudo actualizar el contacto', 'error');
+    }
+  };
+
+  const eliminarProveedor = async (contacto) => {
+    try {
+      await archivarContacto(contacto.id);
+      if (formMercaderia.proveedorId === contacto.id) {
+        setFormMercaderia((prev) => ({ ...prev, proveedor: '', proveedorId: null }));
+      }
+      addNotification(`"${contacto.nombre}" archivado (conserva su historial)`, 'success');
+    } catch (e) {
+      addNotification('Error al archivar', 'error');
     }
   };
 
@@ -343,27 +420,15 @@ export default function MercaderiaTab({
       addNotification('Ingresá un nombre', 'warning');
       return;
     }
-    if (proveedores.includes(nombre)) {
+    const existente = buscarExacto(nombre);
+    if (existente && existente.activo !== false && existente.roles?.proveedor) {
       addNotification('Ese proveedor ya existe', 'warning');
       return;
     }
-    const nuevaLista = [...proveedores, nombre];
-    setProveedores(nuevaLista);
-    setNuevoProveedorInput('');
     try {
-      await guardarConfiguracionesUsuario({ proveedores: nuevaLista });
-      addNotification(`"${nombre}" agregado`, 'success');
-    } catch (e) {
-      addNotification('Error al guardar', 'error');
-      setProveedores(proveedores);
-    }
-  };
-
-  const restaurarProveedoresDefault = async () => {
-    setProveedores(PROVEEDORES);
-    try {
-      await guardarConfiguracionesUsuario({ proveedores: PROVEEDORES });
-      addNotification('Lista restaurada por defecto', 'success');
+      const resultado = await crearContacto(nombre, { proveedor: true, cliente: true });
+      setNuevoProveedorInput('');
+      addNotification(`"${resultado.nombre}" agregado`, 'success');
     } catch (e) {
       addNotification('Error al guardar', 'error');
     }
@@ -455,18 +520,38 @@ export default function MercaderiaTab({
             <div className="mb-3 position-relative" ref={proveedorControlRef}>
               <label className="form-label fw-bold">Proveedor:</label>
               <div className="d-flex rounded overflow-hidden border" style={{ minHeight: '48px' }}>
-                <div
-                  className="flex-grow-1 px-3 d-flex align-items-center bg-white border-end"
-                  style={{ cursor: 'pointer', minHeight: '48px' }}
-                  onClick={() => setDropdownProveedorOpen((o) => !o)}
-                >
-                  <span className={formMercaderia.proveedor ? '' : 'text-muted'}>
-                    {formMercaderia.proveedor || 'Seleccionar proveedor'}
-                  </span>
-                </div>
+                <input
+                  type="text"
+                  className="form-control border-0 rounded-0 shadow-none px-3"
+                  style={{ minHeight: '48px' }}
+                  placeholder="Buscar o crear proveedor…"
+                  value={dropdownProveedorOpen ? busquedaProveedor : (formMercaderia.proveedor || '')}
+                  onFocus={() => { setBusquedaProveedor(''); setDropdownProveedorOpen(true); }}
+                  onChange={(e) => { setBusquedaProveedor(e.target.value); setDropdownProveedorOpen(true); }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') setDropdownProveedorOpen(false);
+                    if (e.key === 'Enter' && opcionesProveedor.length === 1) {
+                      e.preventDefault();
+                      seleccionarProveedor(opcionesProveedor[0]);
+                    }
+                  }}
+                />
+                {formMercaderia.proveedor && (
+                  <button
+                    type="button"
+                    className="btn btn-light border-start rounded-0 px-3"
+                    title="Quitar proveedor elegido"
+                    onClick={() => {
+                      setFormMercaderia((prev) => ({ ...prev, proveedor: '', proveedorId: null }));
+                      setBusquedaProveedor('');
+                    }}
+                  >
+                    <IconX size={13} />
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="btn btn-outline-primary d-flex align-items-center justify-content-center px-3"
+                  className="btn btn-outline-primary d-flex align-items-center justify-content-center px-3 rounded-0 border-0 border-start"
                   style={{ minWidth: '48px', minHeight: '48px' }}
                   onClick={() => {
                     setDropdownProveedorOpen(false);
@@ -477,28 +562,63 @@ export default function MercaderiaTab({
                   <span className="fs-4">+</span>
                 </button>
               </div>
+
               {dropdownProveedorOpen && (
                 <div
                   className="border rounded mt-1 bg-white shadow-sm position-absolute start-0 end-0 z-2"
-                  style={{ maxHeight: '220px', overflowY: 'auto' }}
+                  style={{ maxHeight: '280px', overflowY: 'auto' }}
                 >
-                  {(ultimosProveedoresUsados.length ? ultimosProveedoresUsados : proveedores.slice(0, 5)).map((p) => (
+                  {!busquedaProveedor.trim() && ultimosVisibles.length > 0 && (
+                    <div className="px-3 pt-2 pb-1 text-muted" style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Últimos usados
+                    </div>
+                  )}
+                  {opcionesProveedor.map((c) => (
                     <button
-                      key={p}
+                      key={c.id}
                       type="button"
                       className="btn btn-light w-100 text-start rounded-0 border-bottom"
-                      onClick={() => {
-                        setFormMercaderia((prev) => ({ ...prev, proveedor: p }));
-                        setDropdownProveedorOpen(false);
-                      }}
+                      onClick={() => seleccionarProveedor(c)}
                     >
-                      {p}
+                      {c.nombre}
                     </button>
                   ))}
+
+                  {busquedaProveedor.trim() && opcionesProveedor.length === 0 && !contactoExistenteSinRol && !puedeCrearProveedor && (
+                    <div className="px-3 py-2 text-muted small">Sin coincidencias.</div>
+                  )}
+
+                  {contactoExistenteSinRol && (
+                    <button
+                      type="button"
+                      className="btn btn-light w-100 text-start rounded-0 border-bottom"
+                      onClick={() => habilitarRolProveedor(contactoExistenteSinRol)}
+                    >
+                      <strong>{contactoExistenteSinRol.nombre}</strong> ya existe como cliente.{' '}
+                      <span className="text-primary">Agregar también como proveedor</span>
+                    </button>
+                  )}
+
+                  {puedeCrearProveedor && (
+                    <>
+                      {parecidosAlBuscado.length > 0 && (
+                        <div className="px-3 py-2 small" style={{ background: 'rgba(255,209,102,0.18)', color: '#7a5000' }}>
+                          Se parece a: {parecidosAlBuscado.map((c) => c.nombre).join(', ')}. Revisá antes de crear uno nuevo.
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-light w-100 text-start rounded-0"
+                        onClick={() => crearYSeleccionarProveedor(busquedaProveedor)}
+                      >
+                        <span className="text-primary fw-bold">+ Crear proveedor</span> «{busquedaProveedor.trim()}»
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
               <small className="form-text text-muted d-block mt-1">
-                Toque para elegir entre los últimos usados; use + para agregar o quitar proveedores.
+                Escribí para buscar. Si no existe, lo creás ahí mismo.
               </small>
             </div>
 
@@ -982,7 +1102,7 @@ export default function MercaderiaTab({
               </div>
               <div className="modal-body">
                 <p className="text-muted small mb-3">
-                  Agregá o eliminá proveedores. Los que elimines ya no aparecerán en la lista al cargar mercadería.
+                  Agregá o archivá proveedores. Los archivados ya no aparecen al cargar mercadería, pero conservan su historial.
                 </p>
                 <div className="mb-3">
                   <label className="form-label fw-bold">Agregar proveedor</label>
@@ -1003,48 +1123,41 @@ export default function MercaderiaTab({
                 <div className="mb-3">
                   <label className="form-label fw-bold">Lista actual</label>
                   <p className="text-muted small mb-2">Hacé clic en un nombre para elegirlo e ingresar mercadería.</p>
-                  {proveedores.length === 0 ? (
-                    <p className="text-muted small mb-0">No hay proveedores. Agregá uno arriba o restauramos la lista por defecto.</p>
+                  {contactosProveedor.length === 0 ? (
+                    <p className="text-muted small mb-0">No hay proveedores. Agregá uno arriba.</p>
                   ) : (
                     <ul className="list-group list-group-flush">
-                      {proveedores.map((p) => (
+                      {contactosProveedor.map((c) => (
                         <li
-                          key={p}
+                          key={c.id}
                           className="list-group-item d-flex justify-content-between align-items-center px-0"
                         >
                           <button
                             type="button"
                             className="btn btn-link text-dark text-decoration-none p-0 text-start flex-grow-1"
                             onClick={() => {
-                              setFormMercaderia((prev) => ({ ...prev, proveedor: p }));
+                              seleccionarProveedor(c);
                               setShowProveedoresModal(false);
                             }}
                           >
-                            {p}
+                            {c.nombre}
                           </button>
                           <button
                             type="button"
                             className="btn btn-sm btn-outline-danger ms-2"
                             onClick={(e) => {
                               e.stopPropagation();
-                              eliminarProveedor(p);
+                              eliminarProveedor(c);
                             }}
-                            title="Eliminar proveedor"
+                            title="Archivar proveedor (conserva su historial)"
                           >
-                            Eliminar
+                            Archivar
                           </button>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary w-100"
-                  onClick={restaurarProveedoresDefault}
-                >
-                  Restaurar lista por defecto
-                </button>
               </div>
               <div className="modal-footer">
                 <button
