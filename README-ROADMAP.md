@@ -235,6 +235,18 @@ Orden interno:
 
 **Listo cuando:** la deuda de un proveedor se calcula desde los movimientos y coincide con lo que mostraba Pagos Proveedores antes.
 
+### Resultado (10/10/2026) — ✅ cerrada, con un ajuste de diseño
+
+**Cambio respecto del plan:** no se creó la subcolección `movimientos` ni se migró nada. Los datos reales muestran que **no hay pagos registrados** (`pagosProveedores` vacío en las 44 semanas; el pago es solo una marca "pagada" por boleta), así que un libro persistente habría duplicado lo que ya existe. La cuenta del contacto se **calcula en el momento** desde las compras, las marcas de pago y los saldos a favor (`src/utils/cuentaContacto.js`). Un libro persistente queda para cuando haya movimientos manuales (ajustes, notas de crédito).
+
+- **Deuda = semana en curso.** Coincide con Pagos Proveedores (ej. Tito $6.320.034). Las boletas de **semanas cerradas sin marca de pago** se informan aparte como "sin marcar" y no se suman como deuda: casi nunca se marcaron (102 marcas en 43 semanas), así que contarlas daba cifras absurdas.
+- **Ficha del contacto** (botón "Ficha" en Proveedores y Clientes): debo / pagado / total comprado, saldos a favor vinculados, y "Mercadería que le compré" agrupada por semana con filtro Todas / Sin pagar / Pagadas.
+- **Pill "Le debo $…"** en la lista de contactos.
+- **Boleta tipo ticket** (`BoletaTicketModal`): borde dentado, tipografía monoespaciada, detalle por corte, totales, estado, sello "✓ REGISTRADO" con fecha y hora, código de referencia (`#0WCIST`) y "Modificada el…" (nuevo campo `modificadoEn` al editar una entrada). Se abre desde la ficha y desde el botón "Comprobante" de cada entrada en Mercadería. Imprimible.
+- **Control de errores de carga:** se marcan con ⚠ las boletas con precio por kg más de 8 veces la mediana del proveedor.
+- **Hallazgo en los datos:** una entrada de Tito (semana del 31/08/2026, Lunes, 551 kg) tiene un precio de $3.095.560/kg ($1.706 millones). Es un error de tipeo y **no se corrigió**; distorsiona cualquier total que la incluya.
+- **Pendiente:** movimientos manuales persistentes; "le vendí" (Fase 8).
+
 ---
 
 ## Fase 7 — Seguimiento de repartos  ⏸ EN PAUSA
@@ -265,6 +277,27 @@ Orden interno:
 - Opcional: `contactoId` en Libro de Cheques.
 
 **Listo cuando:** una persona que compra y vende aparece como un solo contacto en todas las pantallas.
+
+### Resultado (10/10/2026) — ✅ cerrada
+
+**Decisiones:**
+- **"Le vendí" = monto por fecha.** Los datos reales muestran que las ventas existen solo como monto dentro de los saldos (93 de 250 saldos), sin cortes ni kg. No se agregó detalle de cortes; si más adelante se quiere, es un cambio en el formulario de Saldo.
+- **Referenciar, no absorber.** Facturación y Gestión de Deudas conservan sus catálogos; la ficha los cruza **por nombre** (y alias), en solo lectura. No se modificó ningún dato.
+
+**Qué hay:**
+- **Ficha con tres secciones:** *Le compré* (Fase 6), *Le vendí y saldos* (total vendido, cantidad de saldos y cada saldo con fecha, ventas, boletas y "A favor" / "Debo") y *Otros* (facturas, deuda personal y cheques donde aparece el nombre).
+- **Nombres sin contacto:** panel en Proveedores y Clientes que lista los nombres de saldos que no son ningún contacto (16 hoy, como "Roque", "Dolorita", "La Hermandad"). Cada uno tiene **"Crear contacto"** o **"Es otro nombre de…"** (lo suma como alias del contacto elegido, así los saldos viejos con esa escritura se unen sin migrar nada).
+- **Cruce por contacto o por nombre:** los saldos nuevos guardan `contactoId`; los viejos se encuentran por nombre/alias.
+
+**Quedó afuera:** Mi Reparto (en pausa) y Transferencias (otra cosa); `contactoId` en Libro de Cheques (solo se cruza por nombre).
+
+---
+
+## Pendiente para el final (anotado)
+
+Cosas pedidas que se hacen **después de cerrar las fases**, para no frenar el resto:
+
+- **Historial de precios y entradas por corte en la ficha del contacto.** Un botón en la ficha que muestre, por cada corte, cómo fueron sus precios y sus entradas a lo largo del tiempo (fecha, kg, precio por kg, evolución y variación). Se calcula desde las entradas de mercadería que ya existen (corte, kg, precioKg, fecha), así que no necesita datos nuevos. Idea de partida: selector de corte, tabla con fecha/kg/$ por kg, mínimo, máximo y último precio, y un gráfico simple de evolución. Conviene excluir del cálculo los precios marcados como atípicos (⚠).
 
 ---
 
@@ -300,8 +333,8 @@ Orden interno:
 | 3 `proveedorId` e ids estables | ✅ Hecha (10/10/2026) |
 | 4 Botón de selección en Saldo | ✅ Hecha (10/10/2026) |
 | 5 Mejoras de Gestión (UI) | ✅ Hecha (10/10/2026) |
-| 6 Movimientos y ficha | Pendiente |
+| 6 Movimientos y ficha | ✅ Hecha (10/10/2026) |
 | 7 Seguimiento de repartos | ⏸ En pausa (Mi Reparto fuera de alcance) |
-| 8 Rol cliente y unificación | Pendiente |
+| 8 "Le vendí" y unificación | ✅ Hecha (10/10/2026) |
 
 > Actualizar esta tabla a medida que se cierre cada fase.
