@@ -301,15 +301,35 @@ Surgió de los precios con error de tipeo encontrados en los datos (ej. $6.200.1
 - **Aviso en rojo** bajo el campo `$/Kg` mientras se escribe ("Precio muy alto: lo habitual ronda $6.200/kg").
 - **Modal que traba la pantalla** al guardar: lista los cortes sospechosos con un input (en rojo) para poner el precio correcto y el total que daría. Botones: *Corregir y continuar*, *El precio es correcto* (para precios altos legítimos) y *Volver*.
 - Aplica al **alta** y a la **edición** de una entrada.
-- **No corrige** las 5 entradas ya cargadas en semanas cerradas: eso queda a la espera de los precios reales.
+- Las 5 entradas con error ya cargadas en semanas cerradas se **corrigieron** con los precios reales (10/10/2026, con backup en `Reparto-backup-2026-10-10-pre-precios`).
 
 ---
 
-## Pendiente para el final (anotado)
+## Extras hechos el 10/10/2026 (fuera de las fases)
 
-Cosas pedidas que se hacen **después de cerrar las fases**, para no frenar el resto:
+- **Cortes en filas:** formulario de carga y edición de entradas con una fila por corte (Kg y $/Kg), responsive por ancho del contenedor.
+- **Catálogo de cortes** (colección `cortes`): los cortes creados quedan guardados. Cada proveedor ve sólo los que compra habitualmente (3 o más compras en todo el historial; si tiene poca historia, todos los que compró) y el resto queda tras **"Mostrar más cortes"**. Sin proveedor se ofrecen los 9 base.
+- **Categorías de corte** (Cerdo, Embutidos, Menudencias; texto libre) con **buscador y chips de filtro** en el formulario de carga y en "Gestionar cortes".
+- **Gestionar cortes** (modal): ver compras por corte, crear, editar nombre y categoría (con paso de confirmación y arrastrar el corte a una categoría), archivar con confirmación y reactivar. Renombrar cambia el catálogo; las entradas viejas conservan el nombre.
+- **Embutidos rediseñado como Mercadería:** filas por tipo, filtro por día (arranca en el día actual), tarjetas con borde de color y **ticket** al expandir. Las entradas nuevas llevan id estable y marca de modificación. Se corrigió que "Agregar Entrada" nunca avisaba de precios faltantes.
+- **Publicado** en https://mireparto.web.app (hosting) el 10/10/2026.
 
-- **Historial de precios y entradas por corte en la ficha del contacto.** Un botón en la ficha que muestre, por cada corte, cómo fueron sus precios y sus entradas a lo largo del tiempo (fecha, kg, precio por kg, evolución y variación). Se calcula desde las entradas de mercadería que ya existen (corte, kg, precioKg, fecha), así que no necesita datos nuevos. Idea de partida: selector de corte, tabla con fecha/kg/$ por kg, mínimo, máximo y último precio, y un gráfico simple de evolución. Conviene excluir del cálculo los precios marcados como atípicos (⚠).
+---
+
+## Pendiente (para retomar)
+
+**Decisiones tuyas**
+1. **Limpiar el catálogo de cortes** desde "Gestionar cortes": archivar duplicados por tipeo (Mollejas, Riñones, Salchicha, Chinchu, Bondiola C) y revisar las categorías asignadas automáticamente (fue una suposición inicial).
+2. **16 nombres en Saldo Proveedores sin contacto:** para cada uno, crear contacto o agregarlo como alias. Quedan además **2 vinculaciones y 4 saldos de Tito** sin resolver.
+3. **6 precios dudosos de Tito** (se dejaron como están): Menudencias a $16.000 (24/08 martes), $19.000 (24/08 viernes), $17.500 (21/09 miércoles), $10.500 (28/09 viernes), $22.000 (06/07 sábado) y Recorte a $23.000 (01/06 viernes). Confirmar si son reales; si no, corregirlos con script y backup.
+
+**Desarrollo**
+4. **Historial de precios y entradas por corte en la ficha del contacto.** Un botón en la ficha que muestre, por cada corte, cómo fueron sus precios y sus entradas a lo largo del tiempo (fecha, kg, precio por kg, evolución y variación). Se calcula desde las entradas de mercadería existentes (corte, kg, precioKg, fecha); ahora los cortes ya son un catálogo, así que se puede elegir de ahí. Idea: selector de corte, tabla con fecha/kg/$ por kg, mínimo, máximo y último precio, y un gráfico simple. Excluir los precios marcados como atípicos (⚠).
+5. **Fase 7 – Seguimiento de repartos** y **Mi Reparto**: en pausa hasta que se retome (ver `README-REPARTO-SEGUIMIENTO.md` y `README-MI-REPARTO-FUTURO.md`).
+
+**Detalles menores**
+- Las entradas de embutidos cargadas antes del 10/10/2026 no tienen id, por eso el ticket no muestra "Referencia".
+- El control de precios atípicos sólo aplica a Mercadería (Embutidos no tiene proveedor de referencia).
 
 ---
 
