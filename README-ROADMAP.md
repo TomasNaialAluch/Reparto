@@ -148,6 +148,29 @@ Respaldo en solo lectura de **16 colecciones** (guardado fuera del repo, con un 
 
 **Listo cuando:** borrar o reordenar una entrada ya no desplaza pagos ni vinculaciones, y los totales de Balance y Pagos coinciden con los de antes de migrar.
 
+### Resultado (10/10/2026) — ✅ cerrada
+
+**Código (compatible hacia atrás):**
+- Cada entrada nueva recibe un **`id` propio** (`ent_…`) y `proveedorId`; al editarla se conservan (antes el guardado reemplazaba la entrada completa y los habría perdido).
+- La boleta se identifica por `boleta-{id}`; las entradas sin id caen a `boleta-{posición}` como antes. Helper en `src/utils/boletas.js`.
+- Los vínculos de Saldo guardan `mercaderiaEntradaId` y `semanaId`, y el descuento en Pagos a Proveedores compara por **id** (solo las vinculaciones sin ids usan la posición).
+- El badge de boletas pendientes cuenta por entrada (con claves viejas y nuevas conviviendo, contar valores las duplicaría).
+- **Bug corregido:** el modal de edición de saldo calculaba el índice dentro de la lista *filtrada* por proveedor, no la posición real de la entrada. Explica parte de los vínculos desplazados.
+
+**Datos (script idempotente, con respaldo previo `Reparto-backup-2026-10-10-pre-fase3`):**
+| Qué | Resultado |
+|---|---|
+| Entradas con id propio | **922 / 922** (44 semanas, no solo la activa) |
+| Entradas con `proveedorId` | **919 / 922** (las 3 restantes son valores que no eran proveedores) |
+| `boletasPagadas` con clave por id | 102 claves agregadas (se conservan las viejas) |
+| Vinculaciones de saldo resueltas a su semana | **7 / 9** (5 por posición + monto, 2 por monto con la posición desplazada) |
+| Saldos con boletas de mercadería resueltos | **28 / 32** |
+| Pagos a proveedores (`pagosProveedores`) | no hay registros; nada que migrar |
+
+**Pendiente de revisión manual (4 saldos + 2 vinculaciones, todos de un mismo proveedor, junio–agosto):** sus montos ya no coinciden con ninguna entrada (precios editados o entradas borradas). Mantienen el comportamiento anterior (por posición), así que podrían aplicar un descuento a la boleta equivocada hasta resolverlos a mano.
+
+**Cuidado al desplegar:** la versión publicada todavía lee las claves por posición. Publicar la nueva versión **pronto**: lo que se marque como pagado en la versión vieja después de la migración no lo ve la nueva (y al revés).
+
 ---
 
 ## Fase 4 — Botón "Seleccionar proveedor o cliente" en Saldo Proveedores
@@ -252,7 +275,7 @@ Orden interno:
 | 0 Verificaciones previas | ✅ Hecha (10/10/2026) |
 | 1 Renombrar a Saldo Proveedores | ✅ Hecha (10/10/2026) |
 | 2 Contacto + alta rápida | ✅ Hecha (10/10/2026) |
-| 3 `proveedorId` e ids estables | Pendiente |
+| 3 `proveedorId` e ids estables | ✅ Hecha (10/10/2026) |
 | 4 Botón de selección en Saldo | Pendiente |
 | 5 Mejoras de Gestión (UI) | Pendiente |
 | 6 Movimientos y ficha | Pendiente |
