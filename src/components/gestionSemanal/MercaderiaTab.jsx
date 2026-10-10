@@ -6,6 +6,7 @@ import { normalizarNombre } from '../../utils/nombres';
 import { idBoleta } from '../../utils/boletas';
 import { kgDeEntrada, costoDeEntrada } from '../../utils/cuentaContacto';
 import BoletaTicketModal from '../BoletaTicketModal';
+import { usePreciosReferencia, FACTOR_PRECIO_ATIPICO } from '../../hooks/usePreciosReferencia';
 import { formatCurrency } from '../../utils/money';
 import ConfirmModal from '../ConfirmModal';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -49,6 +50,10 @@ export default function MercaderiaTab({
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [busquedaModalProv, setBusquedaModalProv] = useState('');
   const [ticketIndex, setTicketIndex] = useState(null);
+  // Control de precios: aviso cuando un precio por kg es mucho mayor al habitual
+  const { referenciaPara } = usePreciosReferencia();
+  const [controlPrecios, setControlPrecios] = useState(null);
+  const [preciosCorregidos, setPreciosCorregidos] = useState({});
   const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
   const [showProveedoresModal, setShowProveedoresModal] = useState(false);
   const [dropdownProveedorOpen, setDropdownProveedorOpen] = useState(false);
@@ -157,6 +162,34 @@ export default function MercaderiaTab({
     && !(contactoExacto && contactoExacto.activo !== false && contactoExacto.roles?.proveedor);
   const parecidosAlBuscado = puedeCrearProveedor ? buscarParecidos(busquedaProveedor) : [];
 
+  const confirmarControlPrecios = async (todoCorrecto) => {
+    const control = controlPrecios;
+    if (!control) return;
+    const precios = {};
+    control.items.forEach((it) => {
+      precios[it.key] = todoCorrecto ? it.precioKg : parseFloat(preciosCorregidos[it.key]);
+    });
+    setControlPrecios(null);
+
+    if (control.origen === 'agregar') {
+      // Refleja la corrección en el formulario y continúa con el guardado
+      setFormMercaderia((prev) => ({
+        ...prev,
+        cortes: {
+          ...prev.cortes,
+          ...Object.fromEntries(control.items.map((it) => [it.key, { ...prev.cortes[it.key], precioKg: String(precios[it.key]) }])),
+        },
+      }));
+      await handleAgregarMercaderia(control.forzarSinPrecios, { precios, omitirControlPrecios: true });
+    } else {
+      setTempMercaderiaData((prev) => ({
+        ...prev,
+        cortes: prev.cortes.map((c, i) => (precios[i] !== undefined ? { ...c, precioKg: String(precios[i]) } : c)),
+      }));
+      await saveEditingMercaderia(control.indexEdit, { precios, omitirControlPrecios: true });
+    }
+  };
+
   const toggleExpandedMercaderia = (index) => {
     if (editingMercaderia !== null) {
       cancelEditingMercaderia();
@@ -189,19 +222,48 @@ export default function MercaderiaTab({
     setTempMercaderiaData({});
   };
 
-  const saveEditingMercaderia = async (index) => {
+  // Precio habitual si el precio dado es sospechosamente alto; null si es normal.
+  const referenciaSiAtipico = (proveedorId, proveedorNombre, corte, precio) => {
+    const valor = Number(precio);
+    if (!(valor > 0)) return null;
+    const ref = referenciaPara(proveedorId, proveedorNombre, corte);
+    return ref && valor > ref * FACTOR_PRECIO_ATIPICO ? ref : null;
+  };
+
+  const detectarPreciosAtipicos = (proveedorId, proveedorNombre, lista) => lista
+    .map((c) => ({ ...c, ref: referenciaSiAtipico(proveedorId, proveedorNombre, c.corte, c.precioKg) }))
+    .filter((c) => c.ref);
+
+  const saveEditingMercaderia = async (index, opciones = {}) => {
     try {
       const nombreProveedor = (tempMercaderiaData.proveedor || '').trim();
       const contactoDelNombre = buscarExacto(nombreProveedor);
+      const cortesAGuardar = tempMercaderiaData.cortes.map((c, i) => ({
+        ...c,
+        kg: parseFloat(c.kg) || 0,
+        precioKg: opciones.precios && opciones.precios[i] !== undefined
+          ? opciones.precios[i]
+          : (parseFloat(c.precioKg) || 0)
+      }));
+
+      if (!opciones.omitirControlPrecios) {
+        const atipicos = detectarPreciosAtipicos(
+          contactoDelNombre ? contactoDelNombre.id : null,
+          nombreProveedor,
+          cortesAGuardar.map((c, i) => ({ key: i, corte: c.corte, kg: c.kg, precioKg: c.precioKg }))
+        );
+        if (atipicos.length > 0) {
+          setPreciosCorregidos(Object.fromEntries(atipicos.map((a) => [a.key, String(a.precioKg)])));
+          setControlPrecios({ origen: 'editar', items: atipicos, indexEdit: index });
+          return;
+        }
+      }
+
       const dataToSave = {
         ...tempMercaderiaData,
         proveedor: nombreProveedor,
         proveedorId: contactoDelNombre ? contactoDelNombre.id : null,
-        cortes: tempMercaderiaData.cortes.map(c => ({
-          ...c,
-          kg: parseFloat(c.kg) || 0,
-          precioKg: parseFloat(c.precioKg) || 0
-        }))
+        cortes: cortesAGuardar
       };
       await actualizarMercaderia(index, dataToSave);
       addNotification('Mercadería actualizada', 'success');
@@ -303,15 +365,22 @@ export default function MercaderiaTab({
     });
   };
 
-  const handleAgregarMercaderia = async (forzarSinPrecios = false) => {
+  const handleAgregarMercaderia = async (forzarSinPrecios = false, opciones = {}) => {
     try {
-      const cortesConDatos = Object.entries(formMercaderia.cortes)
+      let cortesConDatos = Object.entries(formMercaderia.cortes)
         .filter(([_, datos]) => datos?.kg && parseFloat(datos.kg) > 0)
         .map(([corte, datos]) => ({
           corte,
           kg: parseFloat(datos.kg),
           precioKg: datos.precioKg ? parseFloat(datos.precioKg) : 0
         }));
+
+      // Precios ya corregidos desde el control de precios
+      if (opciones.precios) {
+        cortesConDatos = cortesConDatos.map((c) => (
+          opciones.precios[c.corte] !== undefined ? { ...c, precioKg: opciones.precios[c.corte] } : c
+        ));
+      }
 
       if (cortesConDatos.length === 0) {
         addNotification('Debe ingresar al menos un corte con kilos', 'warning');
@@ -322,6 +391,20 @@ export default function MercaderiaTab({
       if (!proveedor) {
         addNotification('Debe elegir un proveedor', 'warning');
         return;
+      }
+
+      // Control de precios: un precio por kg muy por encima del habitual frena el guardado.
+      if (!opciones.omitirControlPrecios) {
+        const atipicos = detectarPreciosAtipicos(
+          formMercaderia.proveedorId || null,
+          proveedor,
+          cortesConDatos.map((c) => ({ key: c.corte, corte: c.corte, kg: c.kg, precioKg: c.precioKg }))
+        );
+        if (atipicos.length > 0) {
+          setPreciosCorregidos(Object.fromEntries(atipicos.map((a) => [a.key, String(a.precioKg)])));
+          setControlPrecios({ origen: 'agregar', items: atipicos, forzarSinPrecios });
+          return;
+        }
       }
 
       if (!forzarSinPrecios) {
@@ -750,8 +833,18 @@ export default function MercaderiaTab({
                                     }
                                   }
                                 })}
+                                style={referenciaSiAtipico(formMercaderia.proveedorId, formMercaderia.proveedor, corte, formMercaderia.cortes[corte]?.precioKg)
+                                  ? { borderColor: '#dc3545', background: 'rgba(220,53,69,0.06)' } : undefined}
                               />
                             </div>
+                            {(() => {
+                              const ref = referenciaSiAtipico(formMercaderia.proveedorId, formMercaderia.proveedor, corte, formMercaderia.cortes[corte]?.precioKg);
+                              return ref ? (
+                                <div style={{ color: '#dc3545', fontSize: '0.7rem', fontWeight: 600, marginTop: '3px', lineHeight: 1.2 }}>
+                                  Precio muy alto: lo habitual ronda {formatCurrency(ref)}/kg
+                                </div>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1449,6 +1542,102 @@ export default function MercaderiaTab({
         );
       })()}
 
+      {controlPrecios && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)', zIndex: 1080 }} />
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            style={{
+              position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+              width: 'min(400px, 94vw)', maxHeight: '88vh', overflowY: 'auto', background: '#fff', borderRadius: '16px',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.25)', zIndex: 1081, borderTop: '4px solid #dc3545',
+            }}
+          >
+            <div style={{ padding: '16px 20px 8px' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#dc3545', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Revisá el precio
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#212529', marginTop: '2px' }}>
+                {controlPrecios.items.length === 1 ? 'Este precio parece un error' : 'Estos precios parecen un error'}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#6c757d', marginTop: '4px' }}>
+                Es mucho más alto que lo que sueles pagar. Corregilo antes de guardar.
+              </div>
+            </div>
+
+            <div style={{ padding: '8px 20px 4px' }}>
+              {controlPrecios.items.map((it) => {
+                const nuevo = parseFloat(preciosCorregidos[it.key]);
+                const valido = nuevo > 0;
+                return (
+                  <div key={it.key} style={{ border: '1px solid #f1c0c5', background: 'rgba(220,53,69,0.05)', borderRadius: '10px', padding: '10px 12px', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontWeight: 700, fontSize: '0.9rem' }}>
+                      <span>{it.corte}</span>
+                      <span style={{ color: '#6c757d', fontWeight: 600 }}>{it.kg} kg</span>
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#8b1c26', margin: '4px 0 8px' }}>
+                      Escribiste <strong>{formatCurrency(it.precioKg)}</strong> por kg. Lo habitual ronda <strong>{formatCurrency(it.ref)}</strong>.
+                    </div>
+                    <div className="input-group input-group-sm">
+                      <span className="input-group-text">$/Kg</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        autoFocus={it === controlPrecios.items[0]}
+                        className="form-control"
+                        value={preciosCorregidos[it.key] ?? ''}
+                        onChange={(e) => setPreciosCorregidos((prev) => ({ ...prev, [it.key]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && valido && controlPrecios.items.length === 1) confirmarControlPrecios(false); }}
+                        style={{ borderColor: '#dc3545' }}
+                      />
+                    </div>
+                    {valido && (
+                      <div style={{ fontSize: '0.72rem', color: '#6c757d', marginTop: '4px' }}>
+                        Total del corte: <strong>{formatCurrency(nuevo * it.kg)}</strong>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ padding: '4px 20px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                disabled={!controlPrecios.items.every((it) => parseFloat(preciosCorregidos[it.key]) > 0)}
+                onClick={() => confirmarControlPrecios(false)}
+                style={{
+                  border: 'none', borderRadius: '10px', padding: '10px', fontWeight: 700,
+                  background: controlPrecios.items.every((it) => parseFloat(preciosCorregidos[it.key]) > 0) ? '#6A8899' : '#e9ecef',
+                  color: controlPrecios.items.every((it) => parseFloat(preciosCorregidos[it.key]) > 0) ? '#fff' : '#9ca3af',
+                  cursor: controlPrecios.items.every((it) => parseFloat(preciosCorregidos[it.key]) > 0) ? 'pointer' : 'not-allowed',
+                }}
+              >
+                Corregir y continuar
+              </button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => confirmarControlPrecios(true)}
+                  style={{ flex: 1, border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', borderRadius: '10px', padding: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  El precio es correcto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setControlPrecios(null)}
+                  style={{ flex: 1, border: '1px solid #dee2e6', background: 'transparent', color: '#6c757d', borderRadius: '10px', padding: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Volver
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       <ConfirmModal
         isOpen={showWarningPrecios}
         onClose={handleCloseWarningPrecios}
@@ -1476,6 +1665,7 @@ export default function MercaderiaTab({
     </div>
   );
 }
+
 
 
 
