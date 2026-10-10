@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { DIAS_SEMANA, CORTES_CARNE, getDiaActual } from './constants';
 import { useContactos } from '../../hooks/useContactos';
 import { normalizarNombre } from '../../utils/nombres';
+import { idBoleta } from '../../utils/boletas';
+import { kgDeEntrada, costoDeEntrada } from '../../utils/cuentaContacto';
+import BoletaTicketModal from '../BoletaTicketModal';
 import { formatCurrency } from '../../utils/money';
 import ConfirmModal from '../ConfirmModal';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -45,6 +48,7 @@ export default function MercaderiaTab({
   const [ordenGrupos, setOrdenGrupos] = useState('compra');
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [busquedaModalProv, setBusquedaModalProv] = useState('');
+  const [ticketIndex, setTicketIndex] = useState(null);
   const [ultimosProveedoresUsados, setUltimosProveedoresUsados] = useState([]);
   const [showProveedoresModal, setShowProveedoresModal] = useState(false);
   const [dropdownProveedorOpen, setDropdownProveedorOpen] = useState(false);
@@ -892,6 +896,17 @@ export default function MercaderiaTab({
                                   </>
                                 ) : (
                                   <>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+                                      title="Ver comprobante"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setTicketIndex(index);
+                                      }}
+                                    >
+                                      Comprobante
+                                    </button>
                                     <button 
                                       className="btn btn-sm btn-warning d-inline-flex align-items-center"
                                       onClick={(e) => {
@@ -1410,6 +1425,30 @@ export default function MercaderiaTab({
         );
       })()}
 
+      {ticketIndex !== null && semanaActiva?.mercaderia?.[ticketIndex] && (() => {
+        const entrada = semanaActiva.mercaderia[ticketIndex];
+        const pagadas = semanaActiva.pagosProveedoresEstado?.boletasPagadas || {};
+        const contacto = contactos.find((c) => c.id === entrada.proveedorId);
+        return (
+          <BoletaTicketModal
+            isOpen
+            onClose={() => setTicketIndex(null)}
+            compra={{
+              proveedor: contacto?.nombre || entrada.proveedor,
+              dia: entrada.dia,
+              timestamp: entrada.timestamp,
+              modificadoEn: entrada.modificadoEn,
+              cortes: entrada.cortes || [],
+              kg: kgDeEntrada(entrada),
+              costo: costoDeEntrada(entrada),
+              pagada: pagadas[idBoleta(entrada, ticketIndex)] === true,
+              entradaId: entrada.id || null,
+              semanaCerrada: false,
+            }}
+          />
+        );
+      })()}
+
       <ConfirmModal
         isOpen={showWarningPrecios}
         onClose={handleCloseWarningPrecios}
@@ -1437,6 +1476,8 @@ export default function MercaderiaTab({
     </div>
   );
 }
+
+
 
 
 

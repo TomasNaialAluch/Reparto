@@ -854,6 +854,7 @@ export const useGestionSemanal = (userId) => {
         ...mercaderiaActual[index],
         ...entradaActualizada,
         id: mercaderiaActual[index]?.id || entradaActualizada.id || generarIdEntrada(),
+        modificadoEn: new Date().toISOString(),
         timestamp: mercaderiaActual[index]?.timestamp || new Date().toISOString()
       };
       await updateDoc(doc(db, 'gestion_semanal', semanaActiva.id), {
@@ -1406,4 +1407,5 @@ export const useTablasPrecios = () => {
     eliminarTabla: deleteDocument,
   };
 };
+
 

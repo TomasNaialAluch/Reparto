@@ -1,6 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useContactos } from '../hooks/useContactos';
 import { normalizarNombre } from '../utils/nombres';
+import { useDatosCuentas } from '../hooks/useDatosCuentas';
+import { calcularCuenta, nombresSinContacto } from '../utils/cuentaContacto';
+import SelectorContactoModal from '../components/SelectorContactoModal';
+import FichaContactoModal from '../components/FichaContactoModal';
 import { IconPlus, IconSearch, IconX, IconEdit, IconInbox } from '../components/gestionSemanal/icons';
 
 // Paleta NEWLOOK (ver README-NEWLOOK.md)
@@ -61,6 +65,29 @@ const Contactos = () => {
   const [errorForm, setErrorForm] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [aviso, setAviso] = useState('');
+  const [fichaId, setFichaId] = useState(null);
+  const {
+    semanas, vinculaciones, saldos, facturas, personas, movimientos, cheques, loading: cargandoCuentas,
+  } = useDatosCuentas(true);
+  const [panelSinContacto, setPanelSinContacto] = useState(false);
+  const [nombreParaAlias, setNombreParaAlias] = useState(null); // nombre suelto a asignar como alias
+
+  // Lo que se le debe a cada contacto (calculado de compras y marcas de pago existentes).
+  const pendientePorContacto = useMemo(() => {
+    const mapa = {};
+    if (cargandoCuentas) return mapa;
+    contactos.forEach((c) => {
+      const { totales } = calcularCuenta(c, semanas, vinculaciones);
+      mapa[c.id] = totales;
+    });
+    return mapa;
+  }, [contactos, semanas, vinculaciones, cargandoCuentas]);
+
+  // Nombres que aparecen en saldos pero no son ningún contacto (ej. variantes mal escritas).
+  const sinContacto = useMemo(
+    () => (cargandoCuentas ? [] : nombresSinContacto(contactos, saldos)),
+    [contactos, saldos, cargandoCuentas]
+  );
 
   const conteos = useMemo(() => ({
     todos: contactos.filter((c) => c.activo !== false).length,
@@ -158,6 +185,30 @@ const Contactos = () => {
     }
   };
 
+  const crearDesdeNombre = async (item) => {
+    try {
+      await crearContacto(item.nombre, { proveedor: true, cliente: true });
+      mostrarAviso(`"${item.nombre}" creado como contacto`);
+    } catch (e) {
+      mostrarAviso('No se pudo crear el contacto');
+    }
+  };
+
+  const asignarComoAlias = async (contacto) => {
+    const nombre = nombreParaAlias;
+    if (!nombre) return;
+    try {
+      const actual = contactos.find((c) => c.id === contacto.id);
+      const alias = [...new Set([...(actual?.alias || []), nombre])];
+      const res = await actualizarContacto(contacto.id, { alias });
+      mostrarAviso(res.ok ? `"${nombre}" ahora es otro nombre de ${contacto.nombre}` : res.motivo);
+    } catch (e) {
+      mostrarAviso('No se pudo guardar el alias');
+    } finally {
+      setNombreParaAlias(null);
+    }
+  };
+
   const archivar = async (c) => {
     try { await archivarContacto(c.id); mostrarAviso(`"${c.nombre}" archivado`); }
     catch (e) { mostrarAviso('No se pudo archivar'); }
@@ -225,6 +276,54 @@ const Contactos = () => {
         </div>
       </div>
 
+      {sinContacto.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: '12px', border: `1px solid ${C.border}`, borderLeft: '3px solid #FFD166', marginBottom: '12px', overflow: 'hidden' }}>
+          <button
+            type="button"
+            onClick={() => setPanelSinContacto((v) => !v)}
+            style={{ width: '100%', border: 'none', background: 'transparent', padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', textAlign: 'left' }}
+          >
+            <span>
+              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: C.text }}>
+                {sinContacto.length} {sinContacto.length === 1 ? 'nombre' : 'nombres'} en saldos sin contacto
+              </span>
+              <span style={{ display: 'block', fontSize: '0.72rem', color: C.muted }}>
+                Pueden ser personas nuevas o el mismo nombre mal escrito. Unilos para ver todo junto en la ficha.
+              </span>
+            </span>
+            <span style={{ display: 'inline-flex', color: C.faint, transform: panelSinContacto ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.22s cubic-bezier(.4,0,.2,1)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+            </span>
+          </button>
+          {panelSinContacto && (
+            <div style={{ borderTop: `1px solid ${C.borderSoft}` }}>
+              {sinContacto.map((item) => (
+                <div key={item.clave} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', borderBottom: `1px solid ${C.borderSoft}`, flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.86rem', color: C.text }}>{item.nombre}</div>
+                    <div style={{ fontSize: '0.7rem', color: C.faint }}>{item.saldos} {item.saldos === 1 ? 'saldo' : 'saldos'}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => crearDesdeNombre(item)}
+                    style={{ border: `1px solid ${C.primary}`, background: 'transparent', color: C.primaryDark, borderRadius: '8px', padding: '5px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Crear contacto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNombreParaAlias(item.nombre)}
+                    style={{ border: `1px solid ${C.borderSoft}`, background: 'transparent', color: C.muted, borderRadius: '8px', padding: '5px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Es otro nombre de…
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {aviso && (
         <div style={{ background: 'rgba(40,167,69,0.1)', color: '#1a5c2a', borderRadius: '8px', padding: '8px 12px', fontSize: '0.82rem', marginBottom: '10px' }}>
           {aviso}
@@ -274,12 +373,25 @@ const Contactos = () => {
                     <RolPill activo={!!c.roles?.proveedor}>Proveedor</RolPill>
                     <RolPill activo={!!c.roles?.cliente}>Cliente</RolPill>
                     {c.contacto?.telefono && <span style={{ fontSize: '0.72rem', color: C.muted }}>{c.contacto.telefono}</span>}
+                    {(pendientePorContacto[c.id]?.pendiente || 0) > 0 && (
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 9px', borderRadius: '999px', background: 'rgba(220,53,69,0.1)', color: '#8b1c26' }}>
+                        Le debo {new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(pendientePorContacto[c.id].pendiente)}
+                      </span>
+                    )}
                     {(c.alias || []).length > 0 && (
                       <span style={{ fontSize: '0.72rem', color: C.faint }}>También: {c.alias.join(', ')}</span>
                     )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setFichaId(c.id)}
+                    title="Ver ficha: compras, deuda y comprobantes"
+                    style={{ border: `1px solid ${C.primary}`, background: 'transparent', borderRadius: '8px', padding: '6px 10px', color: C.primaryDark, cursor: 'pointer', fontSize: '0.76rem', fontWeight: 600 }}
+                  >
+                    Ficha
+                  </button>
                   <button
                     type="button"
                     onClick={() => abrirEditar(c)}
@@ -311,6 +423,30 @@ const Contactos = () => {
             );
           })}
         </div>
+      )}
+
+      <SelectorContactoModal
+        isOpen={!!nombreParaAlias}
+        onClose={() => setNombreParaAlias(null)}
+        consulta={nombreParaAlias || ''}
+        onSelect={asignarComoAlias}
+      />
+
+      {/* Ficha del contacto */}
+      {fichaId && contactos.find((c) => c.id === fichaId) && (
+        <FichaContactoModal
+          contacto={contactos.find((c) => c.id === fichaId)}
+          semanas={semanas}
+          vinculaciones={vinculaciones}
+          saldos={saldos}
+          facturas={facturas}
+          personas={personas}
+          movimientos={movimientos}
+          cheques={cheques}
+          cargando={cargandoCuentas}
+          onClose={() => setFichaId(null)}
+          onEditar={() => { const c = contactos.find((x) => x.id === fichaId); setFichaId(null); if (c) abrirEditar(c); }}
+        />
       )}
 
       {/* Modal crear / editar */}
@@ -447,3 +583,5 @@ const Contactos = () => {
 };
 
 export default Contactos;
+
+
