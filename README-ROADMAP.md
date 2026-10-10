@@ -123,6 +123,17 @@ Respaldo en solo lectura de **16 colecciones** (guardado fuera del repo, con un 
 
 **Listo cuando:** se puede crear un proveedor desde el ingreso de mercadería y existe un único catálogo; nada de lo anterior dejó de funcionar.
 
+### Resultado (10/10/2026) — ✅ cerrada
+
+- **Colección `contactos`** (compartida): `nombre`, `nombreNormalizado`, `roles { proveedor, cliente }`, `alias`, `activo`, `origen`. Hook `useContactos` y utilidades en `src/utils/nombres.js`.
+- **Importación:** 32 contactos creados desde la lista completa de `user_configs`, la colección `proveedores` y los nombres usados en mercadería (se descartaron 2 valores que no eran proveedores). Roles por defecto: proveedor y cliente. "J & L Paulin" / "J&L paulin" quedaron como un solo contacto con alias. Idempotente (segunda corrida: 0 creados).
+- **Formulario de mercadería:** selector con **búsqueda** (nombre y alias), **últimos usados**, **"+ Crear proveedor"** inline, aviso de **nombres parecidos** y "agregar también como proveedor" si el contacto existía solo como cliente.
+- **Modal "Gestionar proveedores":** ahora opera sobre contactos; "Eliminar" pasa a **Archivar** (conserva el historial) y se quitó "Restaurar lista por defecto".
+- **Entradas nuevas** guardan `proveedorId` además del nombre; al editar una entrada se recalcula. Las anteriores siguen funcionando por nombre.
+- **Sin cambios:** Pagos a Proveedores, Balance, Saldo, Lista de Precios (sigue con su colección `proveedores`) y los datos históricos.
+- **Pantalla básica "Proveedores y Clientes"** (adelantada de la Fase 6): tarjeta en Inicio, ruta `/contactos`. Buscar, crear, editar (nombre, roles, teléfono, otros nombres, notas), archivar y reactivar; filtros Todos / Proveedores / Clientes / Archivados. No aparece en la barra flotante. Sin deuda, movimientos ni unión de duplicados todavía.
+- **Pendiente de revisión manual (no se unieron):** "Pilotti" / "Pilloti" / "Leandro Pilotti" / "Leandro", "Mariano" / "Mariano Valle", "Paulin" / "J & L Paulin". No hay función de unir contactos todavía.
+
 ---
 
 ## Fase 3 — `proveedorId` en las entradas e ids estables de boleta
@@ -240,7 +251,7 @@ Orden interno:
 |---|---|
 | 0 Verificaciones previas | ✅ Hecha (10/10/2026) |
 | 1 Renombrar a Saldo Proveedores | ✅ Hecha (10/10/2026) |
-| 2 Contacto + alta rápida | Pendiente |
+| 2 Contacto + alta rápida | ✅ Hecha (10/10/2026) |
 | 3 `proveedorId` e ids estables | Pendiente |
 | 4 Botón de selección en Saldo | Pendiente |
 | 5 Mejoras de Gestión (UI) | Pendiente |
