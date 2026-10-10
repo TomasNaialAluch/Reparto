@@ -10,6 +10,8 @@ Plan de trabajo que ordena los tres documentos de diseño recientes. Cada fase e
 
 > La sección 7 de `README-MEJORAS-GESTION-PROVEEDORES.md` queda **reemplazada** por el README de relaciones. Si hay diferencias, manda el de relaciones.
 
+> **Fuera de alcance: Transferencias.** Es otra cosa (un cliente que manda varias transferencias desde distintos alias y ahí se hacen las cuentas); no tiene relación con proveedores/contactos y no se toca.
+>
 > **Fuera de alcance por ahora: Mi Reparto.** Ni la pantalla ni la colección `repartos` ni el seguimiento de repartos se tocan en este plan. Lo que quedó escrito sobre ellos es solo registro de lo observado, para retomarlo cuando se decida.
 
 ---
@@ -185,6 +187,16 @@ Respaldo en solo lectura de **16 colecciones** (guardado fuera del repo, con un 
 
 **Listo cuando:** se puede hacer un saldo con un nombre cualquiera y también con un contacto, y ambos se guardan sin errores.
 
+### Resultado (10/10/2026) — ✅ cerrada
+
+- **Texto libre intacto:** se sigue escribiendo cualquier nombre sin registrar; se guarda con `contactoId: null`, igual que antes.
+- **Botón "Seleccionar proveedor o cliente"** a la derecha del input, a la mitad de su ancho (en pantallas angostas pasa debajo). Abre `SelectorContactoModal`: buscador por nombre, alias o teléfono, roles visibles, proveedores primero, "Crear «…»" inline y aviso de nombres parecidos.
+- **Al elegir un contacto:** se completa el nombre y aparece la pill "Vinculado a …" con ×. Si se retoca el texto y deja de ser ese contacto, se desvincula solo.
+- **Con contacto, la búsqueda es por id:** las boletas de mercadería se traen por `proveedorId` (también las escritas con otro nombre, vía alias) y el saldo histórico por `contactoId`. Sin contacto, coincidencia por texto como siempre.
+- **Guardado:** el saldo guarda `contactoId`.
+- **Vincular después:** el modal de edición de saldo tiene el mismo botón y pill, para vincular saldos ya guardados.
+- **Sin cambios:** datos existentes, Mi Reparto y Transferencias.
+
 ---
 
 ## Fase 5 — Mejoras de Gestión de proveedores (UI)
@@ -233,11 +245,11 @@ Orden interno:
 
 ---
 
-## Fase 8 — Rol cliente y unificación
+## Fase 8 — "Le vendí" y unificación
 
 **Origen:** README relaciones, secciones 4 y 5. **Tamaño:** media.
 
-- Mismo patrón **texto libre + botón de selección** en Transferencias, con `contactoId`. *(Mi Reparto queda afuera por ahora.)*
+- *(Mi Reparto y Transferencias quedan afuera: el primero en pausa, el segundo por decisión.)*
 - **"Le vendí"**: ver la mercadería vendida a un contacto (requiere decidir si se registra el detalle de cortes).
 - Enlazar o absorber **Facturación** (`facturacion_clientes`) y **Gestión de Deudas** (`deudaPersonas`) en el catálogo único.
 - Opcional: `contactoId` en Libro de Cheques.
@@ -276,7 +288,7 @@ Orden interno:
 | 1 Renombrar a Saldo Proveedores | ✅ Hecha (10/10/2026) |
 | 2 Contacto + alta rápida | ✅ Hecha (10/10/2026) |
 | 3 `proveedorId` e ids estables | ✅ Hecha (10/10/2026) |
-| 4 Botón de selección en Saldo | Pendiente |
+| 4 Botón de selección en Saldo | ✅ Hecha (10/10/2026) |
 | 5 Mejoras de Gestión (UI) | Pendiente |
 | 6 Movimientos y ficha | Pendiente |
 | 7 Seguimiento de repartos | ⏸ En pausa (Mi Reparto fuera de alcance) |
