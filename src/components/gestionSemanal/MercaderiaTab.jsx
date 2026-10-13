@@ -201,17 +201,22 @@ export default function MercaderiaTab({
   // Los cortes con datos cargados siempre quedan a la vista.
   const consultaCorte = normalizarNombre(busquedaCorte);
   const filtrandoCortes = !!consultaCorte || !!categoriaCorte;
+  // Con texto en el buscador se busca en TODAS las categorías: el chip no limita la búsqueda.
+  const categoriaAplicada = consultaCorte ? '' : categoriaCorte;
+  const categoriaDeCorte = useMemo(
+    () => new Map(catalogoCortes.map((c) => [c.nombreNormalizado, c.categoria || ''])),
+    [catalogoCortes]
+  );
 
   // Orden en pantalla (y para navegar con teclado)
   const ordenCortesPorUso = useMemo(() => {
     if (!filtrandoCortes) return mostrarMasCortes ? [...cortesVisibles, ...cortesOcultos] : cortesVisibles;
-    const categoriaDe = new Map(catalogoCortes.map((c) => [c.nombreNormalizado, c.categoria || '']));
     return [...cortesVisibles, ...cortesOcultos].filter((n) => {
       if (formMercaderia.cortes[n] !== undefined) return true;
       const k = normalizarNombre(n);
-      return (!consultaCorte || k.includes(consultaCorte)) && (!categoriaCorte || categoriaDe.get(k) === categoriaCorte);
+      return (!consultaCorte || k.includes(consultaCorte)) && (!categoriaAplicada || categoriaDeCorte.get(k) === categoriaAplicada);
     });
-  }, [filtrandoCortes, mostrarMasCortes, cortesVisibles, cortesOcultos, catalogoCortes, consultaCorte, categoriaCorte, formMercaderia.cortes]);
+  }, [filtrandoCortes, mostrarMasCortes, cortesVisibles, cortesOcultos, categoriaDeCorte, consultaCorte, categoriaAplicada, formMercaderia.cortes]);
 
   // ----- Selector de proveedor -----
   const consultaProveedor = normalizarNombre(busquedaProveedor);
@@ -903,7 +908,7 @@ export default function MercaderiaTab({
                   <div className="gs-cortes-chips">
                     <button
                       type="button"
-                      className={`gs-chip${categoriaCorte === '' ? ' activo' : ''}`}
+                      className={`gs-chip${categoriaAplicada === '' ? ' activo' : ''}`}
                       onClick={() => setCategoriaCorte('')}
                     >
                       Todos
@@ -912,8 +917,8 @@ export default function MercaderiaTab({
                       <button
                         key={k}
                         type="button"
-                        className={`gs-chip${categoriaCorte === k ? ' activo' : ''}`}
-                        onClick={() => setCategoriaCorte(categoriaCorte === k ? '' : k)}
+                        className={`gs-chip${categoriaAplicada === k ? ' activo' : ''}`}
+                        onClick={() => { setBusquedaCorte(''); setCategoriaCorte(categoriaCorte === k ? '' : k); }}
                       >
                         {k}
                       </button>
@@ -959,6 +964,11 @@ export default function MercaderiaTab({
                     >
                       <div className="gs-corte-nombre">
                         <span>{corte}</span>
+                        {consultaCorte && categoriaDeCorte.get(normalizarNombre(corte)) && (
+                          <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6A8899', background: 'rgba(106,136,153,0.14)', borderRadius: '6px', padding: '1px 7px', flexShrink: 0 }}>
+                            {categoriaDeCorte.get(normalizarNombre(corte))}
+                          </span>
+                        )}
                       </div>
                       <div className="gs-corte-campo">
                         <label className="gs-corte-etiqueta">Kg</label>
