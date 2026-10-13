@@ -5,6 +5,7 @@ import { useContactos } from '../../hooks/useContactos';
 import { useCortes } from '../../hooks/useCortes';
 import GestionCortesModal from './GestionCortesModal';
 import { normalizarNombre } from '../../utils/nombres';
+import { fusionarContactos } from '../../utils/fusionContactos';
 import { idBoleta } from '../../utils/boletas';
 import { BoletaTicket } from '../BoletaTicketModal';
 import { usePreciosReferencia, FACTOR_PRECIO_ATIPICO } from '../../hooks/usePreciosReferencia';
@@ -51,6 +52,12 @@ export default function MercaderiaTab({
   const [ordenGrupos, setOrdenGrupos] = useState('compra');
   const [gruposAbiertos, setGruposAbiertos] = useState({});
   const [busquedaModalProv, setBusquedaModalProv] = useState('');
+  // Fusión de proveedores duplicados (origen = el mal escrito, destino = el que se queda)
+  const [fusionOrigen, setFusionOrigen] = useState(null);
+  const [fusionDestinoId, setFusionDestinoId] = useState(null);
+  const [fusionNombre, setFusionNombre] = useState('');
+  const [fusionBusqueda, setFusionBusqueda] = useState('');
+  const [fusionando, setFusionando] = useState(false);
   // Control de precios: aviso cuando un precio por kg es mucho mayor al habitual
   const { referenciaPara, usoCortesDe, usoGlobalCortes } = usePreciosReferencia();
   // Catálogo de cortes (persistente) y cuáles se muestran para el proveedor elegido
@@ -114,7 +121,9 @@ export default function MercaderiaTab({
 
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape' && showProveedoresModal) setShowProveedoresModal(false);
+      if (e.key !== 'Escape' || !showProveedoresModal) return;
+      if (fusionOrigen) { if (!fusionando) setFusionOrigen(null); return; }
+      setShowProveedoresModal(false);
     };
     if (showProveedoresModal) {
       document.addEventListener('keydown', handleEscape);
@@ -124,6 +133,10 @@ export default function MercaderiaTab({
       document.removeEventListener('keydown', handleEscape);
       document.body.style.overflow = '';
     };
+  }, [showProveedoresModal, fusionOrigen, fusionando]);
+
+  useEffect(() => {
+    if (!showProveedoresModal) setFusionOrigen(null);
   }, [showProveedoresModal]);
 
   // Al cambiar de proveedor se vuelve a mostrar sólo lo habitual.
@@ -145,6 +158,24 @@ export default function MercaderiaTab({
       if (!conocidos.has(normalizarNombre(c))) nombres.push(c);
     });
     const base = new Set(CORTES_CARNE.map(normalizarNombre));
+    // Lo que ya se le cargó a este proveedor en la semana activa (ya está en memoria: no consulta
+    // nada al servidor). Pasa primero en el orden y siempre queda a la vista.
+    const usoSemana = {};
+    const contactoElegido = formMercaderia.proveedorId ? contactos.find((c) => c.id === formMercaderia.proveedorId) : null;
+    const claves = new Set([normalizarNombre(proveedor), contactoElegido?.nombreNormalizado,
+      ...(contactoElegido?.alias || []).map(normalizarNombre)].filter(Boolean));
+    if (claves.size || formMercaderia.proveedorId) {
+      (semanaActiva?.mercaderia || []).forEach((e) => {
+        const esDelProveedor = e.proveedorId
+          ? e.proveedorId === formMercaderia.proveedorId
+          : claves.has(normalizarNombre(e.proveedor));
+        if (!esDelProveedor) return;
+        (e.cortes || []).forEach((c) => {
+          const k = normalizarNombre(c.corte);
+          if (k) usoSemana[k] = (usoSemana[k] || 0) + 1;
+        });
+      });
+    }
     // "Habitual" = 3 o más compras (así no entran errores de tipeo ni compras únicas).
     // Si con eso casi no queda nada (proveedor con poca historia), vale cualquier compra.
     let umbral = 3;
@@ -154,14 +185,17 @@ export default function MercaderiaTab({
     nombres.forEach((n) => {
       const k = normalizarNombre(n);
       const habitual = uso ? (uso[k] || 0) >= umbral : base.has(k);
-      if (habitual || formMercaderia.cortes[n] !== undefined) visibles.push(n);
+      if (habitual || usoSemana[k] || formMercaderia.cortes[n] !== undefined) visibles.push(n);
       else ocultos.push(n);
     });
-    const peso = (n) => (uso ? (uso[normalizarNombre(n)] || 0) : (usoGlobalCortes[normalizarNombre(n)] || 0));
+    const peso = (n) => {
+      const k = normalizarNombre(n);
+      return (usoSemana[k] || 0) * 100000 + (uso ? (uso[k] || 0) : (usoGlobalCortes[k] || 0));
+    };
     visibles.sort((x, y) => peso(y) - peso(x));
     ocultos.sort((x, y) => (usoGlobalCortes[normalizarNombre(y)] || 0) - (usoGlobalCortes[normalizarNombre(x)] || 0));
     return { cortesVisibles: visibles, cortesOcultos: ocultos };
-  }, [formMercaderia.proveedor, formMercaderia.proveedorId, formMercaderia.cortes, cortesActivos, usoCortesDe, usoGlobalCortes]);
+  }, [formMercaderia.proveedor, formMercaderia.proveedorId, formMercaderia.cortes, cortesActivos, usoCortesDe, usoGlobalCortes, semanaActiva?.mercaderia, contactos]);
 
   // Buscador y filtro por categoría: al filtrar se busca en TODO el catálogo (no sólo lo habitual).
   // Los cortes con datos cargados siempre quedan a la vista.
@@ -555,6 +589,40 @@ export default function MercaderiaTab({
       addNotification(`"${contacto.nombre}" archivado (conserva su historial)`, 'success');
     } catch (e) {
       addNotification('Error al archivar', 'error');
+    }
+  };
+
+  const iniciarFusion = (contacto) => {
+    setFusionOrigen(contacto);
+    setFusionDestinoId(null);
+    setFusionNombre('');
+    setFusionBusqueda('');
+  };
+
+  const confirmarFusion = async () => {
+    const destino = contactosProveedor.find((c) => c.id === fusionDestinoId);
+    if (!fusionOrigen || !destino || fusionando) return;
+    const nombreFinal = fusionNombre.trim() || destino.nombre;
+    setFusionando(true);
+    try {
+      const r = await fusionarContactos(fusionOrigen, destino, nombreFinal, contactos);
+      if (!r.ok) {
+        addNotification(r.motivo || 'No se pudo fusionar', 'error');
+        return;
+      }
+      if (formMercaderia.proveedorId === fusionOrigen.id) {
+        setFormMercaderia((prev) => ({ ...prev, proveedor: nombreFinal, proveedorId: destino.id }));
+      }
+      addNotification(
+        `"${fusionOrigen.nombre}" fusionado en "${nombreFinal}" (${r.entradas} entradas, ${r.pesadas} pesadas movidas)`,
+        'success'
+      );
+      setFusionOrigen(null);
+    } catch (e) {
+      console.error('Error al fusionar proveedores:', e);
+      addNotification('Error al fusionar. Se puede volver a intentar sin perder datos.', 'error');
+    } finally {
+      setFusionando(false);
     }
   };
 
@@ -1524,6 +1592,108 @@ export default function MercaderiaTab({
                 </button>
               </div>
 
+              {fusionOrigen ? (() => {
+                const qf = normalizarNombre(fusionBusqueda);
+                const candidatos = contactosProveedor.filter((c) => c.id !== fusionOrigen.id
+                  && (!qf || normalizarNombre(c.nombre).includes(qf)));
+                const parecidos = buscarParecidos(fusionOrigen.nombre);
+                const sugeridos = qf ? [] : candidatos.filter((c) => parecidos.some((p) => p.id === c.id));
+                const orden = [...sugeridos, ...candidatos.filter((c) => !sugeridos.includes(c))];
+                const destino = contactosProveedor.find((c) => c.id === fusionDestinoId);
+                const puede = !!destino && !!fusionNombre.trim() && !fusionando;
+                return (
+                  <>
+                    <div style={{ padding: '14px 22px', borderBottom: '1px solid #dde2e6', background: '#f8f9fa' }}>
+                      <div style={{ fontSize: '0.78rem', color: '#6c757d', marginBottom: '2px' }}>Proveedor a unificar (sale de la lista):</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{fusionOrigen.nombre}</div>
+                    </div>
+                    <div style={{ padding: '12px 22px', borderBottom: '1px solid #dde2e6' }}>
+                      <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                        Fusionar con (el que se queda)
+                      </div>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={fusionBusqueda}
+                        onChange={(e) => setFusionBusqueda(e.target.value)}
+                        placeholder="Buscar el proveedor bien escrito…"
+                        style={{ width: '100%', border: '1px solid #ced4da', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', outline: 'none' }}
+                      />
+                    </div>
+                    <div style={{ overflowY: 'auto', flex: 1, minHeight: '120px' }}>
+                      {orden.length === 0 ? (
+                        <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>Sin resultados.</div>
+                      ) : orden.map((c) => {
+                        const elegido = c.id === fusionDestinoId;
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => { setFusionDestinoId(c.id); setFusionNombre(c.nombre); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '8px', width: '100%', textAlign: 'left',
+                              border: 'none', borderBottom: '1px solid #eef1f3', padding: '10px 22px', cursor: 'pointer',
+                              background: elegido ? 'rgba(106,136,153,0.14)' : 'transparent',
+                              fontWeight: elegido ? 700 : 500, fontSize: '0.9rem', color: '#212529',
+                            }}
+                          >
+                            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</span>
+                            {sugeridos.includes(c) && (
+                              <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#7a5000', background: 'rgba(255,193,7,0.2)', borderRadius: '6px', padding: '2px 8px' }}>
+                                Parecido
+                              </span>
+                            )}
+                            {elegido && <IconCheck size={14} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{ padding: '12px 22px', borderTop: '1px solid #dde2e6' }}>
+                      {destino && (
+                        <>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                            Nombre final
+                          </div>
+                          <input
+                            type="text"
+                            value={fusionNombre}
+                            onChange={(e) => setFusionNombre(e.target.value)}
+                            style={{ width: '100%', border: '1px solid #ced4da', borderRadius: '8px', padding: '8px 12px', fontSize: '0.9rem', outline: 'none', marginBottom: '8px' }}
+                          />
+                          <div style={{ fontSize: '0.76rem', color: '#6c757d', marginBottom: '10px' }}>
+                            Todas las entradas, pesadas y pagos de «{fusionOrigen.nombre}» pasan a «{fusionNombre.trim() || destino.nombre}».
+                            No se pierde nada y el nombre viejo queda como alias.
+                          </div>
+                        </>
+                      )}
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => setFusionOrigen(null)}
+                          disabled={fusionando}
+                          style={{ border: '1px solid #dde2e6', background: 'transparent', color: '#6c757d', borderRadius: '8px', padding: '8px 16px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}
+                        >
+                          Volver
+                        </button>
+                        <button
+                          type="button"
+                          onClick={confirmarFusion}
+                          disabled={!puede}
+                          style={{
+                            border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: 700, fontSize: '0.85rem',
+                            background: puede ? '#6A8899' : '#e9ecef',
+                            color: puede ? '#fff' : '#9ca3af',
+                            cursor: puede ? 'pointer' : 'not-allowed',
+                          }}
+                        >
+                          {fusionando ? 'Fusionando…' : 'Fusionar'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                );
+              })() : (
+              <>
               {/* Buscador (fijo) */}
               <div style={{ padding: '12px 22px', borderBottom: '1px solid #dde2e6' }}>
                 <input
@@ -1564,6 +1734,14 @@ export default function MercaderiaTab({
                               ? `${r.n} ${r.n === 1 ? 'entrada' : 'entradas'} esta semana · ${Math.round(r.kg)} kg`
                               : 'Sin ingresos esta semana'}
                           </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => iniciarFusion(c)}
+                          title="Unir con otro proveedor (por ejemplo si está mal escrito)"
+                          style={{ border: '1px solid #dde2e6', background: 'transparent', color: '#6c757d', borderRadius: '8px', padding: '4px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Fusionar
                         </button>
                         <button
                           type="button"
@@ -1613,6 +1791,8 @@ export default function MercaderiaTab({
                   </div>
                 )}
               </div>
+              </>
+              )}
             </div>
           </>
         );
