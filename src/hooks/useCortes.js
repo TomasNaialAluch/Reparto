@@ -2,7 +2,7 @@
 // Un corte creado una vez queda disponible siempre; se archiva, no se borra.
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
-  collection, addDoc, updateDoc, doc, onSnapshot, serverTimestamp,
+  collection, addDoc, updateDoc, doc, onSnapshot, serverTimestamp, arrayUnion,
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { normalizarNombre } from '../utils/nombres';
@@ -88,6 +88,22 @@ export const useCortes = () => {
     });
   }, []);
 
+  /**
+   * Guarda un texto como alias de un corte ("asado tira" → Asado tira) para que la
+   * próxima vez entre solo. Rechaza si el texto ya es nombre o alias de OTRO corte.
+   */
+  const agregarAlias = useCallback(async (id, texto) => {
+    const limpio = String(texto || '').trim().replace(/\s+/g, ' ');
+    const clave = normalizarNombre(limpio);
+    if (!clave) return { ok: false, motivo: 'El texto está vacío' };
+    const dueno = cortes.find((c) => c.nombreNormalizado === clave
+      || (c.alias || []).some((a) => normalizarNombre(a) === clave));
+    if (dueno && dueno.id !== id) return { ok: false, motivo: `"${limpio}" ya es de "${dueno.nombre}"` };
+    if (dueno && dueno.id === id) return { ok: true, yaExistia: true };
+    await updateDoc(doc(db, COLECCION, id), { alias: arrayUnion(limpio), updatedAt: serverTimestamp() });
+    return { ok: true };
+  }, [cortes]);
+
   const categorias = useMemo(() => {
     const set = new Set();
     activos.forEach((c) => { if (c.categoria) set.add(c.categoria); });
@@ -104,6 +120,6 @@ export const useCortes = () => {
 
   return {
     cortes: ordenados, activos, categorias, loading, buscarExacto,
-    crearCorte, renombrarCorte, cambiarCategoria, archivarCorte, reactivarCorte,
+    crearCorte, renombrarCorte, cambiarCategoria, archivarCorte, reactivarCorte, agregarAlias,
   };
 };

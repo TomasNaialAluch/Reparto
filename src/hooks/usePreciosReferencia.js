@@ -6,9 +6,16 @@
 //   1) del proveedor para ese corte, si tiene al menos 3 compras con precio;
 //   2) de todos los proveedores para ese corte, si hay al menos 5.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, limit, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { normalizarNombre } from '../utils/nombres';
+
+/**
+ * Cuántas semanas recientes se leen para armar el historial. Alcanza para precios y cortes
+ * habituales y evita bajar toda la colección (el costo crecía con cada semana nueva).
+ * Quedan afuera las semanas sin `fechaInicio`.
+ */
+export const SEMANAS_HISTORIAL = 12;
 
 /** Un precio más de este múltiplo de la referencia se considera sospechoso. */
 export const FACTOR_PRECIO_ATIPICO = 3;
@@ -20,10 +27,17 @@ const mediana = (valores) => {
 
 export const usePreciosReferencia = () => {
   const [semanas, setSemanas] = useState([]);
+  const [listo, setListo] = useState(false);
 
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'gestion_semanal'), (snap) => {
+    const recientes = query(
+      collection(db, 'gestion_semanal'),
+      orderBy('fechaInicio', 'desc'),
+      limit(SEMANAS_HISTORIAL)
+    );
+    const unsub = onSnapshot(recientes, (snap) => {
       setSemanas(snap.docs.map((d) => d.data()));
+      setListo(true);
     }, () => {});
     return () => unsub();
   }, []);
@@ -88,6 +102,6 @@ export const usePreciosReferencia = () => {
     return tablas.corte[c] || null;
   }, [tablas]);
 
-  return { referenciaPara, usoCortesDe, usoGlobalCortes: tablas.usoGlobal };
+  return { referenciaPara, usoCortesDe, usoGlobalCortes: tablas.usoGlobal, listo };
 };
 

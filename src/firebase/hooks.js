@@ -735,11 +735,12 @@ export const useGestionSemanal = (userId) => {
 
   // Obtener o crear semana activa
   useEffect(() => {
-    // Obtener todas las semanas activas sin filtrar por usuario (sin orderBy para evitar índices)
-    const collectionRef = collection(db, 'gestion_semanal');
+    // Solo las semanas abiertas (cerrada: false), sin filtrar por usuario. El filtro va en la
+    // consulta para no leer todo el historial: igualdad sobre un solo campo, no necesita índice.
+    const collectionRef = query(collection(db, 'gestion_semanal'), where('cerrada', '==', false));
 
     const unsubscribe = onSnapshot(collectionRef, (snapshot) => {
-      // Filtrar localmente por semanas activas (cerrada: false)
+      // Se mantiene el chequeo local por si algún documento llega sin el campo esperado
       const semanasActivas = [];
       snapshot.forEach((doc) => {
         const data = doc.data();

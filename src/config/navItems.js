@@ -6,9 +6,16 @@ import {
   IconSettings,
   IconClipboard,
   IconReceipt,
+  IconCalendar,
 } from '../components/gestionSemanal/icons';
 
 export const NAV_ITEMS = [
+  {
+    path: '/hoy',
+    label: 'Hoy',
+    desc: 'Pesadas del día, agenda, pedidos y deudores',
+    Icon: IconCalendar,
+  },
   {
     path: '/reparto',
     label: 'Mi Reparto',

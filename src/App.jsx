@@ -27,6 +27,7 @@ import LibroCheques from './pages/LibroCheques';
 import Facturacion from './pages/Facturacion';
 import TablasPrecios from './pages/TablasPrecios';
 import Contactos from './pages/Contactos';
+import Hoy from './pages/Hoy';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -88,6 +89,12 @@ const AppContent = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/home-ai" element={<HomeAI />} />
+            <Route path="/hoy" element={
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
+                <Navbar />
+                <Hoy />
+              </div>
+            } />
             <Route path="/mi-reparto" element={
               <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
