@@ -107,3 +107,11 @@
 @media (prefers-reduced-motion: reduce) {
   .pesada-card { animation: none; }
 }
+
+/* Pedidos: bloques por nombre en columnas, como el cuaderno */
+.hoy-pedidos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  align-items: start;
+}

@@ -14,6 +14,8 @@ import { useFirebase } from '../contexts/FirebaseContext';
 import PesadaCard from '../components/hoy/PesadaCard';
 import IngresarMercaderiaModal from '../components/hoy/IngresarMercaderiaModal';
 import AgendaBloque from '../components/hoy/AgendaBloque';
+import PedidosBloque from '../components/hoy/PedidosBloque';
+import { usePedidos } from '../hooks/usePedidos';
 import AlarmasAgenda from '../components/hoy/AlarmasAgenda';
 import { useAgenda } from '../hooks/useAgenda';
 import ConfirmModal from '../components/ConfirmModal';
@@ -60,7 +62,9 @@ const Hoy = () => {
   } = usePesadas(fecha);
   const agenda = useAgenda(fecha, { anteriores: true });
   const agendaHoy = useAgenda(hoy); // alarmas: siempre las de hoy, aunque se esté mirando otro día
-  const { proveedores, buscarExacto, crearContacto } = useContactos();
+  const pedidos = usePedidos(fecha);
+  const { proveedores, activos: contactosActivos, buscarExacto, crearContacto } = useContactos();
+  const clientes = useMemo(() => contactosActivos.filter((c) => c.roles?.cliente), [contactosActivos]);
   const { activos: cortesActivos, categorias, crearCorte, agregarAlias } = useCortes();
   const { referenciaPara, usoCortesDe, usoGlobalCortes, listo: historialListo } = usePreciosReferencia();
   const { user } = useFirebase();
@@ -398,7 +402,7 @@ const Hoy = () => {
         )}
       </section>
 
-      <ZonaReservada titulo="Pedidos para armar" detalle="Lista de pedidos del día con estado (Fase 6)" />
+      <PedidosBloque datos={pedidos} clientes={clientes} buscarExacto={buscarExacto} />
       </div>
 
       <aside className="hoy-side">
