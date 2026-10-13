@@ -2,7 +2,7 @@
 // Cada renglón se tacha con un toque; cuando están todos tachados el pedido pasa a "armado".
 import { useMemo, useState } from 'react';
 import { normalizarNombre } from '../../utils/nombres';
-import { IconPlus, IconX } from '../gestionSemanal/icons';
+import { IconPlus, IconTrash } from '../gestionSemanal/icons';
 
 const chipBase = {
   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 999,
@@ -19,6 +19,7 @@ const ESTADOS = {
 const Bloque = ({ pedido, acciones }) => {
   const [texto, setTexto] = useState('');
   const [confirmaBorrar, setConfirmaBorrar] = useState(false);
+  const [renglonABorrar, setRenglonABorrar] = useState(null);
   const renglones = pedido.renglones || [];
   const hechos = renglones.filter((r) => r.hecha).length;
   const estado = ESTADOS[pedido.estado] || ESTADOS.pendiente;
@@ -58,7 +59,41 @@ const Bloque = ({ pedido, acciones }) => {
       )}
 
       <div style={{ marginTop: 6 }}>
-        {renglones.map((r) => (
+        {renglones.map((r) => (renglonABorrar === r.id ? (
+          <div
+            key={r.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '5px 6px', borderRadius: 8,
+              background: '#fef2f2', borderBottom: '1px solid var(--color-primary-soft)', flexWrap: 'wrap',
+            }}
+          >
+            <span style={{ flex: '1 1 100%', fontSize: '0.8rem', color: '#7f1d1d', wordBreak: 'break-word' }}>
+              ¿Borrar «{r.texto}»?
+            </span>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await acciones.quitarRenglon(pedido.id, r.id);
+                } catch (err) {
+                  console.error(err);
+                } finally {
+                  setRenglonABorrar(null);
+                }
+              }}
+              style={{ border: 'none', background: '#dc2626', color: '#fff', borderRadius: 999, padding: '1px 10px', fontSize: '0.74rem', fontWeight: 700 }}
+            >
+              Borrar
+            </button>
+            <button
+              type="button"
+              onClick={() => setRenglonABorrar(null)}
+              style={{ border: '1px solid var(--color-primary-border)', background: '#fff', color: '#3a5060', borderRadius: 999, padding: '1px 10px', fontSize: '0.74rem', fontWeight: 600 }}
+            >
+              Cancelar
+            </button>
+          </div>
+        ) : (
           <div
             key={r.id}
             style={{ display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--color-primary-soft)' }}
@@ -80,14 +115,17 @@ const Bloque = ({ pedido, acciones }) => {
               <button
                 type="button"
                 aria-label="Quitar renglón"
-                onClick={() => acciones.quitarRenglon(pedido.id, r.id)}
-                style={{ border: 'none', background: 'none', color: '#d1d5db', padding: 2 }}
+                title="Borrar"
+                onClick={() => setRenglonABorrar(r.id)}
+                style={{ border: 'none', background: 'none', color: '#9ca3af', padding: 3, lineHeight: 1 }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#9ca3af'; }}
               >
-                <IconX size={11} />
+                <IconTrash size={12} />
               </button>
             )}
           </div>
-        ))}
+        )))}
       </div>
 
       {!entregado && (
