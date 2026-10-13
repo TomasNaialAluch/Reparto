@@ -2,7 +2,7 @@
 // Ver README-PAGINA-HOY.md (sección 8, Agenda) y README-ROADMAP-HOY.md (Fases 4 y 5).
 import { useMemo, useState } from 'react';
 import { parsearTarea, fechaCorta } from '../../utils/agenda';
-import { IconX } from '../gestionSemanal/icons';
+import { IconTrash } from '../gestionSemanal/icons';
 
 const Check = ({ hecha, onClick }) => (
   <button
@@ -33,7 +33,59 @@ const Campana = ({ activa, onClick }) => (
   </button>
 );
 
-const Renglon = ({ tarea, onHecha, onAlarma, onEliminar, extra }) => (
+const Renglon = ({ tarea, onHecha, onAlarma, onEliminar, extra }) => {
+  const [confirmando, setConfirmando] = useState(false);
+  const [borrando, setBorrando] = useState(false);
+
+  const borrar = async () => {
+    setBorrando(true);
+    try {
+      await onEliminar(tarea);
+    } catch (err) {
+      console.error(err);
+      setBorrando(false);
+      setConfirmando(false);
+    }
+  };
+
+  if (confirmando) {
+    return (
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '7px 8px', borderRadius: 8,
+          background: '#fef2f2', borderBottom: '1px solid var(--color-primary-soft)',
+        }}
+      >
+        <span style={{ flex: 1, minWidth: 0, fontSize: '0.86rem', color: '#7f1d1d', wordBreak: 'break-word' }}>
+          ¿Borrar «{tarea.texto}»?
+        </span>
+        <button
+          type="button"
+          disabled={borrando}
+          onClick={borrar}
+          style={{
+            border: 'none', background: '#dc2626', color: '#fff', borderRadius: 999,
+            padding: '2px 12px', fontSize: '0.78rem', fontWeight: 700,
+          }}
+        >
+          {borrando ? 'Borrando…' : 'Borrar'}
+        </button>
+        <button
+          type="button"
+          disabled={borrando}
+          onClick={() => setConfirmando(false)}
+          style={{
+            border: '1px solid var(--color-primary-border)', background: '#fff', color: '#3a5060',
+            borderRadius: 999, padding: '2px 12px', fontSize: '0.78rem', fontWeight: 600,
+          }}
+        >
+          Cancelar
+        </button>
+      </div>
+    );
+  }
+
+  return (
   <div
     style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '7px 2px',
@@ -62,13 +114,17 @@ const Renglon = ({ tarea, onHecha, onAlarma, onEliminar, extra }) => (
     <button
       type="button"
       aria-label="Borrar tarea"
-      onClick={() => onEliminar(tarea)}
-      style={{ border: 'none', background: 'none', color: '#d1d5db', padding: 2 }}
+      title="Borrar"
+      onClick={() => setConfirmando(true)}
+      style={{ border: 'none', background: 'none', color: '#9ca3af', padding: 4, lineHeight: 1 }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = '#9ca3af'; }}
     >
-      <IconX size={12} />
+      <IconTrash size={14} />
     </button>
   </div>
-);
+  );
+};
 
 const AgendaBloque = ({ agenda, esHoy, hoy }) => {
   const {
