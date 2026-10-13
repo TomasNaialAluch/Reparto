@@ -13,6 +13,9 @@ import { useGestionSemanal } from '../firebase/hooks';
 import { useFirebase } from '../contexts/FirebaseContext';
 import PesadaCard from '../components/hoy/PesadaCard';
 import IngresarMercaderiaModal from '../components/hoy/IngresarMercaderiaModal';
+import AgendaBloque from '../components/hoy/AgendaBloque';
+import AlarmasAgenda from '../components/hoy/AlarmasAgenda';
+import { useAgenda } from '../hooks/useAgenda';
 import ConfirmModal from '../components/ConfirmModal';
 import { IconPlus } from '../components/gestionSemanal/icons';
 import './Hoy.css';
@@ -55,6 +58,8 @@ const Hoy = () => {
     resolverTexto, marcarIngresada, eliminarPesadaVacia,
     cambiarEstado, habilitarReingreso, guardarRemito,
   } = usePesadas(fecha);
+  const agenda = useAgenda(fecha, { anteriores: true });
+  const agendaHoy = useAgenda(hoy); // alarmas: siempre las de hoy, aunque se esté mirando otro día
   const { proveedores, buscarExacto, crearContacto } = useContactos();
   const { activos: cortesActivos, categorias, crearCorte, agregarAlias } = useCortes();
   const { referenciaPara, usoCortesDe, usoGlobalCortes, listo: historialListo } = usePreciosReferencia();
@@ -231,6 +236,7 @@ const Hoy = () => {
 
   return (
     <div className="hoy-pagina">
+      <AlarmasAgenda agendaHoy={agendaHoy} />
       {/* Encabezado con fecha */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 18 }}>
         <div style={{ flex: 1, minWidth: 200 }}>
@@ -257,7 +263,7 @@ const Hoy = () => {
 
       <div className="hoy-grid">
       <div className="hoy-main">
-      <ZonaReservada titulo="Agenda" detalle="Cosas para hacer del día, con hora y alarma (Fase 4)" />
+      <AgendaBloque agenda={agenda} esHoy={fecha === hoy} hoy={hoy} />
 
       {/* Pesadas del día */}
       <section className="hoy-zona hoy-zona--pesadas">
