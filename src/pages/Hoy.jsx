@@ -53,12 +53,15 @@ const Hoy = () => {
   const {
     pesadas, loading, error, crearPesada, agregarKg, quitarKg,
     resolverTexto, marcarIngresada, eliminarPesadaVacia,
+    cambiarEstado, habilitarReingreso, guardarRemito,
   } = usePesadas(fecha);
   const { proveedores, buscarExacto, crearContacto } = useContactos();
   const { activos: cortesActivos, categorias, crearCorte, agregarAlias } = useCortes();
   const { referenciaPara, usoCortesDe, usoGlobalCortes, listo: historialListo } = usePreciosReferencia();
   const { user } = useFirebase();
-  const { agregarMercaderia } = useGestionSemanal(user?.uid);
+  const { agregarMercaderia, semanaActiva } = useGestionSemanal(user?.uid);
+  const [aDescartar, setADescartar] = useState(null);
+  const [verDescartadas, setVerDescartadas] = useState(false);
 
   const consulta = normalizarNombre(busquedaProv);
   const opcionesProv = useMemo(() => {
@@ -196,11 +199,33 @@ const Hoy = () => {
       }),
     };
     await agregarMercaderia(entrada);
-    await marcarIngresada(pesada.id, entrada.id);
+    await marcarIngresada(pesada.id, entrada.id, semanaActiva?.id || null);
     setIngreso(null);
   };
 
   const pesadaIngreso = ingreso ? pesadas.find((p) => p.id === ingreso.pesadaId) : null;
+
+  // Descartadas fuera de la vista normal (no se borran)
+  const visibles = pesadas.filter((p) => p.estado !== 'descartada');
+  const descartadas = pesadas.filter((p) => p.estado === 'descartada');
+
+  /** La entrada de Mercadería ya no figura en la semana en la que se ingresó. */
+  const entradaEliminada = (p) => p.estado === 'ingresada'
+    && !!p.mercaderiaId && !!p.semanaId
+    && semanaActiva?.id === p.semanaId
+    && !(semanaActiva.mercaderia || []).some((e) => e.id === p.mercaderiaId);
+
+  const confirmarDescartar = async () => {
+    const p = aDescartar;
+    setADescartar(null);
+    if (!p) return;
+    try {
+      await cambiarEstado(p.id, 'descartada');
+      if (activaId === p.id) setActivaId(null);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const esHoy = fecha === hoy;
 
@@ -313,13 +338,13 @@ const Hoy = () => {
 
       {loading ? (
         <div style={{ color: '#6c757d', padding: 20 }}>Cargando…</div>
-      ) : pesadas.length === 0 ? (
+      ) : visibles.length === 0 ? (
         <div style={{ color: '#6c757d', padding: '18px 0 20px', textAlign: 'center', fontSize: '0.9rem' }}>
           Sin pesadas este día. Cuando llegue el camión, sumá una con <strong>Nueva pesada</strong>.
         </div>
       ) : (
         <div className="hoy-pesadas">
-          {pesadas.map((p) => (
+          {visibles.map((p) => (
             <PesadaCard
               key={p.id}
               pesada={p}
@@ -330,13 +355,41 @@ const Hoy = () => {
               onEliminar={setAEliminar}
               onResolverTexto={resolverDesdeTarjeta}
               onIngresar={abrirIngreso}
-              bloqueado={!!ingreso || !!aEliminar}
+              onGuardarRemito={(pes, datos) => guardarRemito(pes.id, datos)}
+              onCambiarEstado={(pes, estado) => cambiarEstado(pes.id, estado)}
+              onDescartar={setADescartar}
+              onHabilitarReingreso={(pes) => habilitarReingreso(pes.id)}
+              entradaEliminada={entradaEliminada(p)}
+              bloqueado={!!ingreso || !!aEliminar || !!aDescartar}
               cortesCatalogo={cortesActivos}
               categorias={categorias}
             />
           ))}
         </div>
       )}
+        {descartadas.length > 0 && (
+          <div style={{ marginTop: 10, borderTop: '1px solid var(--color-primary-soft)', paddingTop: 8 }}>
+            <button
+              type="button"
+              onClick={() => setVerDescartadas((v) => !v)}
+              style={{ border: 'none', background: 'none', color: '#9ca3af', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
+            >
+              {verDescartadas ? '▾' : '▸'} Descartadas ({descartadas.length})
+            </button>
+            {verDescartadas && (
+              <div style={{ marginTop: 6 }}>
+                {descartadas.map((p) => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', fontSize: '0.86rem', color: '#6c757d' }}>
+                    <span style={{ flex: 1 }}>{p.proveedor} · {(p.pesadas || []).length} pesadas</span>
+                    <button type="button" style={{ ...chip(), background: '#fff', padding: '2px 10px' }} onClick={() => cambiarEstado(p.id, 'abierta')}>
+                      Recuperar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </section>
 
       <ZonaReservada titulo="Pedidos para armar" detalle="Lista de pedidos del día con estado (Fase 6)" />
@@ -363,6 +416,15 @@ const Hoy = () => {
           onConfirmar={confirmarIngreso}
         />
       )}
+
+      <ConfirmModal
+        isOpen={!!aDescartar}
+        onClose={() => setADescartar(null)}
+        onConfirm={confirmarDescartar}
+        title="Descartar pesada"
+        message={aDescartar ? `Se descarta la pesada de ${aDescartar.proveedor}. No se borra: queda en "Descartadas" y se puede recuperar.` : ''}
+        confirmText="Descartar"
+      />
 
       <ConfirmModal
         isOpen={!!aEliminar}

@@ -114,14 +114,46 @@ export const usePesadas = (fecha) => {
     });
   }, []);
 
-  /** Marca la pesada como ya pasada a Mercadería y guarda el vínculo. */
-  const marcarIngresada = useCallback(async (pesadaId, mercaderiaId) => {
+  /** Marca la pesada como ya pasada a Mercadería y guarda el vínculo (entrada y semana). */
+  const marcarIngresada = useCallback(async (pesadaId, mercaderiaId, semanaId = null) => {
     await updateDoc(doc(db, COLECCION, pesadaId), {
       estado: 'ingresada',
       mercaderiaId,
+      semanaId,
       ingresadaAt: new Date().toISOString(),
       updatedAt: serverTimestamp(),
     });
+  }, []);
+
+  /** Cambia el estado: 'abierta' | 'cerrada' | 'descartada'. */
+  const cambiarEstado = useCallback(async (pesadaId, estado) => {
+    const cambios = { estado, updatedAt: serverTimestamp() };
+    if (estado === 'descartada') cambios.descartadaAt = new Date().toISOString();
+    if (estado === 'abierta') cambios.descartadaAt = null;
+    await updateDoc(doc(db, COLECCION, pesadaId), cambios);
+  }, []);
+
+  /** La entrada de Mercadería ya no existe: la pesada vuelve a poder ingresarse. */
+  const habilitarReingreso = useCallback(async (pesadaId) => {
+    await updateDoc(doc(db, COLECCION, pesadaId), {
+      estado: 'cerrada',
+      mercaderiaId: null,
+      semanaId: null,
+      ingresadaAt: null,
+      updatedAt: serverTimestamp(),
+    });
+  }, []);
+
+  /**
+   * Guarda lo que dice el remito. Se pasa solo lo que cambia:
+   *   { numero }, { totalKg }, { porCorte: { [corteNormalizado]: { corte, kg } } }
+   */
+  const guardarRemito = useCallback(async (pesadaId, { numero, totalKg, porCorte }) => {
+    const cambios = { updatedAt: serverTimestamp() };
+    if (numero !== undefined) cambios['remito.numero'] = String(numero || '').trim();
+    if (totalKg !== undefined) cambios['remito.totalKg'] = totalKg;
+    if (porCorte !== undefined) cambios.remitoPorCorte = porCorte;
+    await updateDoc(doc(db, COLECCION, pesadaId), cambios);
   }, []);
 
   /** Solo para pesadas sin kg cargados (creadas por error). */
@@ -132,5 +164,6 @@ export const usePesadas = (fecha) => {
   return {
     pesadas, loading, error,
     crearPesada, agregarKg, quitarKg, resolverTexto, marcarIngresada, eliminarPesadaVacia,
+    cambiarEstado, habilitarReingreso, guardarRemito,
   };
 };

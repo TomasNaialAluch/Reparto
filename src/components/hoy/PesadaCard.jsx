@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { IconChevronDown, IconTrash, IconX } from '../gestionSemanal/icons';
 import ResolverCorte from './ResolverCorte';
+import TotalesRemito from './TotalesRemito';
 import { decisionCompleta, decisionInicial, reconocerCorte } from '../../utils/cortes';
 import {
   estaResuelto, etiquetaItem, formatKg, parseKg, pendientesDe, totalesPesada,
@@ -59,6 +60,7 @@ const describir = (rec, texto) => {
 
 const PesadaCard = ({
   pesada, activa, onActivar, onAgregar, onQuitar, onEliminar, onResolverTexto, onIngresar,
+  onGuardarRemito, onCambiarEstado, onDescartar, onHabilitarReingreso, entradaEliminada = false,
   cortesCatalogo, categorias = [], bloqueado = false,
 }) => {
   const [corte, setCorte] = useState('');
@@ -68,6 +70,7 @@ const PesadaCard = ({
   const [guardando, setGuardando] = useState(false);
   const [resolviendo, setResolviendo] = useState(null); // pendiente que se está resolviendo acá mismo
   const [decision, setDecision] = useState(null);
+  const [confirmaReingreso, setConfirmaReingreso] = useState(false);
   const corteRef = useRef(null);
   const reducirMovimiento = useReducedMotion();
   // La tarjeta conserva su ancho de "activa" hasta que termina de cerrarse el cuerpo.
@@ -79,6 +82,8 @@ const PesadaCard = ({
   const totales = useMemo(() => totalesPesada(items), [items]);
   const pendientes = useMemo(() => pendientesDe(items), [items]);
   const ingresada = pesada.estado === 'ingresada';
+  const cerrada = pesada.estado === 'cerrada';
+  const soloLectura = ingresada || cerrada;
 
   // Corte vigente: el que se fijó, o el de la última pesada cargada
   const actual = useMemo(() => {
@@ -274,7 +279,66 @@ const PesadaCard = ({
         <div className="pesada-cuerpo" style={{ padding: '4px 14px 14px', borderTop: '1px solid var(--color-primary-soft)' }}>
           <div className="pesada-col-carga">
             {ingresada ? (
-              <div style={{ marginTop: 12, ...estilos.chip }}>✔ Ingresada a Mercadería</div>
+              <div style={{ marginTop: 12 }}>
+                <div style={estilos.chip}>✔ Ingresada a Mercadería</div>
+                {entradaEliminada && (
+                  <div style={{ marginTop: 8, fontSize: '0.82rem', color: '#92400e', background: '#fffbeb', borderRadius: 8, padding: '6px 10px' }}>
+                    La entrada de Mercadería ya no existe.
+                    <button
+                      type="button"
+                      onClick={() => onHabilitarReingreso(pesada)}
+                      style={{ marginLeft: 8, border: 'none', background: 'none', fontWeight: 700, color: '#92400e', textDecoration: 'underline' }}
+                    >
+                      Habilitar para ingresar de nuevo
+                    </button>
+                  </div>
+                )}
+                {!entradaEliminada && (
+                  <div style={{ marginTop: 8, fontSize: '0.76rem', color: '#9ca3af' }}>
+                    {confirmaReingreso ? (
+                      <>
+                        ¿Se eliminó la entrada en Mercadería?{' '}
+                        <button
+                          type="button"
+                          onClick={() => { setConfirmaReingreso(false); onHabilitarReingreso(pesada); }}
+                          style={{ border: 'none', background: 'none', fontWeight: 700, color: '#3a5060', textDecoration: 'underline' }}
+                        >
+                          Sí, habilitar
+                        </button>
+                        {' · '}
+                        <button
+                          type="button"
+                          onClick={() => setConfirmaReingreso(false)}
+                          style={{ border: 'none', background: 'none', color: '#6c757d' }}
+                        >
+                          no
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmaReingreso(true)}
+                        style={{ border: 'none', background: 'none', color: '#9ca3af', padding: 0, textDecoration: 'underline' }}
+                      >
+                        ¿Se eliminó la entrada? Habilitar de nuevo
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : cerrada ? (
+              <div style={{ marginTop: 12 }}>
+                <div style={estilos.chip}>🔒 Pesada cerrada</div>
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => onCambiarEstado(pesada, 'abierta')}
+                    style={{ ...estilos.chip, background: '#fff' }}
+                  >
+                    Reabrir para seguir pesando
+                  </button>
+                </div>
+              </div>
             ) : (
               <div style={{ marginTop: 12 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr) auto', gap: 8, alignItems: 'end' }}>
@@ -334,32 +398,13 @@ const PesadaCard = ({
           <div className="pesada-col-detalle">
             {/* Totales por corte */}
             {totales.cortes.length > 0 && (
-              <table className="table table-sm" style={{ marginTop: 12, marginBottom: 0, fontSize: '0.9rem' }}>
-                <thead>
-                  <tr style={{ color: '#6c757d', fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                    <th style={{ fontWeight: 600 }}>Corte</th>
-                    <th style={{ fontWeight: 600, textAlign: 'right' }}>Pesadas</th>
-                    <th style={{ fontWeight: 600, textAlign: 'right' }}>Kg</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {totales.cortes.map((c) => (
-                    <tr key={`${c.pendiente ? 't' : 'c'}:${c.corte}`}>
-                      <td>
-                        {c.corte}
-                        {c.pendiente ? <span style={{ color: '#b45309' }}> ⚠ sin validar</span> : null}
-                      </td>
-                      <td style={{ textAlign: 'right' }}>{c.cantidad}</td>
-                      <td style={{ textAlign: 'right' }}>{formatKg(c.kg)}</td>
-                    </tr>
-                  ))}
-                  <tr style={{ fontWeight: 800 }}>
-                    <td>Total</td>
-                    <td style={{ textAlign: 'right' }}>{totales.cantidad}</td>
-                    <td style={{ textAlign: 'right' }}>{formatKg(totales.kg)}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <TotalesRemito
+                totales={totales}
+                remito={pesada.remito}
+                remitoPorCorte={pesada.remitoPorCorte}
+                soloLectura={ingresada}
+                onGuardar={(datos) => onGuardarRemito(pesada, datos)}
+              />
             )}
 
             {pendientes.length > 0 && !ingresada && (
@@ -403,7 +448,7 @@ const PesadaCard = ({
               <div style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={estilos.label}>Cargadas</div>
-                  {!ingresada && (
+                  {!soloLectura && (
                     <button type="button" className="btn btn-sm btn-outline-secondary" onClick={deshacer}>
                       ↶ Deshacer última
                     </button>
@@ -436,7 +481,7 @@ const PesadaCard = ({
                             ⚠
                           </button>
                         )}
-                        {!ingresada && (
+                        {!soloLectura && (
                           <button
                             type="button"
                             aria-label="Quitar pesada"
@@ -454,7 +499,21 @@ const PesadaCard = ({
             )}
 
             {/* Acciones */}
-            {!ingresada && (
+            {!ingresada && cerrada && (
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button type="button" style={{ ...estilos.chip, background: '#fff', color: '#9a3412' }} onClick={() => onDescartar(pesada)}>
+                  Descartar
+                </button>
+                <button
+                  type="button"
+                  style={{ ...estilos.chip, background: 'var(--color-primary)', color: '#fff' }}
+                  onClick={() => onIngresar(pesada)}
+                >
+                  Ingresar a Mercadería
+                </button>
+              </div>
+            )}
+            {!ingresada && !cerrada && (
               <div style={{ marginTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 {sinKg ? (
                   <>
@@ -468,13 +527,21 @@ const PesadaCard = ({
                     <span style={{ color: '#6c757d', fontSize: '0.8rem' }}>
                       {pendientes.length > 0 ? 'Vas a revisar los cortes sin validar al ingresar.' : 'Todo reconocido.'}
                     </span>
-                    <button
-                      type="button"
-                      style={{ ...estilos.chip, background: 'var(--color-primary)', color: '#fff' }}
-                      onClick={() => onIngresar(pesada)}
-                    >
-                      Ingresar a Mercadería
-                    </button>
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button type="button" style={{ ...estilos.chip, background: '#fff', color: '#9a3412' }} onClick={() => onDescartar(pesada)}>
+                        Descartar
+                      </button>
+                      <button type="button" style={{ ...estilos.chip, background: '#fff' }} onClick={() => onCambiarEstado(pesada, 'cerrada')}>
+                        Cerrar pesada
+                      </button>
+                      <button
+                        type="button"
+                        style={{ ...estilos.chip, background: 'var(--color-primary)', color: '#fff' }}
+                        onClick={() => onIngresar(pesada)}
+                      >
+                        Ingresar a Mercadería
+                      </button>
+                    </span>
                   </>
                 )}
               </div>
