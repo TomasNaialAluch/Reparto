@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { IconChevronDown, IconTrash, IconX } from '../gestionSemanal/icons';
+import { IconChevronDown, IconTrash } from '../gestionSemanal/icons';
 import ResolverCorte from './ResolverCorte';
 import TotalesRemito from './TotalesRemito';
 import { decisionCompleta, decisionInicial, reconocerCorte } from '../../utils/cortes';
@@ -71,6 +71,7 @@ const PesadaCard = ({
   const [resolviendo, setResolviendo] = useState(null); // pendiente que se está resolviendo acá mismo
   const [decision, setDecision] = useState(null);
   const [confirmaReingreso, setConfirmaReingreso] = useState(false);
+  const [aQuitar, setAQuitar] = useState(null); // id de la pesada individual a confirmar
   const corteRef = useRef(null);
   const reducirMovimiento = useReducedMotion();
   // La tarjeta conserva su ancho de "activa" hasta que termina de cerrarse el cuerpo.
@@ -169,9 +170,21 @@ const PesadaCard = ({
     }
   };
 
+  // Deshacer y quitar piden confirmación: la última queda arriba de la lista y se confirma ahí.
   const deshacer = () => {
     const ultimo = items[items.length - 1];
-    if (ultimo) onQuitar(pesada.id, ultimo);
+    if (ultimo) setAQuitar(ultimo.id);
+  };
+
+  const confirmarQuitar = async (item) => {
+    try {
+      await onQuitar(pesada.id, item);
+    } catch (err) {
+      console.error(err);
+      setMensaje('No se pudo quitar. Probá de nuevo');
+    } finally {
+      setAQuitar(null);
+    }
   };
 
   const abrirResolver = (item) => {
@@ -217,7 +230,7 @@ const PesadaCard = ({
   const corteEscrito = normalizarNombre(corte);
   const hayTrabajoSinGuardar = kg.trim() !== ''
     || (corteEscrito !== '' && corteEscrito !== normalizarNombre(actual?.texto || ''));
-  const puedeMinimizar = activa && !guardando && !resolviendo && !hayTrabajoSinGuardar && !bloqueado;
+  const puedeMinimizar = activa && !guardando && !resolviendo && !hayTrabajoSinGuardar && !bloqueado && !aQuitar;
   const puedeMinimizarRef = useRef(puedeMinimizar);
   const temporizadorRef = useRef(null);
 
@@ -458,6 +471,35 @@ const PesadaCard = ({
                   {[...items].reverse().map((it) => {
                     const resuelto = estaResuelto(it);
                     const escrito = it.texto && normalizarNombre(it.texto) !== normalizarNombre(it.corte || '');
+                    if (aQuitar === it.id) {
+                      return (
+                        <div
+                          key={it.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8,
+                            background: '#fef2f2', borderBottom: '1px solid var(--color-primary-soft)', flexWrap: 'wrap',
+                          }}
+                        >
+                          <span style={{ flex: '1 1 140px', fontSize: '0.84rem', color: '#7f1d1d' }}>
+                            ¿Quitar {etiquetaItem(it)} · {formatKg(it.kg)}?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => confirmarQuitar(it)}
+                            style={{ border: 'none', background: '#dc2626', color: '#fff', borderRadius: 999, padding: '2px 12px', fontSize: '0.78rem', fontWeight: 700 }}
+                          >
+                            Quitar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAQuitar(null)}
+                            style={{ border: '1px solid var(--color-primary-border)', background: '#fff', color: '#3a5060', borderRadius: 999, padding: '2px 12px', fontSize: '0.78rem', fontWeight: 600 }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      );
+                    }
                     return (
                       <div
                         key={it.id}
@@ -485,10 +527,13 @@ const PesadaCard = ({
                           <button
                             type="button"
                             aria-label="Quitar pesada"
-                            onClick={() => onQuitar(pesada.id, it)}
-                            style={{ border: 'none', background: 'none', color: '#9ca3af', padding: 2 }}
+                            title="Quitar"
+                            onClick={() => setAQuitar(it.id)}
+                            style={{ border: 'none', background: 'none', color: '#9ca3af', padding: 3, lineHeight: 1 }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = '#9ca3af'; }}
                           >
-                            <IconX size={13} />
+                            <IconTrash size={13} />
                           </button>
                         )}
                       </div>
