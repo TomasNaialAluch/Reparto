@@ -1305,6 +1305,7 @@ export default function MercaderiaTab({
                               <div style={{ background: '#eef1f3', borderRadius: '12px', padding: '14px 10px' }}>
                                 <div style={{ maxWidth: '360px', margin: '0 auto' }}>
                                   <BoletaTicket
+                                  acciones
                                     sombra="drop-shadow(0 4px 10px rgba(0,0,0,0.15))"
                                     compra={{
                                       proveedor: (contactos.find((c) => c.id === entrada.proveedorId) || {}).nombre || entrada.proveedor,

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { codigoReferencia } from '../utils/cuentaContacto';
+import { descargarTicketPdf, descargarTicketPng, imprimirTicket } from '../utils/exportarTicket';
 
 // Boleta de ingreso de mercadería con aspecto de TICKET: papel angosto con borde dentado,
 // tipografía monoespaciada y datos que dan confianza de que quedó registrado
@@ -29,8 +30,92 @@ const Fila = ({ etiqueta, valor, fuerte }) => (
   </div>
 );
 
-/** Papel del ticket (reutilizable: modal, tarjeta expandida, ficha). */
-export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24px rgba(0,0,0,0.25))' }) => {
+const IconoSvg = ({ children }) => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+);
+
+const ICONOS = {
+  imprimir: (
+    <IconoSvg>
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="8" />
+    </IconoSvg>
+  ),
+  imagen: (
+    <IconoSvg>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <polyline points="21 15 16 10 5 21" />
+    </IconoSvg>
+  ),
+  pdf: (
+    <IconoSvg>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="12" y1="12" x2="12" y2="18" />
+      <polyline points="9 15 12 18 15 15" />
+    </IconoSvg>
+  ),
+};
+
+/** Botones para imprimir el ticket o descargarlo como imagen / PDF. */
+const AccionesTicket = ({ nodoRef, compra }) => {
+  const [ocupado, setOcupado] = useState('');
+  const [error, setError] = useState('');
+  const nombre = `comprobante-${compra.proveedor || compra.subtitulo || 'ingreso'}-${codigoReferencia(compra.entradaId)}`;
+
+  const ejecutar = async (clave, fn) => {
+    if (ocupado || !nodoRef.current) return;
+    setError('');
+    setOcupado(clave);
+    try {
+      await fn(nodoRef.current, nombre);
+    } catch (err) {
+      console.error(err);
+      setError('No se pudo generar el comprobante. Probá de nuevo');
+    } finally {
+      setOcupado('');
+    }
+  };
+
+  const boton = (clave, etiqueta, fn, principal) => (
+    <button
+      key={clave}
+      type="button"
+      disabled={!!ocupado}
+      onClick={() => ejecutar(clave, fn)}
+      style={{
+        flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+        padding: '9px 10px', borderRadius: '10px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer',
+        border: principal ? '1px solid #6A8899' : '1px solid rgba(106,136,153,0.45)',
+        background: principal ? '#6A8899' : '#fff',
+        color: principal ? '#fff' : '#3a5060',
+        opacity: ocupado && ocupado !== clave ? 0.55 : 1,
+      }}
+    >
+      {ICONOS[clave]} {ocupado === clave ? 'Generando…' : etiqueta}
+    </button>
+  );
+
+  return (
+    <div style={{ marginTop: '14px' }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        {boton('imprimir', 'Imprimir', imprimirTicket, true)}
+        {boton('imagen', 'Imagen', descargarTicketPng, false)}
+        {boton('pdf', 'PDF', descargarTicketPdf, false)}
+      </div>
+      {error && <div style={{ color: '#b45309', fontSize: '0.78rem', marginTop: '6px', textAlign: 'center' }}>{error}</div>}
+    </div>
+  );
+};
+
+/** Papel del ticket (reutilizable: modal, tarjeta expandida, ficha). `acciones` agrega los botones de imprimir/descargar. */
+export const BoletaTicket = ({ compra, innerRef, acciones = false, sombra = 'drop-shadow(0 12px 24px rgba(0,0,0,0.25))' }) => {
+  const propioRef = useRef(null);
+  const nodoRef = innerRef || propioRef;
   const promedio = compra.kg > 0 ? compra.costo / compra.kg : 0;
   const sinPrecios = compra.costo === 0;
 
@@ -45,7 +130,8 @@ export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24
   });
 
   return (
-    <div ref={innerRef} style={{ filter: sombra, fontFamily: MONO }}>
+    <>
+    <div ref={nodoRef} style={{ filter: sombra, fontFamily: MONO }}>
             <div style={sierra(true)} />
             <div style={{ background: '#fff', padding: '14px 20px', color: '#212529' }}>
               {/* Encabezado */}
@@ -123,6 +209,8 @@ export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24
             </div>
             <div style={sierra(false)} />
     </div>
+    {acciones && <AccionesTicket nodoRef={nodoRef} compra={compra} />}
+    </>
   );
 };
 
@@ -132,8 +220,6 @@ export const BoletaTicket = ({ compra, innerRef, sombra = 'drop-shadow(0 12px 24
  *  - compra: { proveedor, dia, timestamp, modificadoEn, cortes, kg, costo, pagada, entradaId }
  */
 const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
-  const ticketRef = useRef(null);
-
   useEffect(() => {
     if (!isOpen) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -142,17 +228,6 @@ const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
   }, [isOpen, onClose]);
 
   if (!isOpen || !compra) return null;
-
-  const imprimir = () => {
-    if (!ticketRef.current) return;
-    const w = window.open('', '_blank', 'width=420,height=700');
-    if (!w) return;
-    w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante ${codigoReferencia(compra.entradaId)}</title>
-      <style>body{margin:0;padding:16px;background:#fff;display:flex;justify-content:center}@page{margin:8mm}</style></head>
-      <body>${ticketRef.current.outerHTML}</body></html>`);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 300);
-  };
 
   return (
     <>
@@ -165,24 +240,15 @@ const BoletaTicketModal = ({ isOpen, onClose, compra }) => {
         display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '24px 12px', pointerEvents: 'none',
       }}>
         <div style={{ width: 'min(380px, 100%)', pointerEvents: 'auto' }}>
-          <BoletaTicket compra={compra} innerRef={ticketRef} />
+          <BoletaTicket compra={compra} acciones />
 
-          <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-            <button
-              type="button"
-              onClick={imprimir}
-              style={{ flex: 1, border: 'none', borderRadius: '10px', padding: '10px', fontWeight: 700, background: '#6A8899', color: '#fff', cursor: 'pointer' }}
-            >
-              Imprimir
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{ flex: 1, border: '1px solid rgba(255,255,255,0.5)', borderRadius: '10px', padding: '10px', fontWeight: 600, background: 'rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer' }}
-            >
-              Cerrar
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ width: '100%', marginTop: '8px', border: '1px solid rgba(255,255,255,0.5)', borderRadius: '10px', padding: '9px', fontWeight: 600, background: 'rgba(255,255,255,0.15)', color: '#fff', cursor: 'pointer' }}
+          >
+            Cerrar
+          </button>
         </div>
       </div>
     </>
