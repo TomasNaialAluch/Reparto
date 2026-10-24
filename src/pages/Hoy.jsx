@@ -20,7 +20,7 @@ import DeudoresBloque from '../components/hoy/DeudoresBloque';
 import AlarmasAgenda from '../components/hoy/AlarmasAgenda';
 import { useAgenda } from '../hooks/useAgenda';
 import ConfirmModal from '../components/ConfirmModal';
-import { IconPlus } from '../components/gestionSemanal/icons';
+import { IconChevronLeft, IconChevronRight, IconPlus } from '../components/gestionSemanal/icons';
 import './Hoy.css';
 
 const capitalizar = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -252,15 +252,20 @@ const Hoy = () => {
             {capitalizar(fechaLarga(fecha))}
           </h1>
         </div>
-        <button type="button" style={{ ...chip(), background: '#fff', padding: '6px 11px' }} onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">◀</button>
-        <input
-          type="date"
-          className="form-control form-control-sm"
-          style={{ width: 'auto', borderRadius: 999, borderColor: 'var(--color-primary-border)', color: '#3a5060' }}
-          value={fecha}
-          onChange={(e) => e.target.value && setFecha(e.target.value)}
-        />
-        <button type="button" style={{ ...chip(), background: '#fff', padding: '6px 11px' }} onClick={() => setFecha(sumarDias(fecha, 1))} aria-label="Día siguiente">▶</button>
+        <div className="hoy-fecha">
+          <button type="button" className="hoy-fecha__flecha" onClick={() => setFecha(sumarDias(fecha, -1))} aria-label="Día anterior">
+            <IconChevronLeft size={16} />
+          </button>
+          <input
+            type="date"
+            className="hoy-fecha__input"
+            value={fecha}
+            onChange={(e) => e.target.value && setFecha(e.target.value)}
+          />
+          <button type="button" className="hoy-fecha__flecha" onClick={() => setFecha(sumarDias(fecha, 1))} aria-label="Día siguiente">
+            <IconChevronRight size={16} />
+          </button>
+        </div>
         {!esHoy && (
           <button type="button" style={chip(true)} onClick={() => setFecha(hoy)}>Hoy</button>
         )}
