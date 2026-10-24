@@ -50,6 +50,12 @@ const KgRenglon = ({ valor, disabled, onGuardar }) => {
   );
 };
 
+/** Suma los kg anotados ("3,5" o "3.5"); ignora lo que no sea número. */
+const sumarKg = (renglones) => renglones.reduce((acc, r) => {
+  const n = parseFloat(String(r.kg || '').replace(',', '.'));
+  return Number.isFinite(n) ? acc + n : acc;
+}, 0);
+
 const Bloque = ({ pedido, acciones }) => {
   const [texto, setTexto] = useState('');
   const [confirmaBorrar, setConfirmaBorrar] = useState(false);
@@ -58,6 +64,7 @@ const Bloque = ({ pedido, acciones }) => {
   const hechos = renglones.filter((r) => r.hecha).length;
   const estado = ESTADOS[pedido.estado] || ESTADOS.pendiente;
   const entregado = pedido.estado === 'entregado';
+  const totalKg = sumarKg(renglones);
 
   const agregar = async () => {
     if (!texto.trim()) return;
@@ -89,7 +96,9 @@ const Bloque = ({ pedido, acciones }) => {
         </span>
       </div>
       {renglones.length > 0 && (
-        <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{hechos}/{renglones.length} armados</div>
+        <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>{hechos}/{renglones.length} armados
+          {totalKg > 0 && <strong style={{ marginLeft: 8, color: '#3a5060' }}>{totalKg.toLocaleString('es-AR', { maximumFractionDigits: 2 })} kg</strong>}
+        </div>
       )}
 
       <div style={{ marginTop: 6 }}>
