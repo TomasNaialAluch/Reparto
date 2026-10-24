@@ -96,6 +96,15 @@ export const usePedidos = (fecha) => {
     [editarRenglones]
   );
 
+  /** Anota los kg de un renglón (texto libre: "3,5"); vacío lo borra. */
+  const fijarKgRenglon = useCallback(
+    (pedidoId, renglonId, kg) => editarRenglones(
+      pedidoId,
+      (r) => r.map((x) => (x.id === renglonId ? { ...x, kg: String(kg ?? '').trim() } : x))
+    ),
+    [editarRenglones]
+  );
+
   const quitarRenglon = useCallback(
     (pedidoId, renglonId) => editarRenglones(pedidoId, (r) => r.filter((x) => x.id !== renglonId)),
     [editarRenglones]
@@ -126,6 +135,6 @@ export const usePedidos = (fecha) => {
 
   return {
     pedidos, loading, error,
-    crearPedido, agregarRenglon, alternarRenglon, quitarRenglon, marcarEntregado, eliminarPedido, renombrarPedido,
+    crearPedido, agregarRenglon, alternarRenglon, fijarKgRenglon, quitarRenglon, marcarEntregado, eliminarPedido, renombrarPedido,
   };
 };

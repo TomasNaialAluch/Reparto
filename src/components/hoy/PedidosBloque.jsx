@@ -16,6 +16,40 @@ const ESTADOS = {
   entregado: { texto: 'entregado', fondo: '#e5e7eb', color: '#4b5563' },
 };
 
+/** Cuadradito de kg a la derecha del renglón: se anota a medida que se arma, para facturar después. */
+const KgRenglon = ({ valor, disabled, onGuardar }) => {
+  const [texto, setTexto] = useState(valor || '');
+  const [editando, setEditando] = useState(false);
+  const mostrado = editando ? texto : (valor || '');
+
+  const guardar = () => {
+    setEditando(false);
+    if (texto.trim() === (valor || '')) return;
+    Promise.resolve(onGuardar(texto)).catch((err) => { console.error(err); setTexto(valor || ''); });
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      aria-label="Kg"
+      title="Kg"
+      placeholder="kg"
+      disabled={disabled}
+      value={mostrado}
+      autoComplete="off"
+      onFocus={() => { setTexto(valor || ''); setEditando(true); }}
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={guardar}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+      style={{
+        width: 54, flexShrink: 0, textAlign: 'right', padding: '2px 6px', borderRadius: 6, fontSize: '0.85rem',
+        border: '1px solid var(--color-primary-border)', background: disabled ? 'transparent' : '#fff', outline: 'none',
+      }}
+    />
+  );
+};
+
 const Bloque = ({ pedido, acciones }) => {
   const [texto, setTexto] = useState('');
   const [confirmaBorrar, setConfirmaBorrar] = useState(false);
@@ -111,6 +145,13 @@ const Bloque = ({ pedido, acciones }) => {
             >
               {r.texto}
             </button>
+            {(!entregado || r.kg) && (
+              <KgRenglon
+                valor={r.kg}
+                disabled={entregado}
+                onGuardar={(kg) => acciones.fijarKgRenglon(pedido.id, r.id, kg)}
+              />
+            )}
             {!entregado && (
               <button
                 type="button"
