@@ -16,6 +16,7 @@ import IngresarMercaderiaModal from '../components/hoy/IngresarMercaderiaModal';
 import AgendaBloque from '../components/hoy/AgendaBloque';
 import PedidosBloque from '../components/hoy/PedidosBloque';
 import { usePedidos } from '../hooks/usePedidos';
+import DeudoresBloque from '../components/hoy/DeudoresBloque';
 import AlarmasAgenda from '../components/hoy/AlarmasAgenda';
 import { useAgenda } from '../hooks/useAgenda';
 import ConfirmModal from '../components/ConfirmModal';
@@ -406,7 +407,7 @@ const Hoy = () => {
       </div>
 
       <aside className="hoy-side">
-        <ZonaReservada titulo="Deudores" detalle="Quiénes deben, de reparto, saldo y a mano (Fase 7)" />
+        <DeudoresBloque buscarExacto={buscarExacto} agenda={agendaHoy} />
         <ZonaReservada titulo="Caja" detalle="Fondo y vueltos del día" />
       </aside>
       </div>

@@ -225,7 +225,7 @@ Leer: [8. Pedidos para armar](README-PAGINA-HOY.md#8-dónde-vive-en-la-app-la-p�
 
 ---
 
-## Fase 7 — Deudores  ⏸
+## Fase 7 — Deudores  🟡
 
 **Antes de empezar:** cerrar el detalle. Leer [8. Deudores](README-PAGINA-HOY.md#8-dónde-vive-en-la-app-la-página-del-día) y [10. Preguntas abiertas — Deudores](README-PAGINA-HOY.md#10-preguntas-abiertas).
 
@@ -235,6 +235,13 @@ Leer: [8. Pedidos para armar](README-PAGINA-HOY.md#8-dónde-vive-en-la-app-la-p�
 - A definir: qué pasa al cobrar, si lo anotado a mano es deuda real o recordatorio, y deudas con fecha prometida ("mañana").
 
 **Listo cuando:** el cuadro muestra los tres orígenes sin duplicados y cobrar actualiza el origen correcto.
+
+**Estado:** 🟡 primera versión de solo lectura (`DeudoresBloque.jsx`, `useDeudores.js`, `utils/deudores.js`), sin probar con datos reales.
+
+- **A mano** sale de Gestión de Deudas (`deudaPersonas` + movimientos), **Reparto** de lo que falta cobrar en los repartos, **Saldo** del último saldo de cada cliente si es a favor del negocio (> 0).
+- Un contacto se une por nombre/alias exacto y se muestra una vez, con el desglose al tocarlo.
+- *Cobrar* no se hace desde acá: se cobra en el origen y el cuadro se actualiza solo. El botón **cobrar** solo agrega «cobrar a …» a la agenda de hoy.
+- *Supuestos a confirmar:* que `finalBalance > 0` en Saldo es plata que nos deben, y que los repartos viejos sin cobrar siguen contando.
 
 ---
 
