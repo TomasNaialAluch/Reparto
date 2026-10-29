@@ -455,7 +455,7 @@ const PrintDocument = ({ data, type, onClose }) => {
             <div className="print-section-title">Boletas Vendidas:</div>
             {boletas.map((b, i) => (
               <div key={i} className="print-item">
-                Boleta {i + 1} ({b.fecha}): {formatCurrency(parseFloat(b.monto) || 0)}
+                Boleta {i + 1} ({b.fecha}){b.descripcion ? ` - ${b.descripcion}` : ''}: {formatCurrency(parseFloat(b.monto) || 0)}
               </div>
             ))}
             <div className="print-subtotal">

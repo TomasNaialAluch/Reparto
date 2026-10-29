@@ -35,7 +35,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
   const [formData, setFormData] = useState({
     nombreCliente: '',
     transferencias: [{ descripcion: '', monto: '' }],
-    boletas: [{ fecha: '', monto: '' }]
+    boletas: [{ fecha: '', descripcion: '', monto: '' }]
   });
 
   useEffect(() => {
@@ -46,8 +46,8 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
           ? transferencia.transferencias.map(t => ({ descripcion: t.descripcion || '', monto: formatCurrencyNoSymbol(parseFloat(t.monto) || 0) }))
           : [{ descripcion: '', monto: '' }],
         boletas: transferencia.boletas?.length > 0
-          ? transferencia.boletas.map(b => ({ fecha: b.fecha || '', monto: formatCurrencyNoSymbol(parseFloat(b.monto) || 0) }))
-          : [{ fecha: getLocalDateString(), monto: '' }]
+          ? transferencia.boletas.map(b => ({ fecha: b.fecha || '', descripcion: b.descripcion || '', monto: formatCurrencyNoSymbol(parseFloat(b.monto) || 0) }))
+          : [{ fecha: getLocalDateString(), descripcion: '', monto: '' }]
       });
     }
   }, [isOpen, transferencia]);
@@ -61,7 +61,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
   const updateTransferenciaRow = (i, field, value) => setFormData(p => ({ ...p, transferencias: p.transferencias.map((t, idx) => idx === i ? { ...t, [field]: value } : t) }));
   const removeTransferenciaRow = (i) => { if (formData.transferencias.length > 1) setFormData(p => ({ ...p, transferencias: p.transferencias.filter((_, idx) => idx !== i) })); };
 
-  const addBoleta = () => setFormData(p => ({ ...p, boletas: [...p.boletas, { fecha: getLocalDateString(), monto: '' }] }));
+  const addBoleta = () => setFormData(p => ({ ...p, boletas: [...p.boletas, { fecha: getLocalDateString(), descripcion: '', monto: '' }] }));
   const updateBoleta = (i, field, value) => setFormData(p => ({ ...p, boletas: p.boletas.map((b, idx) => idx === i ? { ...b, [field]: value } : b) }));
   const removeBoleta = (i) => { if (formData.boletas.length > 1) setFormData(p => ({ ...p, boletas: p.boletas.filter((_, idx) => idx !== i) })); };
 
@@ -82,7 +82,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
     onSave(transferencia.id, {
       nombreCliente: formData.nombreCliente.trim(),
       transferencias: formData.transferencias.filter(t => parseCurrencyValue(t.monto) > 0).map(t => ({ descripcion: t.descripcion.trim(), monto: parseCurrencyValue(t.monto).toString() })),
-      boletas: formData.boletas.filter(b => b.fecha && parseCurrencyValue(b.monto) > 0).map(b => ({ fecha: b.fecha, monto: parseCurrencyValue(b.monto).toString() })),
+      boletas: formData.boletas.filter(b => b.fecha && parseCurrencyValue(b.monto) > 0).map(b => ({ fecha: b.fecha, descripcion: (b.descripcion || '').trim(), monto: parseCurrencyValue(b.monto).toString() })),
       totalTransferencias, totalBoletas, saldoFinal,
       fecha: transferencia.fecha || getLocalDateString()
     });
@@ -147,7 +147,7 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
             <div style={{ fontSize: '0.7rem', color: '#6c757d', marginBottom: '8px' }}>Dinero que le debés al cliente</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {formData.boletas.map((b, i) => (
-                <div key={i} style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px', borderLeft: '2px solid rgba(230,168,23,0.35)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div key={i} style={{ background: '#f8f9fa', borderRadius: '8px', padding: '8px', borderLeft: '2px solid rgba(230,168,23,0.35)', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                   <input type="date"
                     value={b.fecha} onChange={(e) => updateBoleta(i, 'fecha', e.target.value)}
                     style={{ flex: 2, border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
@@ -156,6 +156,9 @@ const EditTransferenciaModal = ({ isOpen, onClose, transferencia, onSave }) => {
                     onBlur={handleCurrencyBlur((val) => updateBoleta(i, 'monto', val))}
                     style={{ flex: 1, border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
                   {formData.boletas.length > 1 && <RemoveBtn onClick={() => removeBoleta(i)} />}
+                  <input type="text" placeholder="Descripción (opcional)"
+                    value={b.descripcion || ''} onChange={(e) => updateBoleta(i, 'descripcion', e.target.value)}
+                    style={{ flexBasis: '100%', border: '1px solid #dee2e6', borderRadius: '6px', padding: '5px 8px', fontSize: '0.82rem', outline: 'none' }} />
                 </div>
               ))}
             </div>

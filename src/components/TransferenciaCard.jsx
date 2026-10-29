@@ -110,7 +110,7 @@ const TransferenciaCard = ({ transferencia, onDelete, onEdit, onPrint }) => {
               ))}
               {transferencia.boletas?.map((b, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', borderRadius: '6px', background: 'rgba(230,168,23,0.08)', borderLeft: '2px solid rgba(230,168,23,0.35)' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#856404' }}>Boleta {i + 1} · {b.fecha}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#856404' }}>Boleta {i + 1} · {b.fecha}{b.descripcion ? ` · ${b.descripcion}` : ''}</span>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#e6a817' }}>{formatCurrency(parseFloat(b.monto) || 0)}</span>
                 </div>
               ))}

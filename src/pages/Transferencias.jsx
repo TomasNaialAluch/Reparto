@@ -22,7 +22,7 @@ const FILTER_OPTIONS = [
 const Transferencias = () => {
   const [clientName, setClientName] = useState('');
   const [transferencias, setTransferencias] = useState([{ descripcion: '', monto: '' }]);
-  const [boletas, setBoletas] = useState([{ fecha: '', monto: '' }]);
+  const [boletas, setBoletas] = useState([{ fecha: '', descripcion: '', monto: '' }]);
   const [summaryData, setSummaryData] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
   
@@ -83,7 +83,7 @@ const Transferencias = () => {
   // Funciones para Boletas
   const addBoleta = () => {
     const today = getLocalDateString();
-    setBoletas([...boletas, { fecha: today, monto: '' }]);
+    setBoletas([...boletas, { fecha: today, descripcion: '', monto: '' }]);
   };
 
   const updateBoleta = (index, field, value) => {
@@ -150,7 +150,7 @@ const Transferencias = () => {
       // Limpiar formulario
       setClientName('');
       setTransferencias([{ descripcion: '', monto: '' }]);
-      setBoletas([{ fecha: getLocalDateString(), monto: '' }]);
+      setBoletas([{ fecha: getLocalDateString(), descripcion: '', monto: '' }]);
       setSummaryData(null);
       setShowSummary(false);
     } catch (error) {
@@ -375,7 +375,8 @@ const Transferencias = () => {
               </div>
               <div style={{ fontSize: '0.72rem', color: '#6c757d', marginBottom: '10px' }}>Dinero que le debés al cliente</div>
               {boletas.map((b, index) => (
-                <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                <div key={index} style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
                   <input type="date" className="form-control"
                     value={b.fecha} onChange={(e) => updateBoleta(index, 'fecha', e.target.value)}
                     style={{ borderRadius: '8px', flex: 2 }} />
@@ -398,6 +399,10 @@ const Transferencias = () => {
                       <IconX size={14} />
                     </button>
                   )}
+                </div>
+                <input type="text" className="form-control" placeholder="Descripción (opcional)"
+                  value={b.descripcion || ''} onChange={(e) => updateBoleta(index, 'descripcion', e.target.value)}
+                  style={{ borderRadius: '8px', fontSize: '0.85rem' }} />
                 </div>
               ))}
               <button type="button" onClick={addBoleta}
@@ -449,7 +454,7 @@ const Transferencias = () => {
                 <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6c757d', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>Boletas Vendidas</div>
                 {summaryData.boletas.map((b, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '6px', background: 'rgba(230,168,23,0.08)', marginBottom: '3px' }}>
-                    <span style={{ fontSize: '0.78rem', color: '#212529' }}>Boleta {i + 1} · {b.fecha}</span>
+                    <span style={{ fontSize: '0.78rem', color: '#212529' }}>Boleta {i + 1} · {b.fecha}{b.descripcion ? ` · ${b.descripcion}` : ''}</span>
                     <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#e6a817' }}>{formatCurrency(parseCurrencyValue(b.monto))}</span>
                   </div>
                 ))}
