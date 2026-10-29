@@ -316,6 +316,15 @@ Surgió de los precios con error de tipeo encontrados en los datos (ej. $6.200.1
 
 ---
 
+## Extras posteriores (octubre 2026)
+
+- **Fusionar proveedores duplicados** desde Mercadería (`src/utils/fusionContactos.js`): une dos contactos y mueve a uno solo sus entradas, saldos y alias. Los cortes de la semana quedan a la vista.
+- **Buscador de cortes** de Mercadería: busca en todas las categorías y muestra a cuál pertenece cada corte.
+- **Comprobante de ingreso:** se puede imprimir y descargar como imagen o PDF (`src/utils/exportarTicket.js`, desde `BoletaTicketModal`), también en Embutidos.
+- **Transferencias:** descripción opcional en cada boleta vendida; se ve en la tarjeta, al editar y en la impresión.
+
+---
+
 ## Pendiente (para retomar)
 
 **Decisiones tuyas**

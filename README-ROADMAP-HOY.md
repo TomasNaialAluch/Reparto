@@ -49,12 +49,12 @@ Plan de trabajo para construir la página **Hoy** (agenda, pesadas, pedidos para
 ✅ Fase 4  Agenda con hora                           ▪▪ (media)
 ✅ Fase 5  Alarmas                                   ▪▪ (media)   con la página abierta
 ✅ Fase 6  Pedidos para armar (a mano)               ▪▪▪ (grande) renglones de texto libre
-⏸ Fase 7  Deudores                                  ▪▪▪ (grande, por definir)
+🟡 Fase 7  Deudores                                  ▪▪▪ (grande)        solo lectura, sin probar
 ⏸ Fase 8  Pedidos por WhatsApp (Twilio)             ▪▪▪ (grande, backend)
 🟡 Fase 9  Extras                                    ▪ (suelta)
 ```
 
-En pantalla, las zonas que todavía no existen (**Deudores** y **Caja**) figuran como **zonas reservadas** con recuadro punteado, para ver el lugar que ocuparán.
+En pantalla, la zona que todavía no existe (**Caja**) figura como **zona reservada** con recuadro punteado, para ver el lugar que ocuparán.
 
 Dependencias:
 
@@ -221,7 +221,14 @@ Leer: [8. Pedidos para armar](README-PAGINA-HOY.md#8-dónde-vive-en-la-app-la-p�
 - **Tachar con un toque**; al tachar todos, el pedido pasa a `armado` solo. Luego *Marcar entregado*.
 - `entregado` se pliega en *Entregados (n)* y se puede reabrir.
 - `origen: 'manual'` ya guardado; las filas por WhatsApp mostrarán 💬 cuando exista la Fase 8.
+- **Kg por renglón:** cuadradito a la derecha de cada renglón para anotar los kg a medida que se arma (texto libre, acepta coma o punto; se guarda en el campo `kg` del renglón). La cabecera del pedido muestra el **total de kg** anotados. En pedidos entregados queda en solo lectura. No se conecta con Facturación: esa parte todavía no está terminada.
 - *Sigue pendiente:* diccionario de siglas, bloque de **Caja** (fondo y vueltos) y descontar de lo pesado.
+
+---
+
+## Extras de pantalla
+
+- **Selector de día** de Hoy: una sola píldora con flechas planas (`‹ fecha ›`) en lugar de los emojis ◀ ▶ y el input de Bootstrap. Estilos en `Hoy.css` (`.hoy-fecha`).
 
 ---
 
