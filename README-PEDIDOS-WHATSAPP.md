@@ -5,6 +5,8 @@
 **Ya construido:**
 - Página `/pedidos` con cuatro pestañas: *Hoy toca*, *Respuestas*, *Programación* y *Conexión* (`src/pages/Pedidos.jsx`, `src/components/pedidos/`).
 - El WhatsApp de cada cliente es el teléfono del contacto (`contacto.telefono`), en la misma ficha de Proveedores y Clientes. Se valida y se pasa a formato `+549…` (`src/utils/whatsapp.js`).
+- **La ficha y la configuración de Pedidos van separadas:** la ficha del cliente (nombre, teléfono, roles, alias, notas) vive en `contactos`; todo lo de Pedidos (días, hora, mensaje, activo, y lo que se vaya sumando) vive en `pedidos_programacion`, atado al cliente por su id. Agregar campos nuevos de Pedidos no toca la ficha.
+- Desde Pedidos se crea un cliente con el mismo modal de Proveedores y Clientes (`src/components/ContactoFormModal.jsx`), que arranca como "Cliente". Al crearlo se abre su programación para configurarlo.
 - Colecciones nuevas: `pedidos_programacion` (un documento por cliente), `pedidos_mensajes` (enviados y recibidos) y `pedidos_config/whatsapp` (proveedor y checklist de la conexión).
 - Una respuesta se revisa y se pasa a pedido `pendiente` de Hoy con el origen indicado. Hasta conectar WhatsApp, las respuestas se cargan con "Simular respuesta".
 

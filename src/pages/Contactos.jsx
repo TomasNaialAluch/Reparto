@@ -5,6 +5,7 @@ import { useDatosCuentas } from '../hooks/useDatosCuentas';
 import { calcularCuenta, nombresSinContacto } from '../utils/cuentaContacto';
 import SelectorContactoModal from '../components/SelectorContactoModal';
 import FichaContactoModal from '../components/FichaContactoModal';
+import ContactoFormModal from '../components/ContactoFormModal';
 import { IconPlus, IconSearch, IconX, IconEdit, IconInbox } from '../components/gestionSemanal/icons';
 
 // Paleta NEWLOOK (ver README-NEWLOOK.md)
@@ -28,18 +29,10 @@ const FILTROS = [
   ['archivados', 'Archivados'],
 ];
 
-const FORM_VACIO = { nombre: '', proveedor: true, cliente: true, telefono: '', alias: '', notas: '' };
-
 const inputStyle = {
   width: '100%', border: '1px solid #ced4da', borderRadius: '8px',
   padding: '8px 12px', fontSize: '0.9rem', outline: 'none', background: '#fff',
 };
-
-const Label = ({ children }) => (
-  <div style={{ fontSize: '0.68rem', fontWeight: 600, color: C.faint, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '5px' }}>
-    {children}
-  </div>
-);
 
 const RolPill = ({ children, activo }) => (
   <span style={{
@@ -60,10 +53,7 @@ const Contactos = () => {
 
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState('todos');
-  const [modal, setModal] = useState(null); // null | { id: string|null }
-  const [form, setForm] = useState(FORM_VACIO);
-  const [errorForm, setErrorForm] = useState('');
-  const [guardando, setGuardando] = useState(false);
+  const [modal, setModal] = useState(null); // null | { contacto: objeto|null (nuevo), nombre: string }
   const [aviso, setAviso] = useState('');
   const [fichaId, setFichaId] = useState(null);
   const {
@@ -114,75 +104,13 @@ const Contactos = () => {
       .sort((a, b) => (a.nombre || '').localeCompare(b.nombre || '', 'es'));
   }, [contactos, busqueda, filtro]);
 
-  const parecidos = useMemo(() => {
-    if (!modal || modal.id || !form.nombre.trim()) return [];
-    return buscarParecidos(form.nombre);
-  }, [modal, form.nombre, buscarParecidos]);
+  const abrirNuevo = () => setModal({ contacto: null, nombre: busqueda.trim() });
 
-  const abrirNuevo = () => {
-    setForm({ ...FORM_VACIO, nombre: busqueda.trim() });
-    setErrorForm('');
-    setModal({ id: null });
-  };
-
-  const abrirEditar = (c) => {
-    setForm({
-      nombre: c.nombre || '',
-      proveedor: !!c.roles?.proveedor,
-      cliente: !!c.roles?.cliente,
-      telefono: c.contacto?.telefono || '',
-      alias: (c.alias || []).join(', '),
-      notas: c.notas || '',
-    });
-    setErrorForm('');
-    setModal({ id: c.id });
-  };
-
-  const cerrar = () => { setModal(null); setErrorForm(''); };
+  const abrirEditar = (c) => setModal({ contacto: c, nombre: '' });
 
   const mostrarAviso = (texto) => {
     setAviso(texto);
     setTimeout(() => setAviso(''), 3500);
-  };
-
-  const guardar = async () => {
-    const nombre = form.nombre.trim();
-    if (!nombre) { setErrorForm('El nombre es obligatorio.'); return; }
-    if (!form.proveedor && !form.cliente) { setErrorForm('Elegí al menos un rol: proveedor o cliente.'); return; }
-
-    const alias = form.alias.split(',').map((a) => a.trim()).filter(Boolean);
-    setGuardando(true);
-    try {
-      if (modal.id) {
-        const res = await actualizarContacto(modal.id, {
-          nombre,
-          roles: { proveedor: form.proveedor, cliente: form.cliente },
-          telefono: form.telefono,
-          notas: form.notas,
-          alias,
-        });
-        if (!res.ok) { setErrorForm(res.motivo); return; }
-        mostrarAviso(`"${nombre}" actualizado`);
-      } else {
-        const existente = buscarExacto(nombre);
-        if (existente) {
-          setErrorForm(existente.activo === false
-            ? `"${existente.nombre}" ya existe pero está archivado. Buscalo en Archivados y reactivalo.`
-            : `Ya existe "${existente.nombre}".`);
-          return;
-        }
-        const creado = await crearContacto(nombre, { proveedor: form.proveedor, cliente: form.cliente });
-        // Datos extra que crearContacto no recibe: se completan a continuación.
-        await actualizarContacto(creado.id, { telefono: form.telefono, notas: form.notas, alias });
-        mostrarAviso(`"${nombre}" creado`);
-      }
-      cerrar();
-    } catch (e) {
-      console.error('Error al guardar contacto:', e);
-      setErrorForm('No se pudo guardar. Probá de nuevo.');
-    } finally {
-      setGuardando(false);
-    }
   };
 
   const crearDesdeNombre = async (item) => {
@@ -451,132 +379,16 @@ const Contactos = () => {
 
       {/* Modal crear / editar */}
       {modal && (
-        <>
-          <div onClick={cerrar} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(2px)', zIndex: 1050 }} />
-          <div style={{
-            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            width: 'min(520px, 95vw)', maxHeight: '90vh', background: '#fff', borderRadius: '16px',
-            boxShadow: '0 24px 48px rgba(0,0,0,0.18)', zIndex: 1051, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-          }}>
-            <div style={{ padding: '18px 22px 14px', borderBottom: `1px solid ${C.borderSoft}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: C.faint, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>
-                  {modal.id ? 'Editar' : 'Nuevo'}
-                </div>
-                <div style={{ fontWeight: 700, fontSize: '1rem', color: C.text }}>
-                  {modal.id ? (form.nombre || 'Contacto') : 'Proveedor o cliente'}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={cerrar}
-                style={{ border: 'none', background: '#f3f4f6', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.muted }}
-              >
-                <IconX size={14} />
-              </button>
-            </div>
-
-            <div style={{ padding: '18px 22px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <Label>Nombre</Label>
-                <input
-                  type="text" autoFocus style={inputStyle} value={form.nombre}
-                  onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                  onKeyDown={(e) => e.key === 'Enter' && guardar()}
-                  placeholder="Ej: Tito"
-                />
-                {parecidos.length > 0 && (
-                  <div style={{ marginTop: '6px', background: 'rgba(255,209,102,0.18)', color: '#7a5000', borderRadius: '8px', padding: '6px 10px', fontSize: '0.78rem' }}>
-                    Se parece a: {parecidos.map((p) => p.nombre).join(', ')}. Revisá que no sea la misma persona.
-                  </div>
-                )}
-                {modal.id && (
-                  <div style={{ marginTop: '6px', fontSize: '0.72rem', color: C.faint }}>
-                    Las entradas ya cargadas conservan el nombre con el que se guardaron.
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <Label>Es</Label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {[['proveedor', 'Proveedor'], ['cliente', 'Cliente']].map(([clave, etiqueta]) => {
-                    const on = form[clave];
-                    return (
-                      <button
-                        key={clave}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, [clave]: !f[clave] }))}
-                        style={{
-                          flex: 1, borderRadius: '8px', padding: '9px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
-                          border: `1px solid ${on ? C.primary : C.borderSoft}`,
-                          background: on ? C.primarySoft : 'transparent',
-                          color: on ? '#3a5060' : C.muted,
-                        }}
-                      >
-                        {etiqueta}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div style={{ marginTop: '5px', fontSize: '0.72rem', color: C.faint }}>
-                  Puede ser las dos cosas: es una sola persona o empresa.
-                </div>
-              </div>
-
-              <div>
-                <Label>Teléfono (opcional)</Label>
-                <input
-                  type="text" style={inputStyle} value={form.telefono}
-                  onChange={(e) => setForm((f) => ({ ...f, telefono: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <Label>Otros nombres (opcional)</Label>
-                <input
-                  type="text" style={inputStyle} value={form.alias}
-                  onChange={(e) => setForm((f) => ({ ...f, alias: e.target.value }))}
-                  placeholder="Separados por coma. Ej: Tito Carnes, Tito C."
-                />
-              </div>
-
-              <div>
-                <Label>Notas (opcional)</Label>
-                <textarea
-                  rows={3} style={{ ...inputStyle, resize: 'vertical' }} value={form.notas}
-                  onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))}
-                />
-              </div>
-
-              {errorForm && (
-                <div style={{ background: 'rgba(220,53,69,0.08)', color: '#8b1c26', borderRadius: '8px', padding: '8px 12px', fontSize: '0.82rem' }}>
-                  {errorForm}
-                </div>
-              )}
-            </div>
-
-            <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.borderSoft}`, display: 'flex', gap: '10px' }}>
-              <button
-                type="button" onClick={cerrar}
-                style={{ flex: 1, border: '1px solid #dee2e6', background: 'transparent', color: C.muted, borderRadius: '10px', padding: '10px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button" onClick={guardar} disabled={guardando || !form.nombre.trim()}
-                style={{
-                  flex: 2, border: 'none', borderRadius: '10px', padding: '10px', fontWeight: 700,
-                  background: guardando || !form.nombre.trim() ? '#e9ecef' : C.primary,
-                  color: guardando || !form.nombre.trim() ? C.faint : '#fff',
-                  cursor: guardando || !form.nombre.trim() ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {guardando ? 'Guardando…' : (modal.id ? 'Guardar cambios' : 'Crear')}
-              </button>
-            </div>
-          </div>
-        </>
+        <ContactoFormModal
+          contacto={modal.contacto}
+          nombreInicial={modal.nombre}
+          buscarExacto={buscarExacto}
+          buscarParecidos={buscarParecidos}
+          crearContacto={crearContacto}
+          actualizarContacto={actualizarContacto}
+          onClose={() => setModal(null)}
+          onGuardado={({ nombre, creado }) => mostrarAviso(`"${nombre}" ${creado ? 'creado' : 'actualizado'}`)}
+        />
       )}
     </div>
   );

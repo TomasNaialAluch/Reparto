@@ -15,8 +15,8 @@ const EstadoTelefono = ({ telefono }) => {
   return <span style={ETIQUETAS.ok}>{normalizado}</span>;
 };
 
-const FilaCliente = ({ cliente, programacion, onGuardar, onGuardarTelefono, onQuitar }) => {
-  const [abierto, setAbierto] = useState(false);
+const FilaCliente = ({ cliente, programacion, abrirAlInicio, onGuardar, onGuardarTelefono, onQuitar }) => {
+  const [abierto, setAbierto] = useState(!!abrirAlInicio);
   const [dias, setDias] = useState(programacion?.dias || []);
   const [hora, setHora] = useState(programacion?.hora || '08:00');
   const [mensaje, setMensaje] = useState(programacion?.mensaje || MENSAJE_BASE);
@@ -158,7 +158,7 @@ const FilaCliente = ({ cliente, programacion, onGuardar, onGuardarTelefono, onQu
   );
 };
 
-const ProgramacionTab = ({ clientes, porCliente, onGuardar, onGuardarTelefono, onQuitar }) => {
+const ProgramacionTab = ({ clientes, porCliente, abrirId, onGuardar, onGuardarTelefono, onQuitar }) => {
   const [busqueda, setBusqueda] = useState('');
 
   const lista = useMemo(() => {
@@ -188,7 +188,7 @@ const ProgramacionTab = ({ clientes, porCliente, onGuardar, onGuardarTelefono, o
         </span>
       </div>
       <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>
-        ¿Falta un cliente? Se crea en <Link to="/contactos">Proveedores y Clientes</Link> y aparece acá solo.
+        ¿Falta un cliente? Creálo con “Nuevo cliente” (arriba) y aparece acá solo. La ficha completa se edita en <Link to="/contactos">Proveedores y Clientes</Link>.
       </div>
       {lista.length === 0 && <div style={{ color: '#6b7280' }}>No hay clientes que coincidan.</div>}
       {lista.map((c) => (
@@ -196,6 +196,7 @@ const ProgramacionTab = ({ clientes, porCliente, onGuardar, onGuardarTelefono, o
           key={c.id}
           cliente={c}
           programacion={porCliente[c.id]}
+          abrirAlInicio={c.id === abrirId}
           onGuardar={onGuardar}
           onGuardarTelefono={onGuardarTelefono}
           onQuitar={onQuitar}

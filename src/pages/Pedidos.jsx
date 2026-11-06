@@ -11,7 +11,12 @@ import HoyTocaTab from '../components/pedidos/HoyTocaTab';
 import RespuestasTab from '../components/pedidos/RespuestasTab';
 import ProgramacionTab from '../components/pedidos/ProgramacionTab';
 import ConexionTab from '../components/pedidos/ConexionTab';
+import ContactoFormModal from '../components/ContactoFormModal';
+import { IconPlus } from '../components/gestionSemanal/icons';
 import { ETIQUETAS, chip } from '../components/pedidos/estilos';
+
+// Desde Pedidos casi siempre se crea un cliente: arranca con "Cliente" prendido y "Proveedor" apagado.
+const ROLES_NUEVO = { proveedor: false, cliente: true };
 
 const PESTANAS = [
   { clave: 'hoy', titulo: 'Hoy toca' },
@@ -23,8 +28,12 @@ const PESTANAS = [
 const Pedidos = () => {
   const hoy = getLocalDateString();
   const [pestana, setPestana] = useState('hoy');
+  const [creando, setCreando] = useState(false);
+  const [abrirId, setAbrirId] = useState(null); // cliente recién creado: se abre su programación
 
-  const { activos, actualizarContacto, loading: cargandoContactos } = useContactos();
+  const {
+    activos, actualizarContacto, buscarExacto, buscarParecidos, crearContacto, loading: cargandoContactos,
+  } = useContactos();
   const clientes = useMemo(() => activos.filter((c) => c.roles?.cliente), [activos]);
   const clientesPorId = useMemo(() => Object.fromEntries(clientes.map((c) => [c.id, c])), [clientes]);
 
@@ -44,7 +53,14 @@ const Pedidos = () => {
     await mensajes.marcarProcesado(mensaje.id, pedidoId);
   };
 
-  const simularRespuesta = (cliente, texto) => mensajes.registrarMensaje({
+  // Si lo creado es cliente, se pasa a Programación con su ficha abierta para configurarlo.
+  const alCrearContacto = ({ id, roles }) => {
+    if (!roles.cliente) return;
+    setAbrirId(id);
+    setPestana('programacion');
+  };
+
+  const simularRespuesta =(cliente, texto) => mensajes.registrarMensaje({
     clienteId: cliente.id,
     cliente: cliente.nombre,
     direccion: 'entrante',
@@ -58,11 +74,16 @@ const Pedidos = () => {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px 24px' }}>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#333', marginBottom: 14 }}>Pedidos por WhatsApp</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#333', margin: 0 }}>Pedidos por WhatsApp</h1>
+        <button type="button" style={chip(true)} onClick={() => setCreando(true)}>
+          <IconPlus size={13} /> Nuevo cliente
+        </button>
+      </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         {PESTANAS.map((p) => (
-          <button key={p.clave} type="button" style={chip(pestana === p.clave)} onClick={() => setPestana(p.clave)}>
+          <button key={p.clave} type="button" style={chip(pestana === p.clave)} onClick={() => { setPestana(p.clave); setAbrirId(null); }}>
             {p.titulo}
             {p.clave === 'respuestas' && mensajes.entrantesNuevos.length > 0 && (
               <span style={{ ...ETIQUETAS.aviso, marginLeft: 4 }}>{mensajes.entrantesNuevos.length}</span>
@@ -100,6 +121,7 @@ const Pedidos = () => {
         <ProgramacionTab
           clientes={clientes}
           porCliente={programacion.porCliente}
+          abrirId={abrirId}
           onGuardar={programacion.guardar}
           onGuardarTelefono={(id, telefono) => actualizarContacto(id, { telefono })}
           onQuitar={programacion.quitar}
@@ -111,6 +133,18 @@ const Pedidos = () => {
           config={config.config}
           onElegirProveedor={(proveedor) => config.guardar({ proveedor })}
           onMarcarPaso={config.marcarPaso}
+        />
+      )}
+
+      {creando && (
+        <ContactoFormModal
+          rolesIniciales={ROLES_NUEVO}
+          buscarExacto={buscarExacto}
+          buscarParecidos={buscarParecidos}
+          crearContacto={crearContacto}
+          actualizarContacto={actualizarContacto}
+          onClose={() => setCreando(false)}
+          onGuardado={alCrearContacto}
         />
       )}
     </div>
