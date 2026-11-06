@@ -28,6 +28,7 @@ import Facturacion from './pages/Facturacion';
 import TablasPrecios from './pages/TablasPrecios';
 import Contactos from './pages/Contactos';
 import Hoy from './pages/Hoy';
+import Pedidos from './pages/Pedidos';
 
 // Firebase Provider
 import { FirebaseProvider, useFirebase } from './contexts/FirebaseContext';
@@ -93,6 +94,12 @@ const AppContent = () => {
               <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
                 <Navbar />
                 <Hoy />
+              </div>
+            } />
+            <Route path="/pedidos" element={
+              <div style={{ backgroundColor: 'rgba(106,136,153,0.08)', minHeight: '100vh', paddingBottom: PAGE_BOTTOM_PADDING }}>
+                <Navbar />
+                <Pedidos />
               </div>
             } />
             <Route path="/mi-reparto" element={

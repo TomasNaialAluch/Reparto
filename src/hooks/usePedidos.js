@@ -48,17 +48,19 @@ export const usePedidos = (fecha) => {
     [docs]
   );
 
-  const crearPedido = useCallback(async ({ cliente, clienteId = null }) => {
+  const crearPedido = useCallback(async ({
+    cliente, clienteId = null, origen = 'manual', renglones = [], notas = '',
+  }) => {
     const nombre = String(cliente || '').trim();
     if (!nombre) throw new Error('Falta el nombre');
     const ref = await addDoc(collection(db, COLECCION), {
       fecha,
       cliente: nombre,
       clienteId,
-      renglones: [],
+      renglones: renglones.map((texto) => ({ id: generarIdPesada('lin'), texto, hecha: false })),
       estado: 'pendiente',
-      origen: 'manual',
-      notas: '',
+      origen,
+      notas,
       creada: new Date().toISOString(),
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

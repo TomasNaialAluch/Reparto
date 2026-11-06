@@ -7,6 +7,7 @@ import {
   IconClipboard,
   IconReceipt,
   IconCalendar,
+  IconInbox,
 } from '../components/gestionSemanal/icons';
 
 export const NAV_ITEMS = [
@@ -15,6 +16,12 @@ export const NAV_ITEMS = [
     label: 'Hoy',
     desc: 'Pesadas del día, agenda, pedidos y deudores',
     Icon: IconCalendar,
+  },
+  {
+    path: '/pedidos',
+    label: 'Pedidos',
+    desc: 'Mensajes de WhatsApp a clientes y pedidos que llegan',
+    Icon: IconInbox,
   },
   {
     path: '/reparto',
