@@ -59,7 +59,8 @@ export default function MercaderiaTab({
   const [fusionBusqueda, setFusionBusqueda] = useState('');
   const [fusionando, setFusionando] = useState(false);
   // Control de precios: aviso cuando un precio por kg es mucho mayor al habitual
-  const { referenciaPara, usoCortesDe, usoGlobalCortes } = usePreciosReferencia();
+  const { referenciaPara, usoCortesDe, usoGlobalCortes, ultimoPrecioPara } = usePreciosReferencia();
+  const [showWarningDuplicado, setShowWarningDuplicado] = useState(false);
   // Catálogo de cortes (persistente) y cuáles se muestran para el proveedor elegido
   const {
     cortes: catalogoCortes, activos: cortesActivos, categorias: categoriasCortes,
@@ -196,6 +197,27 @@ export default function MercaderiaTab({
     ocultos.sort((x, y) => (usoGlobalCortes[normalizarNombre(y)] || 0) - (usoGlobalCortes[normalizarNombre(x)] || 0));
     return { cortesVisibles: visibles, cortesOcultos: ocultos };
   }, [formMercaderia.proveedor, formMercaderia.proveedorId, formMercaderia.cortes, cortesActivos, usoCortesDe, usoGlobalCortes, semanaActiva?.mercaderia, contactos]);
+
+  // Al elegir proveedor, prellenar el $/kg con el último precio que se le pagó (sin pisar lo ya escrito)
+  useEffect(() => {
+    const proveedor = formMercaderia.proveedor?.trim();
+    if (!proveedor) return;
+    setFormMercaderia((prev) => {
+      if ((prev.proveedor || '').trim() !== proveedor) return prev;
+      const cortes = { ...prev.cortes };
+      let cambio = false;
+      cortesVisibles.forEach((corte) => {
+        if (cortes[corte]?.precioKg) return;
+        const precio = ultimoPrecioPara(prev.proveedorId || null, proveedor, corte);
+        if (precio) {
+          cortes[corte] = { ...cortes[corte], kg: cortes[corte]?.kg || '', precioKg: String(precio) };
+          cambio = true;
+        }
+      });
+      return cambio ? { ...prev, cortes } : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formMercaderia.proveedor, formMercaderia.proveedorId, ultimoPrecioPara]);
 
   // Buscador y filtro por categoría: al filtrar se busca en TODO el catálogo (no sólo lo habitual).
   // Los cortes con datos cargados siempre quedan a la vista.
@@ -478,6 +500,11 @@ export default function MercaderiaTab({
         return;
       }
 
+      if (!opciones.omitirDuplicado && esEntradaDuplicada(formMercaderia.dia, proveedor, formMercaderia.proveedorId || null, cortesConDatos)) {
+        setShowWarningDuplicado(true);
+        return;
+      }
+
       // Control de precios: un precio por kg muy por encima del habitual frena el guardado.
       if (!opciones.omitirControlPrecios) {
         const atipicos = detectarPreciosAtipicos(
@@ -532,6 +559,21 @@ export default function MercaderiaTab({
     } catch (err) {
       addNotification('Error al agregar mercadería', 'error');
     }
+  };
+
+  // Misma entrada ya cargada esta semana (día, proveedor, cortes, kilos y precios iguales)
+  const esEntradaDuplicada = (dia, proveedor, proveedorId, cortes) => {
+    const firma = (lista) => lista
+      .map((c) => `${normalizarNombre(c.corte)}|${Number(c.kg) || 0}|${Number(c.precioKg) || 0}`)
+      .sort()
+      .join(';');
+    const nueva = firma(cortes);
+    return (semanaActiva?.mercaderia || []).some((e) => {
+      const mismoProveedor = proveedorId && e.proveedorId
+        ? e.proveedorId === proveedorId
+        : normalizarNombre(e.proveedor) === normalizarNombre(proveedor);
+      return e.dia === dia && mismoProveedor && firma(e.cortes || []) === nueva;
+    });
   };
 
   const calcularTotalesMercaderia = () => {
@@ -1904,6 +1946,20 @@ export default function MercaderiaTab({
           </div>
         </>
       )}
+
+      <ConfirmModal
+        isOpen={showWarningDuplicado}
+        onClose={() => setShowWarningDuplicado(false)}
+        onConfirm={() => {
+          setShowWarningDuplicado(false);
+          handleAgregarMercaderia(false, { omitirDuplicado: true });
+        }}
+        title="⚠️ Entrada repetida"
+        message="Ya cargaste una entrada igual (mismo día, proveedor, cortes, kilos y precios). ¿Querés cargarla de nuevo igual?"
+        confirmText="Cargar igual"
+        cancelText="Cancelar"
+        confirmButtonClass="btn-warning"
+      />
 
       <ConfirmModal
         isOpen={showWarningPrecios}

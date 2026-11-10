@@ -102,6 +102,27 @@ export const usePreciosReferencia = () => {
     return tablas.corte[c] || null;
   }, [tablas]);
 
-  return { referenciaPara, usoCortesDe, usoGlobalCortes: tablas.usoGlobal, listo };
+  /** Último precio por kg que se le pagó a ese proveedor por ese corte (null si nunca tuvo precio). */
+  const ultimoPrecioPara = useCallback((proveedorId, proveedorNombre, corte) => {
+    const c = normalizarNombre(corte);
+    const n = normalizarNombre(proveedorNombre);
+    if (!c) return null;
+    // `semanas` viene de la más reciente a la más antigua; dentro de cada semana, la última entrada es la más nueva.
+    for (const s of semanas) {
+      const entradas = s.mercaderia || [];
+      for (let i = entradas.length - 1; i >= 0; i--) {
+        const e = entradas[i];
+        const esDelProveedor = proveedorId && e.proveedorId
+          ? e.proveedorId === proveedorId
+          : normalizarNombre(e.proveedor) === n;
+        if (!esDelProveedor) continue;
+        const item = (e.cortes || []).find((x) => normalizarNombre(x.corte) === c && Number(x.precioKg) > 0);
+        if (item) return Number(item.precioKg);
+      }
+    }
+    return null;
+  }, [semanas]);
+
+  return { ultimoPrecioPara, referenciaPara, usoCortesDe, usoGlobalCortes: tablas.usoGlobal, listo };
 };
 
