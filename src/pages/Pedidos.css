@@ -1,0 +1,96 @@
+/* Pedidos por WhatsApp: estructura responsive y detalles que no se pueden hacer en línea.
+   Escritorio (≥ 992 px): bloque gris con pestañas, como Transferencias y Gestión Semanal.
+   Celular: sin pestañas; las secciones se eligen en el menú lateral y el contenido va directo sobre el fondo.
+   Ver README-PEDIDOS-WHATSAPP.md, sección 6. */
+
+.pedidos-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px 14px 24px;
+}
+
+.pedidos-page input:focus,
+.pedidos-page textarea:focus,
+.pedidos-page select:focus {
+  border-color: #6A8899;
+  box-shadow: 0 0 0 0.2rem rgba(106, 136, 153, 0.15);
+  outline: none;
+}
+
+.pedidos-solo-escritorio { display: none !important; }
+.pedidos-solo-celular { display: flex; }
+
+.pedidos-tabrow { display: none; }
+
+/* Hoy: lista a la izquierda y resumen a la derecha (en celular, resumen debajo) */
+.pedidos-hoy-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.pedidos-fila { flex-wrap: wrap; }
+
+/* Menú lateral (celular) */
+.pedidos-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(.4, 0, .2, 1);
+}
+
+.pedidos-drawer-overlay--abierto {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pedidos-drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1051;
+  width: min(280px, 82vw);
+  background: #fff;
+  border-radius: 0 16px 16px 0;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(-102%);
+  transition: transform 0.28s cubic-bezier(.4, 0, .2, 1);
+}
+
+.pedidos-drawer--abierto { transform: translateX(0); }
+
+@media (min-width: 992px) {
+  .pedidos-solo-escritorio { display: flex !important; }
+  .pedidos-solo-celular { display: none !important; }
+
+  .pedidos-page { padding: 20px 16px 24px; }
+
+  .pedidos-tabrow { display: flex; gap: 4px; }
+
+  .pedidos-bloque {
+    background: #e9ecef;
+    border-radius: 12px;
+    padding: 4px;
+  }
+
+  .pedidos-panel {
+    background: #fff;
+    border-radius: 0 0 9px 9px;
+    padding: 16px;
+  }
+
+  .pedidos-hoy-grid { grid-template-columns: minmax(0, 1fr) 230px; }
+  .pedidos-fila { flex-wrap: nowrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pedidos-drawer,
+  .pedidos-drawer-overlay { transition: none; }
+}

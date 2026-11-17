@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { normalizarNombre } from '../../utils/nombres';
+import { IconPlus } from '../gestionSemanal/icons';
 import {
   DIAS, MENSAJE_BASE, aplicarVariables, normalizarTelefonoAR, resumenDias,
 } from '../../utils/whatsapp';
@@ -158,7 +159,7 @@ const FilaCliente = ({ cliente, programacion, abrirAlInicio, onGuardar, onGuarda
   );
 };
 
-const ProgramacionTab = ({ clientes, porCliente, abrirId, onGuardar, onGuardarTelefono, onQuitar }) => {
+const ProgramacionTab = ({ clientes, porCliente, abrirId, onNuevoCliente, onGuardar, onGuardarTelefono, onQuitar }) => {
   const [busqueda, setBusqueda] = useState('');
 
   const lista = useMemo(() => {
@@ -183,12 +184,15 @@ const ProgramacionTab = ({ clientes, porCliente, abrirId, onGuardar, onGuardarTe
           type="search" placeholder="Buscar cliente…" style={{ ...input, flex: 1, minWidth: 180 }}
           value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
         />
-        <span style={{ fontSize: '0.85rem', color: '#3a5060', fontWeight: 600 }}>
-          {programados} de {clientes.length} clientes con envío programado
-        </span>
+        <button
+          type="button" onClick={onNuevoCliente}
+          style={{ border: '1px solid #ccd3d9', borderRadius: 8, padding: '6px 12px', background: 'transparent', color: '#3a5060', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}
+        >
+          <IconPlus size={13} /> Nuevo cliente
+        </button>
       </div>
-      <div style={{ fontSize: '0.82rem', color: '#6b7280' }}>
-        ¿Falta un cliente? Creálo con “Nuevo cliente” (arriba) y aparece acá solo. La ficha completa se edita en <Link to="/contactos">Proveedores y Clientes</Link>.
+      <div style={{ fontSize: '0.82rem', color: '#6c757d' }}>
+        {programados} de {clientes.length} clientes con envío programado. La ficha completa se edita en <Link to="/contactos">Proveedores y Clientes</Link>.
       </div>
       {lista.length === 0 && <div style={{ color: '#6b7280' }}>No hay clientes que coincidan.</div>}
       {lista.map((c) => (

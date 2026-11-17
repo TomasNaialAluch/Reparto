@@ -286,6 +286,45 @@ export const IconSparkles = ({ size = 14 }) => (
   </svg>
 );
 
+/** Globo de mensaje (Pedidos por WhatsApp: respuestas y pedidos que llegan). */
+export const IconChat = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+export const IconClock = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+export const IconSend = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
+/** Botón hamburguesa del menú lateral en celular. */
+export const IconMenu = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+export const IconUserPlus = ({ size = 14 }) => (
+  <svg {...base(size)}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <line x1="19" y1="8" x2="19" y2="14" />
+    <line x1="22" y1="11" x2="16" y2="11" />
+  </svg>
+);
+
 /** Pelota de fútbol — Tabler Icons "ball-football" (MIT). */
 export const IconFootball = ({ size = 14 }) => (
   <svg

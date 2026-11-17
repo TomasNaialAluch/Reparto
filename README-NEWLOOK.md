@@ -1120,6 +1120,8 @@ import { IconCheck, IconX, IconEdit, IconTrash, IconPlus } from './icons';
 
 Íconos disponibles: `IconPlus`, `IconX`, `IconCheck`, `IconEdit`, `IconTrash`, `IconCalendar`, `IconCash`, `IconMoney`, `IconBank`, `IconCheque`, `IconChart`, `IconClipboard`, `IconCreditCard`, `IconRefresh`, `IconWarning`, `IconPrinter`, `IconUsers`, `IconBox`, `IconSettings`, `IconChevronDown`, `IconLock`, `IconHistory`, `IconEye`, `IconFilter`, `IconArrowLeft`, `IconInfo`, `IconSave`, `IconTrophy`, `IconTrendDown`, `IconDownload`, `IconInbox`.
 
+> `IconChat`, `IconClock`, `IconSend`, `IconMenu` (hamburguesa) e `IconUserPlus` se agregaron con **Pedidos por WhatsApp** (menú lateral en celular, pestañas y alta de cliente). Ver README-PEDIDOS-WHATSAPP.md, sección 6.
+>
 > `IconUsers` … `IconInfo` se agregaron con **Balance Semanal** (sección 12). `IconSave`, `IconTrophy`, `IconTrendDown` con **Mi Reparto** (sección 13). `IconDownload`, `IconInbox` con **Saldo Proveedores** (sección 14). Todos son de propósito general — reutilizar en futuras pantallas.
 
 #### Mapa de reemplazo emoji → ícono
