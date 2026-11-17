@@ -61,3 +61,87 @@ export const aplicarVariables = (plantilla, { nombre = '' } = {}) =>
 /** Respuesta del cliente → renglones de pedido (uno por línea o separados por ";"). */
 export const parsearRenglones = (texto) =>
   String(texto || '').split(/\n|;/).map((s) => s.trim()).filter(Boolean);
+
+// ── Programación con varios envíos por cliente ──────────────────────────────────────────
+
+const pad2 = (n) => String(n).padStart(2, '0');
+const aFecha = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/** Suma días a una fecha YYYY-MM-DD sin pasar por UTC (cuida los cambios de horario). */
+export const sumarDias = (fecha, n) => {
+  const [y, m, d] = fecha.split('-').map(Number);
+  return aFecha(new Date(y, m - 1, d + n));
+};
+
+/**
+ * Lista de envíos de una programación: [{ id, dias, hora, plantillaId? }].
+ * Acepta el formato nuevo (`envios[]`) y el primero, con un solo `dias` + `hora` por cliente.
+ */
+export const enviosDe = (programacion) => {
+  if (!programacion) return [];
+  if (Array.isArray(programacion.envios)) return programacion.envios;
+  if (Array.isArray(programacion.dias) && programacion.dias.length > 0) {
+    return [{ id: 'unico', dias: programacion.dias, hora: programacion.hora || '08:00' }];
+  }
+  return [];
+};
+
+/** ¿Esa fecha está salteada a mano o cae dentro de una pausa (`pausadoHasta`, inclusive)? */
+export const fechaSalteada = (programacion, fecha) =>
+  (programacion?.saltear || []).includes(fecha)
+  || Boolean(programacion?.pausadoHasta && fecha <= programacion.pausadoHasta);
+
+/**
+ * Envíos que tocan entre `desde` y los `dias` siguientes (YYYY-MM-DD), ordenados por fecha y hora.
+ * Respeta `activo`, pausas y fechas salteadas. No mira el consentimiento: eso lo decide el backend.
+ */
+export const proximosEnvios = (programaciones = [], desde, dias = 7) => {
+  const salida = [];
+  for (let i = 0; i < dias; i += 1) {
+    const fecha = sumarDias(desde, i);
+    const dow = diaSemana(fecha);
+    programaciones.forEach((p) => {
+      if (p?.activo === false || fechaSalteada(p, fecha)) return;
+      enviosDe(p).forEach((e) => {
+        if ((e.dias || []).includes(dow)) {
+          salida.push({
+            fecha, hora: e.hora || '08:00', clienteId: p.clienteId || p.id, cliente: p.cliente || '', envioId: e.id,
+          });
+        }
+      });
+    });
+  }
+  return salida.sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+};
+
+const VENTANA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * WhatsApp solo deja escribir con texto libre dentro de las 24 hs del último mensaje del cliente.
+ * Pasado ese tiempo hay que usar una plantilla aprobada. A las 24 hs justas ya no vale.
+ */
+export const estaEnVentana = (ultimoEntrante, ahora = new Date()) => {
+  if (!ultimoEntrante) return false;
+  const t = new Date(ultimoEntrante).getTime();
+  if (Number.isNaN(t)) return false;
+  return new Date(ahora).getTime() - t < VENTANA_MS;
+};
+
+const aMinutos = (hhmm) => {
+  const [h, m] = String(hhmm || '').split(':').map(Number);
+  return h * 60 + (m || 0);
+};
+
+/** ¿Esa hora (HH:MM) cae en el horario de silencio { desde, hasta }? Sirve cuando cruza la medianoche. */
+export const enSilencio = (hora, horario) => {
+  if (!horario?.desde || !horario?.hasta) return false;
+  const h = aMinutos(hora);
+  const d = aMinutos(horario.desde);
+  const a = aMinutos(horario.hasta);
+  if (d === a) return false;
+  return d < a ? h >= d && h < a : h >= d || h < a;
+};
+
+/** Reemplaza {variable} por su valor; las que no vienen quedan vacías. */
+export const resolverVariables = (plantilla, valores = {}) =>
+  String(plantilla ?? '').replace(/\{(\w+)\}/g, (_, clave) => String(valores[clave] ?? ''));
