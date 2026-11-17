@@ -12,13 +12,14 @@ import HoyTocaTab from '../components/pedidos/HoyTocaTab';
 import RespuestasTab from '../components/pedidos/RespuestasTab';
 import ProgramacionTab from '../components/pedidos/ProgramacionTab';
 import ConexionTab from '../components/pedidos/ConexionTab';
+import CatalogoTab from '../components/pedidos/catalogo/CatalogoTab';
 import PedidosEncabezado from '../components/pedidos/PedidosEncabezado';
 import PedidosTabs from '../components/pedidos/PedidosTabs';
 import PedidosMenuLateral from '../components/pedidos/PedidosMenuLateral';
 import { IndicadorConexion } from '../components/pedidos/ui';
 import ContactoFormModal from '../components/ContactoFormModal';
 import {
-  IconCalendar, IconChat, IconClock, IconSettings,
+  IconCalendar, IconChat, IconClipboard, IconClock, IconSettings,
 } from '../components/gestionSemanal/icons';
 import './Pedidos.css';
 
@@ -29,6 +30,7 @@ const PESTANAS = [
   { clave: 'hoy', titulo: 'Hoy', Icono: IconCalendar },
   { clave: 'respuestas', titulo: 'Respuestas', Icono: IconChat },
   { clave: 'programacion', titulo: 'Programación', Icono: IconClock },
+  { clave: 'catalogo', titulo: 'Catálogo', Icono: IconClipboard },
   { clave: 'conexion', titulo: 'Conexión', Icono: IconSettings },
 ];
 
@@ -168,6 +170,8 @@ const Pedidos = () => {
             onQuitar={programacion.quitar}
           />
         )}
+
+        {pestana === 'catalogo' && <CatalogoTab />}
 
         {!cargando && pestana === 'conexion' && (
           <ConexionTab

@@ -78,6 +78,27 @@ export const textoPrecios = (precios = [], actualizado = '') => {
   return [cabecera, '', ...lista.map((p) => `• ${p.corte}: ${plata(p.precioKg)}`)].join('\n');
 };
 
+/**
+ * Precio escrito a mano → número, o NaN si no sirve. Entiende "12500", "12.500", "12500,50" y "$ 12.500".
+ * El punto con exactamente 3 dígitos después es de miles; la coma es decimal.
+ */
+export const parsearPrecio = (texto) => {
+  let t = String(texto ?? '').replace(/[$\s]/g, '');
+  if (!t || /[^\d.,]/.test(t)) return NaN;
+  if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 ? n : NaN;
+};
+
+/** Estado de una promoción para mostrarlo: 'apagada' | 'programada' | 'vencida' | 'vigente'. */
+export const estadoPromocion = (promo, fecha) => {
+  if (promo?.activa === false) return 'apagada';
+  if (promo?.desde && fecha < promo.desde) return 'programada';
+  if (promo?.hasta && fecha > promo.hasta) return 'vencida';
+  return 'vigente';
+};
+
 /** ¿La promoción está activa y dentro de sus fechas (inclusive)? `fecha` es YYYY-MM-DD. */
 export const promocionVigente = (promo, fecha) =>
   Boolean(promo)
