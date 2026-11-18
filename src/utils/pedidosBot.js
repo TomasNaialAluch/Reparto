@@ -33,7 +33,7 @@ const PALABRAS = [
   ['promociones', /\b(promo|promos|promocion|promociones|oferta|ofertas|descuento)\b/],
   ['precios', /\b(precio|precios|cuesta|cuanto sale|lista)\b/],
   ['horarios', /\b(horario|horarios|hora|abren|cierran|ubicacion|direccion|donde estan|donde queda)\b/],
-  ['pedido', /\b(pedido|pedir|encargar|quiero|necesito|mandame)\b/],
+  ['pedido', /\b(pedido|pedir|encargar)\b/],
 ];
 
 /**

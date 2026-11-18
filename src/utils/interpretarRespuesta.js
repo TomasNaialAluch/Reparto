@@ -22,10 +22,10 @@ export const esBaja = (texto) => {
 
 /** "hoy no", "no necesito", "nada por hoy"... */
 export const esSinPedido = (texto) => {
+  // Solo frases completas: "hoy no sé si..." o "hoy no hay 5 kg de nada" NO son "no pido nada".
   const t = normalizar(texto);
-  return /^(hoy )?no( gracias| necesito| hace falta| hay| tengo)?( nada| por hoy| hoy)?$/.test(t)
-    || /^(nada|nada hoy|nada por hoy|por hoy nada|por hoy no|hoy nada)$/.test(t)
-    || /\bhoy no\b/.test(t) && !/\d/.test(t);
+  return /^(hoy )?no( gracias| necesito| hace falta| hay| tengo| preciso| voy a pedir)?( nada| por hoy| hoy)?( gracias)?$/.test(t)
+    || /^(nada|nada hoy|nada por hoy|por hoy nada|por hoy no|hoy nada|no hoy)( gracias)?$/.test(t);
 };
 
 /**
