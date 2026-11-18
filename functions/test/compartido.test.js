@@ -12,7 +12,9 @@ const aqui = dirname(fileURLToPath(import.meta.url));
 test('cada copia compartida está al día', () => {
   for (const nombre of ARCHIVOS) {
     const copia = readFileSync(join(aqui, '..', 'src', 'compartido', `${nombre}.js`), 'utf8');
-    assert.equal(copia, generar(nombre), `${nombre}.js está desactualizado: corré "npm run sync" en functions/`);
+    // Los saltos de línea pueden cambiar según cómo lo guarde git en cada compu: no cuentan como diferencia.
+    const igual = (t) => t.replaceAll('\r\n', '\n');
+    assert.equal(igual(copia), igual(generar(nombre)), `${nombre}.js está desactualizado: corré "npm run sync" en functions/`);
   }
 });
 
